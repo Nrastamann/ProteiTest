@@ -2,16 +2,20 @@
 #include <array>
 #include <charconv>
 #include <cstdint>
+#include <functional>
 #include <iostream>
+#include <ranges>
+#include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <unordered_map>
 #include <variant>
 
 #include "display.hpp"
 
 constexpr size_t kIpAddrOctetAmount{4};
-constexpr size_t kIpAddrOctetSize{3};
+//constexpr size_t kIpAddrOctetSize{3};
 constexpr size_t kVectorDimensionsAmount{4};
 
 size_t const kAddrHash = {std::hash<std::string_view>{}("-a")};
@@ -94,6 +98,7 @@ static std::unordered_map<size_t, std::string_view> const& getImplementedTypes()
       {kUInt8Hash, "uint8_t"},   {kUInt16Hash, "uint16_t"},
       {kUInt32Hash, "uint32_t"}, {kUInt64Hash, "uint64_t"},
   };
+
   return k_type_checker;
 }
 
@@ -140,12 +145,13 @@ class Settings {
   {
     return _ip_addr;
   }
-  [[nodiscard]] std::string const& getLibName() const { return _lib_name; }
-  [[nodiscard]] size_t getTypeHash() const { return _type_hash; }
-  [[nodiscard]] EnumTypes getTypeEnum() const { return _type_enum; }
-  [[nodiscard]] std::string const& getRole() const { return _role; }
-  [[nodiscard]] size_t getPort() const { return _port; }
-  [[nodiscard]] size_t getIndex() const { return _index; }
+
+  [[nodiscard]] std::string const& cGetLibName() const { return _lib_name; }
+  [[nodiscard]] size_t cgetTypeHash() const { return _type_hash; }
+  [[nodiscard]] EnumTypes cgetTypeEnum() const { return _type_enum; }
+  [[nodiscard]] std::string const& cgetRole() const { return _role; }
+  [[nodiscard]] size_t cgetPort() const { return _port; }
+  [[nodiscard]] size_t cgetIndex() const { return _index; }
   void setAddr(std::array<uint8_t, kIpAddrOctetAmount> const& ip_addr)
   {
     _ip_addr = ip_addr;
@@ -165,6 +171,7 @@ class Settings {
   Settings& operator=(Settings const&) = default;
   Settings& operator=(Settings&&) = default;
 };
+
 std::ostream& operator<<(std::ostream& out, Settings const& settings)
 {
   out << "========================\n";
@@ -174,11 +181,13 @@ std::ostream& operator<<(std::ostream& out, Settings const& settings)
   out << "Role:\t\t" << settings._role << '\n';
   out << "Index:\t\t" << settings._index << '\n';
   out << "IP address:\t";
-  for (auto const* it = settings._ip_addr.begin();
-       it != settings._ip_addr.end(); ++it) {
-    char delimeter = it + 1 == settings._ip_addr.end() ? ' ' : '.';
-    out << static_cast<int16_t>(*it) << delimeter;
+  size_t delimeter_index = 0;
+
+  for (const auto& octet : settings._ip_addr) {
+    char delimeter = ++delimeter_index < settings._ip_addr.size() ? '.' : ' ';
+    out << +octet << delimeter;
   }
+
   out << '\n';
   out << "Port:\t\t" << settings._port << '\n';
   out << "Library name:\t" << settings._lib_name << '\n';
@@ -192,69 +201,52 @@ static bool parseAddr(std::string_view ip_addr, Settings& settings)
 {
   std::array<uint8_t, kIpAddrOctetAmount> addr{0};
 
-  size_t octet_number = 0;
-  size_t len = 0;
-  auto const* it_begin = ip_addr.begin();
-  for (auto const* it = ip_addr.begin(); it != ip_addr.end(); ++it) {
-    if (octet_number >= kIpAddrOctetAmount || len > kIpAddrOctetSize) {
+  for (auto& octet : addr) {
+    const size_t delimeter_pos = ip_addr.find('.');
+    std::string_view substr_octet = ip_addr.substr(0, delimeter_pos);
+
+    auto [ptr, ec] =
+        std::from_chars(substr_octet.begin(), substr_octet.end(), octet);
+
+    if (ec != std::errc() || ptr != substr_octet.end()) {
       return false;
     }
 
-    bool is_end = it + 1 == ip_addr.end();
-
-    if (*it != '.' && !is_end) {
-      len++;
-      continue;
-    }
-
-    len += is_end ? 1 : 0;
-    uint8_t octet = 0;
-
-    auto [ptr, ec] = std::from_chars(it_begin, it_begin + len, octet);
-
-    if (ec == std::errc::invalid_argument) {
-      std::cout << " This is not a number.\n";
-      return false;
-    }
-    if (ec == std::errc::result_out_of_range) {
-      std::cout << "This number is larger than an int.\n";
-      return false;
-    }
-
-    addr[octet_number++] = octet;
-    it_begin = ptr + 1;
-    len = 0;
+    ip_addr.remove_prefix(delimeter_pos + 1);
   }
+
   settings.setAddr(addr);
   return true;
 }
 
 inline static bool parsePort(std::string_view port, Settings& settings)
 {
-  try {
-    settings.setPort(std::stoull(port.data()));
-    return true;
-  }
-  catch (std::exception& e) {
+  size_t port_number{};
+  auto [ptr, ec] = std::from_chars(port.begin(), port.end(), port_number);
+  if (ec != std::errc() || ptr != port.end()) {
     return false;
   }
+  settings.setPort(port_number);
+  return true;
 }
 
 inline static bool parseIndex(std::string_view index, Settings& settings)
 {
-  try {
-    settings.setIndex(std::stoull(index.data()));
-    return true;
-  }
-  catch (std::exception& e) {
+  size_t index_number{};
+  auto [ptr, ec] = std::from_chars(index.begin(), index.end(), index_number);
+  if (ec != std::errc() || ptr != index.end()) {
     return false;
   }
+  settings.setPort(index_number);
+  return true;
 }
 
 static void changeType(Settings& settings)
 {
   clearScreen();
   std::string string_input;
+  const auto& implemented_types_reference = getImplementedTypes();
+
   while (true) {
     std::cout
         << "Enter new type (name must correspond with c++ types) or "
@@ -271,7 +263,7 @@ static void changeType(Settings& settings)
       return;
     }
 
-    if (std::cin.good() && getImplementedTypes().contains(hashed_input)) {
+    if (std::cin.good() && implemented_types_reference.contains(hashed_input)) {
       settings.setTypeHash(hashed_input);
       settings.setTypeEnum(getEnumType().at(hashed_input));
       return;
@@ -281,6 +273,7 @@ static void changeType(Settings& settings)
     std::cerr << "Wrong input, try again: ";
   }
 }
+
 static void changeRole(Settings& settings)
 {
   clearScreen();
@@ -290,6 +283,7 @@ static void changeRole(Settings& settings)
     std::cout
         << "Enter your new role and index(first role, and then index) or\n"
            "enter 'quit' if you've changed your mind: ";
+
     std::cin >> string_input;
     std::ranges::transform(string_input, string_input.begin(), ::tolower);
     if (std::hash<std::string_view>{}(string_input) == kQuitMenuHash) {
@@ -302,182 +296,266 @@ static void changeRole(Settings& settings)
       settings.setIndex(index);
       return;
     }
+
     clearCinBuffer();
     std::cerr << "Wrong input, try again: ";
   }
 }
 
-inline static void emplaceInVector(EnumTypes current_type,
-                                   any_type& emplace_element,
-                                   std::string_view string_input,
-                                   size_t hashed_input)
+template <typename T, EnumTypes EnumType>
+static inline std::from_chars_result convertAnyType(
+    std::string_view string_input, any_type& emplace_element)
 {
+  std::from_chars_result conv_result{};
+
+  T result{};
+  conv_result =
+      std::from_chars(string_input.begin(), string_input.end(), result);
+
+  emplace_element.emplace<static_cast<size_t>(EnumType)>(result);
+  return conv_result;
+}
+template <>
+inline std::from_chars_result convertAnyType<std::string, EnumTypes::String>(
+    std::string_view string_input, any_type& emplace_element)
+{
+  emplace_element.emplace<static_cast<size_t>(EnumTypes::String)>(string_input);
+  return {.ptr = string_input.end(), .ec = std::errc()};
+}
+
+//need to support 'true'/'false' input
+static inline std::from_chars_result convertAnyTypeBool(
+    std::string_view string_input, any_type& emplace_element,
+    size_t hashed_input)
+{
+  std::from_chars_result conv_result(string_input.end());
+
+  bool result = hashed_input == kTrueHashSymbolic;
+
+  if (!result && hashed_input != kFalseHashSymbolic) {
+    size_t input{};
+    conv_result =
+        std::from_chars(string_input.begin(), string_input.end(), input);
+    result = input == 1;
+  }
+
+  emplace_element.emplace<static_cast<size_t>(EnumTypes::Bool)>(result);
+  return conv_result;
+}
+
+inline static std::from_chars_result emplaceInVector(
+    EnumTypes current_type, any_type& emplace_element,
+    std::string_view string_input,
+    size_t hashed_input)  //with hashed_input to support 'true'/'false' insert
+{
+  std::from_chars_result conv_result{};
+
   switch (current_type) {
     case EnumTypes::Int:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::Int)>(
-          std::stoi(string_input.data()));
+      conv_result =
+          convertAnyType<int, EnumTypes::Int>(string_input, emplace_element);
       break;
+
     case EnumTypes::Float:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::Float)>(
-          std::stof(string_input.data()));
+      conv_result = convertAnyType<float, EnumTypes::Float>(string_input,
+                                                            emplace_element);
       break;
     case EnumTypes::Double:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::Double)>(
-          std::stod(string_input.data()));
+      conv_result = convertAnyType<double, EnumTypes::Double>(string_input,
+                                                              emplace_element);
       break;
     case EnumTypes::Char:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::Char)>(
-          string_input.data()[0]);
+      conv_result =
+          convertAnyType<char, EnumTypes::Char>(string_input, emplace_element);
       break;
     case EnumTypes::String:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::String)>(
-          string_input.data());
+      conv_result = convertAnyType<std::string, EnumTypes::String>(
+          string_input, emplace_element);
       break;
     case EnumTypes::Bool: {
-      bool value_to_set = kTrueHashSymbolic == hashed_input;
-      if (hashed_input != kTrueHashSymbolic &&
-          hashed_input != kFalseHashSymbolic) {
-        value_to_set = std::stoi(string_input.data()) == 1;
-      }
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::Bool)>(
-          value_to_set);
+      conv_result =
+          convertAnyTypeBool(string_input, emplace_element, hashed_input);
       break;
     }
     case EnumTypes::Int8:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::Int8)>(
-          static_cast<int8_t>(std::stoi(string_input.data())));
+      conv_result = convertAnyType<int8_t, EnumTypes::Int8>(string_input,
+                                                            emplace_element);
       break;
     case EnumTypes::Int16:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::Int16)>(
-          static_cast<int16_t>(std::stoi(string_input.data())));
+      conv_result = convertAnyType<int16_t, EnumTypes::Int16>(string_input,
+                                                              emplace_element);
       break;
     case EnumTypes::Int32:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::Int32)>(
-          static_cast<int32_t>(std::stol(string_input.data())));
+      conv_result = convertAnyType<int32_t, EnumTypes::Int32>(string_input,
+                                                              emplace_element);
       break;
     case EnumTypes::Int64:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::Int64)>(
-          static_cast<int64_t>(std::stoll(string_input.data())));
+      conv_result = convertAnyType<int64_t, EnumTypes::Int64>(string_input,
+                                                              emplace_element);
       break;
     case EnumTypes::UInt8:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::UInt8)>(
-          static_cast<uint8_t>(std::stoi(string_input.data())));
+      conv_result = convertAnyType<uint8_t, EnumTypes::UInt8>(string_input,
+                                                              emplace_element);
       break;
     case EnumTypes::UInt16:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::UInt16)>(
-          static_cast<uint16_t>(std::stoull(string_input.data())));
+      conv_result = convertAnyType<uint16_t, EnumTypes::UInt16>(
+          string_input, emplace_element);
       break;
     case EnumTypes::UInt32:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::UInt32)>(
-          static_cast<uint32_t>(std::stoull(string_input.data())));
+      conv_result = convertAnyType<uint32_t, EnumTypes::UInt32>(
+          string_input, emplace_element);
       break;
     case EnumTypes::UInt64:
-      emplace_element.emplace<static_cast<size_t>(EnumTypes::UInt64)>(
-          static_cast<uint64_t>(std::stoull(string_input.data())));
+      conv_result = convertAnyType<uint64_t, EnumTypes::UInt64>(
+          string_input, emplace_element);
       break;
   }
+
+  return conv_result;
 }
 
 template <size_t N>
 static void enterVector(PolymorpicVector<N>& vector, Settings const& settings)
 {
-  clearScreen();
   PolymorpicVector<N> spare_vector;
 
   std::cout << "Enter " << N << "-dimensional vector of "
-            << getImplementedTypes().at(settings.getTypeHash())
+            << getImplementedTypes().at(settings.cgetTypeHash())
             << " or "
                "enter 'quit' if you've changed your "
-               "mind\nformat is "
+               "mind.\nFormat is "
             << N << " values separated by whitespaces: ";
 
+  bool is_conversion_not_done = true;
+
   std::string string_input;
+  std::string lowercase_input;
 
-  size_t index = 0;
-  while (index < N) {
-    std::cin >> string_input;
-    std::ranges::transform(string_input, string_input.begin(), ::tolower);
-    size_t hashed_input = std::hash<std::string_view>{}(string_input);
+  while (is_conversion_not_done) {
+    is_conversion_not_done = false;
 
-    if (hashed_input == kQuitMenuHash) {
-      return;
-    }
+    for (auto& element : spare_vector) {
+      std::cin >> string_input;
 
-    if (std::cin.bad()) {
-      clearCinBuffer();
-      std::cerr << "Wrong input, try again: ";
-      continue;
-    }
-    EnumTypes const current_type = settings.getTypeEnum();
-    try {
-      emplaceInVector(current_type, spare_vector[index], string_input,
-                      hashed_input);
-    }
-    catch (std::exception& e) {
-      clearCinBuffer();
+      lowercase_input = string_input;
+      std::ranges::transform(lowercase_input, lowercase_input.begin(),
+                             ::tolower);
+      size_t hashed_input = std::hash<std::string_view>{}(lowercase_input);
 
-      std::cout << "Error during type conversion, re-input: ";
-      index = 0;
-      continue;
+      if (hashed_input == kQuitMenuHash) {
+        return;
+      }
+
+      EnumTypes const current_type = settings.cgetTypeEnum();
+      auto [ptr, ec] =
+          emplaceInVector(current_type, element, string_input, hashed_input);
+
+      if (ec != std::errc() || ptr != string_input.end().base()) {
+        is_conversion_not_done = true;
+
+        clearCinBuffer();
+        std::cout << "Error during type conversion, re-input: ";
+        break;
+      }
     }
-    index++;
   }
+
   vector = spare_vector;
 }
+
 template <size_t N>
-static void printVector(PolymorpicVector<N>& arr)
+inline static void printVector(PolymorpicVector<N>& arr)
 {
   for (auto& i : arr) {
     std::visit([](auto const& variant_val) { std::cout << variant_val << ' '; },
                i);
-    std::cout << '\n';
   }
+  std::cout << '\n';
+}
+
+enum class ParseResult : uint8_t {
+  NO_ERR,
+  WRONG_FLAG,
+  NO_ARGUMENT,
+};
+
+inline static ParseResult parseClArgs(
+    std::unordered_map<size_t, std::string_view>& argument_map, char** argv,
+    int argc)
+{
+  bool is_next_arg = false;
+  bool first_arg = true;
+  auto it = argument_map.begin();
+
+  for (auto& argument : std::span(argv, argc)) {
+    //need to skip program name as variable without warning about pointer
+    //arithmetic, idk how else i can do this
+    if (first_arg) {
+      first_arg = false;
+      continue;
+    }
+
+    if (is_next_arg) {
+      is_next_arg = false;
+      it->second = argument;
+      continue;
+    }
+
+    it = argument_map.find(std::hash<std::string_view>{}(argument));
+
+    if (it == argument_map.end()) {
+      std::cout << argument << std::hash<std::string_view>{}(argument) << '\n';
+      std::cerr << "No such flag\n";
+      return ParseResult::WRONG_FLAG;
+    }
+
+    is_next_arg = true;
+  }
+
+  if (is_next_arg) {
+    std::cerr << "Missed argument\n";
+    return ParseResult::NO_ARGUMENT;
+  }
+
+  return ParseResult::NO_ERR;
 }
 
 int main(int argc, char* argv[])
 {
+
   std::unordered_map<size_t, std::string_view> cl_args{
       {kAddrHash, "127.0.0.1"}, {kPortHash, "5555"}, {kRoleHash, "Client"},
       {kIndexHash, "0"},        {kLibHash, "Lib1"},
   };
+  parseClArgs(cl_args, argv, argc);
 
-  Settings command_line_options;
-  int count = 1;
-  while (count < argc) {
-    auto it = cl_args.find(std::hash<std::string_view>{}(argv[count]));
-
-    if (it == cl_args.end()) {
-      std::cerr << "No such flag\n";
-      return 0;
-    }
-
-    if (++count >= argc) {
-      std::cerr << "Missed argument\n";
-      return 0;
-    }
-
-    it->second = argv[count];
-    count++;
-  }
-
+  Settings command_line_options{};
   if (!parseAddr(cl_args.at(kAddrHash), command_line_options)) {
     std::cout << "Invalid IP address\n";
     return 0;
   }
+
   if (!parsePort(cl_args.at(kPortHash), command_line_options)) {
     std::cout << "Invalid port\n";
     return 0;
   }
+
   if (!parseIndex(cl_args.at(kIndexHash), command_line_options)) {
     std::cout << "Invalid index\n";
     return 0;
   }
+
   command_line_options.setLibName(cl_args.at(kLibHash));
   command_line_options.setRole(cl_args.at(kRoleHash));
 
   displayMenu();
 
   PolymorpicVector<kVectorDimensionsAmount> task_vector{};
+
+  //if i have reference to static object, as I knowm there won't be any additional
+  //calls to check if static object is initialized
+  const std::unordered_map<size_t, MenuOptions>& menu_options =
+      getMenuOptions();
 
   while (true) {
     std::string text_option;
@@ -486,35 +564,45 @@ int main(int argc, char* argv[])
 
     std::cin >> text_option;
     std::ranges::transform(text_option, text_option.begin(), ::tolower);
-    size_t input_hash = std::hash<std::string_view>{}(text_option);
-    bool is_correct_option = getMenuOptions().contains(input_hash);
-    auto picked_option = is_correct_option ? getMenuOptions().at(input_hash)
-                                           : MenuOptions::WrongOption;
 
+    size_t input_hash = std::hash<std::string_view>{}(text_option);
+
+    bool is_correct_option = menu_options.contains(input_hash);
+    auto picked_option = is_correct_option ? menu_options.at(input_hash)
+                                           : MenuOptions::WrongOption;
     switch (picked_option) {
       case MenuOptions::ChangeRole:
         changeRole(command_line_options);
+
         displayMenu();
         clearCinBuffer();
         break;
+
       case MenuOptions::ChangeType:
         changeType(command_line_options);
+
         displayMenu();
         clearCinBuffer();
         break;
+
       case MenuOptions::PrintSettings:
         std::cout << '\n' << command_line_options << '\n';
         break;
+
       case MenuOptions::PrintCurrentVector:
         printVector(task_vector);
         break;
+
       case MenuOptions::EnterVector:
         enterVector(task_vector, command_line_options);
+
         displayMenu();
         clearCinBuffer();
         break;
+
       case MenuOptions::QuitProgram:
         return 0;
+
       default:
         std::cout << "Wrong menu option, try again\n";
     }
