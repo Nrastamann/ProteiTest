@@ -1,10 +1,37 @@
 #include <algorithm>
 #include <charconv>
+#include <type_traits>
+#include <unordered_map>
+#include <variant>
 
 #include "display.hpp"
 #include "hashed_values.hpp"
 #include "menu_functions.hpp"
 #include "static_containers.hpp"
+
+const std::unordered_map<static_containers::EnumTypes, any_type>&
+getDefaultValues()
+{
+  static std::unordered_map<static_containers::EnumTypes, any_type>
+      type_dispatch{
+          {static_containers::EnumTypes::Bool, false},
+          {static_containers::EnumTypes::Char, char{}},
+          {static_containers::EnumTypes::Double, 0.},
+          {static_containers::EnumTypes::Float, 0.F},
+          {static_containers::EnumTypes::Int, 0},
+          {static_containers::EnumTypes::Int16, static_cast<int16_t>(0)},
+          {static_containers::EnumTypes::Int32, static_cast<int32_t>(0)},
+          {static_containers::EnumTypes::Int64, static_cast<int64_t>(0)},
+          {static_containers::EnumTypes::Int8, static_cast<int8_t>(0)},
+          {static_containers::EnumTypes::UInt16, static_cast<uint16_t>(0)},
+          {static_containers::EnumTypes::UInt32, static_cast<uint32_t>(0)},
+          {static_containers::EnumTypes::UInt64, static_cast<uint64_t>(0)},
+          {static_containers::EnumTypes::UInt8, static_cast<uint8_t>(0)},
+          {static_containers::EnumTypes::String, ""},
+
+      };
+  return type_dispatch;
+}
 
 void changeType(Settings& settings)
 {
@@ -68,9 +95,12 @@ void changeRole(Settings& settings)
   }
 }
 
-template <typename T, static_containers::EnumTypes EnumType>
+template <typename T>
+concept isPartOf = std::is_assignable_v<any_type, T>;
+
+template <isPartOf T>
 static inline std::from_chars_result convertAnyType(
-    std::string_view string_input, any_type& emplace_element)
+    std::string_view string_input, T& emplace_element)
 {
   std::from_chars_result conv_result{};
 
@@ -78,24 +108,21 @@ static inline std::from_chars_result convertAnyType(
   conv_result =
       std::from_chars(string_input.begin(), string_input.end(), result);
 
-  emplace_element.emplace<static_cast<size_t>(EnumType)>(result);
+  emplace_element = result;
   return conv_result;
 }
+
 template <>
-inline std::from_chars_result
-convertAnyType<std::string, static_containers::EnumTypes::String>(
-    std::string_view string_input, any_type& emplace_element)
+inline std::from_chars_result convertAnyType<std::string>(
+    std::string_view string_input, std::string& emplace_element)
 {
-  emplace_element
-      .emplace<static_cast<size_t>(static_containers::EnumTypes::String)>(
-          string_input);
+  emplace_element = string_input.data();
   return {.ptr = string_input.end(), .ec = std::errc()};
 }
 
 //need to support 'true'/'false' input
 static inline std::from_chars_result convertAnyTypeBool(
-    std::string_view string_input, any_type& emplace_element,
-    size_t hashed_input)
+    std::string_view string_input, bool& emplace_element, size_t hashed_input)
 {
   std::from_chars_result conv_result(string_input.end());
 
@@ -108,95 +135,38 @@ static inline std::from_chars_result convertAnyTypeBool(
     result = input == 1;
   }
 
-  emplace_element
-      .emplace<static_cast<size_t>(static_containers::EnumTypes::Bool)>(result);
+  emplace_element = result;
   return conv_result;
 }
 
+template <typename... Callable>
+struct Visitor : Callable... {
+  using Callable::operator()...;
+};
+
 inline static std::from_chars_result emplaceInVector(
-    static_containers::EnumTypes current_type, any_type& emplace_element,
-    std::string_view string_input,
+    any_type& emplace_element, std::string_view string_input,
     size_t hashed_input)  //with hashed_input to support 'true'/'false' insert
 {
   std::from_chars_result conv_result{};
 
-  switch (current_type) {
-    case static_containers::EnumTypes::Int:
-      conv_result = convertAnyType<int, static_containers::EnumTypes::Int>(
-          string_input, emplace_element);
-      break;
-
-    case static_containers::EnumTypes::Float:
-      conv_result = convertAnyType<float, static_containers::EnumTypes::Float>(
-          string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::Double:
-      conv_result =
-          convertAnyType<double, static_containers::EnumTypes::Double>(
-              string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::Char:
-      conv_result = convertAnyType<char, static_containers::EnumTypes::Char>(
-          string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::String:
-      conv_result =
-          convertAnyType<std::string, static_containers::EnumTypes::String>(
-              string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::Bool: {
-      conv_result =
-          convertAnyTypeBool(string_input, emplace_element, hashed_input);
-      break;
-    }
-    case static_containers::EnumTypes::Int8:
-      conv_result = convertAnyType<int8_t, static_containers::EnumTypes::Int8>(
-          string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::Int16:
-      conv_result =
-          convertAnyType<int16_t, static_containers::EnumTypes::Int16>(
-              string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::Int32:
-      conv_result =
-          convertAnyType<int32_t, static_containers::EnumTypes::Int32>(
-              string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::Int64:
-      conv_result =
-          convertAnyType<int64_t, static_containers::EnumTypes::Int64>(
-              string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::UInt8:
-      conv_result =
-          convertAnyType<uint8_t, static_containers::EnumTypes::UInt8>(
-              string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::UInt16:
-      conv_result =
-          convertAnyType<uint16_t, static_containers::EnumTypes::UInt16>(
-              string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::UInt32:
-      conv_result =
-          convertAnyType<uint32_t, static_containers::EnumTypes::UInt32>(
-              string_input, emplace_element);
-      break;
-    case static_containers::EnumTypes::UInt64:
-      conv_result =
-          convertAnyType<uint64_t, static_containers::EnumTypes::UInt64>(
-              string_input, emplace_element);
-      break;
-  }
+  conv_result = std::visit(
+      Visitor{[string_input]<typename T>(T& emplace_element) {
+                return convertAnyType<T>(string_input, emplace_element);
+              },
+              [string_input, hashed_input](bool& emplace_element) {
+                return convertAnyTypeBool(string_input, emplace_element,
+                                          hashed_input);
+              }},
+      emplace_element);
 
   return conv_result;
 }
 
-void enterVector(PolymorpicVector<kVectorDimensionsAmount>& vector,
+void enterVector(PolymorphicVector<kVectorDimensionsAmount>& vector,
                  Settings const& settings)
 {
-  PolymorpicVector<kVectorDimensionsAmount> spare_vector;
+  PolymorphicVector<kVectorDimensionsAmount> spare_vector;
 
   std::cout << "Enter " << kVectorDimensionsAmount << "-dimensional vector of "
             << static_containers::getImplementedTypes().at(
@@ -210,6 +180,11 @@ void enterVector(PolymorpicVector<kVectorDimensionsAmount>& vector,
 
   std::string string_input;
   std::string lowercase_input;
+  const auto& default_value = getDefaultValues().at(settings.cgetTypeEnum());
+
+  for (auto& i : spare_vector) {
+    i = default_value;
+  }
 
   while (is_conversion_not_done) {
     is_conversion_not_done = false;
@@ -226,9 +201,7 @@ void enterVector(PolymorpicVector<kVectorDimensionsAmount>& vector,
         return;
       }
 
-      static_containers::EnumTypes const current_type = settings.cgetTypeEnum();
-      auto [ptr, ec] =
-          emplaceInVector(current_type, element, string_input, hashed_input);
+      auto [ptr, ec] = emplaceInVector(element, string_input, hashed_input);
 
       if (ec != std::errc() || ptr != string_input.end().base()) {
         is_conversion_not_done = true;

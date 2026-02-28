@@ -17,6 +17,7 @@ class Settings {
   static_containers::EnumTypes _type_enum{static_containers::EnumTypes::Int};
   size_t _port{};
   size_t _index{};
+  bool _should_close = false;
 
  public:
   [[nodiscard]] std::array<uint8_t, kIpAddrOctetAmount> const& getAddr() const
@@ -33,6 +34,9 @@ class Settings {
   [[nodiscard]] std::string const& cgetRole() const { return _role; }
   [[nodiscard]] size_t cgetPort() const { return _port; }
   [[nodiscard]] size_t cgetIndex() const { return _index; }
+  [[nodiscard]] bool cgetShouldClose() const { return _should_close; }
+
+  void setShouldClose() { _should_close = true; }
   void setAddr(std::array<uint8_t, kIpAddrOctetAmount> const& ip_addr)
   {
     _ip_addr = ip_addr;

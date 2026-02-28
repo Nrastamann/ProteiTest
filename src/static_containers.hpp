@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <string_view>
 #include <unordered_map>
+
 namespace static_containers {
 enum class EnumTypes : uint8_t {
   Int,
@@ -25,11 +26,10 @@ enum class MenuOptions : uint8_t {
   ChangeType,
   PrintSettings,
   EnterVector,
+  PrintCurrentVector,
   QuitProgram,
   WrongOption,
-  PrintCurrentVector
 };
-
 std::unordered_map<size_t, std::string_view> const& getImplementedTypes();
 std::unordered_map<size_t, EnumTypes> const& getEnumType();
 std::unordered_map<size_t, MenuOptions> const& getMenuOptions();
