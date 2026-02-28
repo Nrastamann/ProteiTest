@@ -1,27 +1,31 @@
 #include "settings.hpp"
+#include <iostream>
 
-std::ostream& operator<<(std::ostream& out, Settings const& settings)
+namespace ui_protei {
+
+void printSettings(Settings const& settings)
 {
-  out << "========================\n";
+  std::cout << "========================\n";
 
-  out << "Current settings:\n";
+  std::cout << "Current settings:\n";
 
-  out << "Role:\t\t" << settings._role << '\n';
-  out << "Index:\t\t" << settings._index << '\n';
-  out << "IP address:\t";
+  std::cout << "Role:\t\t" << settings.cgetRole() << '\n';
+  std::cout << "Index:\t\t" << settings.cgetIndex() << '\n';
+  std::cout << "IP address:\t";
   size_t delimeter_index = 0;
 
-  for (const auto& octet : settings._ip_addr) {
-    char delimeter = ++delimeter_index < settings._ip_addr.size() ? '.' : ' ';
-    out << +octet << delimeter;
+  for (const auto& octet : settings.cgetAddress()) {
+    char delimeter = ++delimeter_index < kIpAddrOctetAmount ? '.' : ' ';
+    std::cout << +octet << delimeter;
   }
 
-  out << '\n';
-  out << "Port:\t\t" << settings._port << '\n';
-  out << "Library name:\t" << settings._lib_name << '\n';
-  out << "Current type:\t"
-      << static_containers::getImplementedTypes().at(settings._type_hash)
-      << '\n';
-  out << "========================\n";
-  return out;
+  std::cout << '\n';
+  std::cout << "Port:\t\t" << settings.cgetPort() << '\n';
+  std::cout << "Library name:\t" << settings.cGetLibName() << '\n';
+  std::cout << "Current type:\t"
+            << static_containers::getImplementedTypes().at(
+                   settings.cgetTypeHash())
+            << '\n';
+  std::cout << "========================\n";
 }
+}  // namespace ui_protei

@@ -1,5 +1,6 @@
 #include "display.hpp"
 
+namespace ui_protei {
 void displayMenu()
 {
   clearScreen();
@@ -19,3 +20,4 @@ void displayMenu()
   std::cout << "Quit:\t\tquit the program\n";
   std::cout << delimeter << '\n';
 }
+}  // namespace ui_protei

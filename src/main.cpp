@@ -28,12 +28,12 @@ int main(int argc, char* argv[])
       {hashed::kLibHash, ""},
   };
 
-  switch (parseClArgs(cl_args, argv, argc)) {
-    case ParseResult::WRONG_FLAG:
+  switch (parsing_protei::parseClArgs(cl_args, argv, argc)) {
+    case parsing_protei::ParseResult::WRONG_FLAG:
       std::cerr << "Wrong flag passed\n";
       return 1;
       break;
-    case ParseResult::NO_ARGUMENT:
+    case parsing_protei::ParseResult::NO_ARGUMENT:
       std::cerr << "Flag with argument passed without one\n";
       return 1;
     default:
@@ -41,17 +41,20 @@ int main(int argc, char* argv[])
   }
 
   Settings command_line_options{};
-  if (!parseAddr(cl_args.at(hashed::kAddrHash), command_line_options)) {
+  if (!parsing_protei::parseAddr(cl_args.at(hashed::kAddrHash),
+                                 command_line_options)) {
     std::cout << "Invalid IP address\n";
     return 0;
   }
 
-  if (!parsePort(cl_args.at(hashed::kPortHash), command_line_options)) {
+  if (!parsing_protei::parsePort(cl_args.at(hashed::kPortHash),
+                                 command_line_options)) {
     std::cout << "Invalid port\n";
     return 0;
   }
 
-  if (!parseIndex(cl_args.at(hashed::kIndexHash), command_line_options)) {
+  if (!parsing_protei::parseIndex(cl_args.at(hashed::kIndexHash),
+                                  command_line_options)) {
     std::cout << "Invalid index\n";
     return 0;
   }
@@ -59,7 +62,7 @@ int main(int argc, char* argv[])
   command_line_options.setLibName(cl_args.at(hashed::kLibHash));
   command_line_options.setRole(cl_args.at(hashed::kRoleHash));
 
-  displayMenu();
+  ui_protei::displayMenu();
 
   PolymorphicVector<kVectorDimensionsAmount> task_vector{};
 
@@ -112,7 +115,7 @@ int main(int argc, char* argv[])
       case static_containers::MenuOptions::ChangeRole:
       case static_containers::MenuOptions::ChangeType:
       case static_containers::MenuOptions::EnterVector:
-        displayMenu();
+        ui_protei::displayMenu();
         break;
 
       case static_containers::MenuOptions::PrintSettings:
@@ -121,7 +124,7 @@ int main(int argc, char* argv[])
 
       default:
     }
-    clearCinBuffer();
+    ui_protei::clearCinBuffer();
   }
-  clearScreen();
+  ui_protei::clearScreen();
 }

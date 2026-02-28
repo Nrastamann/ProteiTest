@@ -3,7 +3,6 @@
 #include <iostream>
 #include <unordered_map>
 #include <variant>
-
 #include "settings.hpp"
 #include "static_containers.hpp"
 
@@ -18,9 +17,12 @@ using PolymorphicVector = std::array<any_type, kVectorDimensionsAmount>;
 
 using ProteiVector = PolymorphicVector<kVectorDimensionsAmount>;
 
+namespace static_containers {
 const std::unordered_map<static_containers::EnumTypes, any_type>&
 getDefaultValues();
+}  // namespace static_containers
 
+namespace menu_functions_protei {
 void changeType(Settings& settings);
 void changeRole(Settings& settings);
 
@@ -34,7 +36,7 @@ inline void quit(Settings& settings)
 
 inline void printCurrentSettings(Settings& settings)
 {
-  std::cout << settings;
+  ui_protei::printSettings(settings);
 }
 
 inline void printVector(const PolymorphicVector<kVectorDimensionsAmount>& arr)
@@ -49,3 +51,4 @@ inline void wrongOption()
 {
   std::cout << "Wrong menu option, try again\n";
 }
+}  // namespace menu_functions_protei

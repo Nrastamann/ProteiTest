@@ -3,6 +3,7 @@
 #include <string_view>
 #include "settings.hpp"
 
+namespace parsing_protei {
 enum class ParseResult : uint8_t {
   NO_ERR,
   WRONG_FLAG,
@@ -18,3 +19,4 @@ enum class ParseResult : uint8_t {
 [[nodiscard("Discarding cl_args parse_result")]] ParseResult parseClArgs(
     std::unordered_map<size_t, std::string_view>& argument_map, char** argv,
     int argc);
+};  // namespace parsing_protei

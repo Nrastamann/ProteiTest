@@ -9,33 +9,37 @@
 #include "menu_functions.hpp"
 #include "static_containers.hpp"
 
+namespace static_containers {
 const std::unordered_map<static_containers::EnumTypes, any_type>&
 getDefaultValues()
 {
+  using static_containers::EnumTypes;
   static std::unordered_map<static_containers::EnumTypes, any_type>
       type_dispatch{
-          {static_containers::EnumTypes::Bool, false},
-          {static_containers::EnumTypes::Char, char{}},
-          {static_containers::EnumTypes::Double, 0.},
-          {static_containers::EnumTypes::Float, 0.F},
-          {static_containers::EnumTypes::Int, 0},
-          {static_containers::EnumTypes::Int16, static_cast<int16_t>(0)},
-          {static_containers::EnumTypes::Int32, static_cast<int32_t>(0)},
-          {static_containers::EnumTypes::Int64, static_cast<int64_t>(0)},
-          {static_containers::EnumTypes::Int8, static_cast<int8_t>(0)},
-          {static_containers::EnumTypes::UInt16, static_cast<uint16_t>(0)},
-          {static_containers::EnumTypes::UInt32, static_cast<uint32_t>(0)},
-          {static_containers::EnumTypes::UInt64, static_cast<uint64_t>(0)},
-          {static_containers::EnumTypes::UInt8, static_cast<uint8_t>(0)},
-          {static_containers::EnumTypes::String, ""},
+          {EnumTypes::Bool, false},
+          {EnumTypes::Char, char{}},
+          {EnumTypes::Double, 0.},
+          {EnumTypes::Float, 0.F},
+          {EnumTypes::Int, 0},
+          {EnumTypes::Int16, static_cast<int16_t>(0)},
+          {EnumTypes::Int32, static_cast<int32_t>(0)},
+          {EnumTypes::Int64, static_cast<int64_t>(0)},
+          {EnumTypes::Int8, static_cast<int8_t>(0)},
+          {EnumTypes::UInt16, static_cast<uint16_t>(0)},
+          {EnumTypes::UInt32, static_cast<uint32_t>(0)},
+          {EnumTypes::UInt64, static_cast<uint64_t>(0)},
+          {EnumTypes::UInt8, static_cast<uint8_t>(0)},
+          {EnumTypes::String, ""},
 
       };
   return type_dispatch;
 }
+}  // namespace static_containers
 
+namespace menu_functions_protei {
 void changeType(Settings& settings)
 {
-  clearScreen();
+  ui_protei::clearScreen();
   std::string string_input;
   const auto& implemented_types_reference =
       static_containers::getImplementedTypes();
@@ -62,14 +66,14 @@ void changeType(Settings& settings)
       return;
     }
 
-    clearCinBuffer();
+    ui_protei::clearCinBuffer();
     std::cerr << "Wrong input, try again: ";
   }
 }
 
 void changeRole(Settings& settings)
 {
-  clearScreen();
+  ui_protei::clearScreen();
   std::string string_input;
   std::size_t index{};
   while (true) {
@@ -90,7 +94,7 @@ void changeRole(Settings& settings)
       return;
     }
 
-    clearCinBuffer();
+    ui_protei::clearCinBuffer();
     std::cerr << "Wrong input, try again: ";
   }
 }
@@ -180,7 +184,8 @@ void enterVector(PolymorphicVector<kVectorDimensionsAmount>& vector,
 
   std::string string_input;
   std::string lowercase_input;
-  const auto& default_value = getDefaultValues().at(settings.cgetTypeEnum());
+  const auto& default_value =
+      static_containers::getDefaultValues().at(settings.cgetTypeEnum());
 
   for (auto& i : spare_vector) {
     i = default_value;
@@ -206,7 +211,7 @@ void enterVector(PolymorphicVector<kVectorDimensionsAmount>& vector,
       if (ec != std::errc() || ptr != string_input.end().base()) {
         is_conversion_not_done = true;
 
-        clearCinBuffer();
+        ui_protei::clearCinBuffer();
         std::cout << "Error during type conversion, re-input: ";
         break;
       }
@@ -215,3 +220,4 @@ void enterVector(PolymorphicVector<kVectorDimensionsAmount>& vector,
 
   vector = spare_vector;
 }
+}  // namespace menu_functions_protei

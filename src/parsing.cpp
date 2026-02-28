@@ -1,9 +1,7 @@
 #include "parsing.hpp"
-
 #include <charconv>
-#include <iostream>
 #include <span>
-
+namespace parsing_protei {
 bool parseAddr(std::string_view ip_addr, Settings& settings)
 {
   std::array<uint8_t, kIpAddrOctetAmount> addr{0};
@@ -30,9 +28,11 @@ bool parsePort(std::string_view port, Settings& settings)
 {
   size_t port_number{};
   auto [ptr, ec] = std::from_chars(port.begin(), port.end(), port_number);
+
   if (ec != std::errc() || ptr != port.end()) {
     return false;
   }
+
   settings.setPort(port_number);
   return true;
 }
@@ -41,9 +41,11 @@ bool parseIndex(std::string_view index, Settings& settings)
 {
   size_t index_number{};
   auto [ptr, ec] = std::from_chars(index.begin(), index.end(), index_number);
+
   if (ec != std::errc() || ptr != index.end()) {
     return false;
   }
+
   settings.setPort(index_number);
   return true;
 }
@@ -85,3 +87,4 @@ ParseResult parseClArgs(
 
   return ParseResult::NO_ERR;
 }
+};  // namespace parsing_protei

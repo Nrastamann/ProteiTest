@@ -1,7 +1,6 @@
 #pragma once
 #include <array>
 #include <cstdint>
-#include <ostream>
 #include <string>
 
 #include "hashed_values.hpp"
@@ -35,6 +34,11 @@ class Settings {
   [[nodiscard]] size_t cgetPort() const { return _port; }
   [[nodiscard]] size_t cgetIndex() const { return _index; }
   [[nodiscard]] bool cgetShouldClose() const { return _should_close; }
+  [[nodiscard]] const std::array<uint8_t, kIpAddrOctetAmount>& cgetAddress()
+      const
+  {
+    return _ip_addr;
+  }
 
   void setShouldClose() { _should_close = true; }
   void setAddr(std::array<uint8_t, kIpAddrOctetAmount> const& ip_addr)
@@ -47,7 +51,6 @@ class Settings {
   void setRole(std::string_view role) { _role = role; }
   void setPort(size_t port) { _port = port; }
   void setIndex(size_t index) { _index = index; }
-  friend std::ostream& operator<<(std::ostream& out, Settings const& settings);
 
   ~Settings() = default;
   Settings() = default;
@@ -57,4 +60,6 @@ class Settings {
   Settings& operator=(Settings&&) = default;
 };
 
-std::ostream& operator<<(std::ostream& out, Settings const& settings);
+namespace ui_protei {
+void printSettings(Settings const& settings);
+}  // namespace ui_protei
