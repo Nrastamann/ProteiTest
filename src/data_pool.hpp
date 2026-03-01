@@ -29,7 +29,7 @@ class DataPool {
   using const_return_reference_type = const return_type&;
 
  public:
-  size_t size() { return _queue.size(); }
+  [[nodiscard]] size_t size() const { return _queue.size(); }
   return_reference_type back() { return _queue.back(); }
 
   void push(PolymorphicDimensionalVector&& vec) { _queue.push(std::move(vec)); }

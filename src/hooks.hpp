@@ -2,8 +2,13 @@
 #include <functional>
 #include <variant>
 #include "display.hpp"
+#include "utility.hpp"
 
 using protei_hook = std::variant<std::function<void()>>;
+inline void callHook(const protei_hook& hook)
+{
+  std::visit(Visitor{[](const std::function<void()>& fn) { fn(); }}, hook);
+}
 
 inline void defaultEmpty() {}
 

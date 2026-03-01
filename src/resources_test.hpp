@@ -4,6 +4,7 @@
 #include <boost/asio.hpp>
 #include <boost/asio/ip/address.hpp>
 #include <boost/asio/ip/address_v4.hpp>
+#include <cassert>
 #include <filesystem>
 #include <iostream>
 #include <string_view>
@@ -35,8 +36,6 @@ class ResourceTest final : ITest {
 
   bool operator()() override
   {
-    assert(std::filesystem::exists(_resources[0]));
-
     return _resources.size() == 0
                ? true
                : std::ranges::all_of(_resources.begin(), _resources.end(),
@@ -56,23 +55,39 @@ class ConnectionTest final : ITest {
   ConnectionTest(ConnectionTest&&) = default;
   ConnectionTest& operator=(const ConnectionTest&) = default;
   ConnectionTest& operator=(ConnectionTest&&) = default;
-  ConnectionTest(std::span<std::array<uint8_t, 4>> resources, size_t port)
-      : _resources(resources), _port(port)
+  ConnectionTest(std::span<std::array<uint8_t, 4>> resources,
+                 std::span<size_t> ports)
+      : _resources(resources.size())
   {
+
+    if (ports.size() != resources.size()) {
+      _invalid_state = true;
+      return;
+    }
+    std::ranges::transform(
+        resources, ports, _resources.begin(),
+        [](const std::array<uint8_t, 4>& ip_addr, size_t port) {
+          return std::pair(ip_addr, port);
+        });
   }
   bool operator()() override
   {
+    if (_invalid_state) {
+      std::cerr << "Non-equal port and address spans\n";
+      return _invalid_state;
+    }
+
     return _resources.size() == 0
                ? true
                : std::ranges::all_of(
                      _resources,
-                     [&port = _port](const std::array<uint8_t, 4>& addr) {
+                     [](const std::pair<std::array<uint8_t, 4>, size_t>& addr) {
                        using namespace boost::asio;
 
-                       std::cout << std::endl;
                        boost::asio::io_context service;
-                       ip::tcp::endpoint ep(ip::make_address_v4(addr),
-                                            static_cast<unsigned short>(port));
+                       ip::tcp::endpoint ep(
+                           ip::make_address_v4(addr.first),
+                           static_cast<unsigned short>(addr.second));
                        ip::tcp::socket sock(service);
                        boost::system::error_code err;
                        err = sock.connect(ep, err);
@@ -87,6 +102,7 @@ class ConnectionTest final : ITest {
   };
 
  private:
-  std::span<std::array<uint8_t, 4>> _resources;
-  size_t _port;
+  std::vector<std::pair<std::array<uint8_t, 4>, size_t>> _resources;
+
+  bool _invalid_state = false;
 };

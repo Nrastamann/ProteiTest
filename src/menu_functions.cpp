@@ -1,12 +1,10 @@
 #include <algorithm>
 #include <charconv>
-#include <type_traits>
 #include <unordered_map>
 #include <variant>
 
 #include "data_pool.hpp"
 #include "display.hpp"
-#include "hashed_values.hpp"
 #include "menu_functions.hpp"
 #include "static_containers.hpp"
 #include "utility.hpp"
@@ -39,67 +37,6 @@ getDefaultValues()
 }  // namespace static_containers
 
 namespace menu_functions_protei {
-void changeType(AppSettings& settings)
-{
-  ui_protei::clearScreen();
-  std::string string_input;
-  const auto& implemented_types_reference =
-      static_containers::getImplementedTypes();
-
-  while (true) {
-    std::cout
-        << "Enter new type (name must correspond with c++ types) or "
-           "enter 'quit' if you've changed your "
-           "mind\nlist of supported type is:\n\t-all uint/int types with "
-           "bit width\n\t-float\n\t-double\n\t-string\n\t-bool\n\t-common "
-           "int\n\t-char\nEnter new type: ";
-
-    std::cin >> string_input;
-    std::ranges::transform(string_input, string_input.begin(), ::tolower);
-    size_t hashed_input = std::hash<std::string_view>{}(string_input);
-
-    if (hashed_input == hashed::kQuitMenuHash) {
-      return;
-    }
-
-    if (std::cin.good() && implemented_types_reference.contains(hashed_input)) {
-      settings.setTypeHash(hashed_input);
-      settings.setTypeEnum(static_containers::getEnumType().at(hashed_input));
-      return;
-    }
-
-    ui_protei::clearCinBuffer();
-    std::cerr << "Wrong input, try again: ";
-  }
-}
-
-void changeName(AppSettings& settings)
-{
-  ui_protei::clearScreen();
-  std::string string_input;
-  while (true) {
-    std::cout << "Enter your new name or\n"
-                 "enter 'quit' if you've changed your mind: ";
-
-    std::cin >> string_input;
-    std::ranges::transform(string_input, string_input.begin(), ::tolower);
-    if (std::hash<std::string_view>{}(string_input) == hashed::kQuitMenuHash) {
-      return;
-    }
-
-    if (std::cin.good()) {
-      settings.setName(std::move(string_input));
-      return;
-    }
-
-    ui_protei::clearCinBuffer();
-    std::cerr << "Wrong input, try again: ";
-  }
-}
-
-template <typename T>
-concept isPartOf = std::is_assignable_v<any_type, T>;
-
 template <isPartOf T>
 static inline std::from_chars_result convertAnyType(
     std::string_view string_input, T& emplace_element)
@@ -128,9 +65,9 @@ static inline std::from_chars_result convertAnyTypeBool(
 {
   std::from_chars_result conv_result(string_input.end());
 
-  bool result = hashed_input == hashed::kTrueHashSymbolic;
+  bool result = hashed_input == hashed::kTrueSymbolic;
 
-  if (!result && hashed_input != hashed::kFalseHashSymbolic) {
+  if (!result && hashed_input != hashed::kFalseSymbolic) {
     size_t input{};
     conv_result =
         std::from_chars(string_input.begin(), string_input.end(), input);
@@ -160,13 +97,73 @@ inline static std::from_chars_result emplaceInVector(
   return conv_result;
 }
 
+void changeType(AppSettings& settings)
+{
+  ui_protei::clearScreen();
+  std::string string_input;
+  const auto& implemented_types_reference =
+      static_containers::getHashToTypeInfo();
+
+  while (true) {
+    std::cout
+        << "Enter new type (name must correspond with c++ types) or "
+           "enter 'quit' if you've changed your "
+           "mind\nlist of supported type is:\n\t-all uint/int types with "
+           "bit width\n\t-float\n\t-double\n\t-string\n\t-bool\n\t-common "
+           "int\n\t-char\nEnter new type: ";
+
+    std::cin >> string_input;
+    std::ranges::transform(string_input, string_input.begin(), ::tolower);
+    size_t hashed_input = std::hash<std::string_view>{}(string_input);
+
+    if (hashed_input == hashed::kQuit) {
+      return;
+    }
+
+    if (std::cin.good() && implemented_types_reference.contains(hashed_input)) {
+      settings.setTypeHash(hashed_input);
+      settings.setTypeEnum(
+          static_containers::getHashToTypeInfo().at(hashed_input).first);
+      return;
+    }
+
+    ui_protei::clearCinBuffer();
+    std::cerr << "Wrong input, try again: ";
+  }
+}
+
+void changeName(AppSettings& settings)
+{
+  ui_protei::clearScreen();
+  std::string string_input;
+  while (true) {
+    std::cout << "Enter your new name or\n"
+                 "enter 'quit' if you've changed your mind: ";
+
+    std::cin >> string_input;
+    std::ranges::transform(string_input, string_input.begin(), ::tolower);
+    if (std::hash<std::string_view>{}(string_input) == hashed::kQuit) {
+      return;
+    }
+
+    if (std::cin.good()) {
+      settings.setName(std::move(string_input));
+      return;
+    }
+
+    ui_protei::clearCinBuffer();
+    std::cerr << "Wrong input, try again: ";
+  }
+}
+
 void enterVector(DataPool& vector, AppSettings const& settings)
 {
   ProteiVector spare_vector;
 
   std::cout << "Enter " << kVectorDimensionsAmount << "-dimensional vector of "
-            << static_containers::getImplementedTypes().at(
-                   settings.cgetTypeHash())
+            << static_containers::getHashToTypeInfo()
+                   .at(settings.cgetTypeHash())
+                   .second
             << " or "
                "enter 'quit' if you've changed your "
                "mind.\nFormat is "
@@ -193,7 +190,7 @@ void enterVector(DataPool& vector, AppSettings const& settings)
                              ::tolower);
       size_t hashed_input = std::hash<std::string_view>{}(lowercase_input);
 
-      if (hashed_input == hashed::kQuitMenuHash) {
+      if (hashed_input == hashed::kQuit) {
         return;
       }
 
@@ -211,5 +208,45 @@ void enterVector(DataPool& vector, AppSettings const& settings)
 
   vector.push(
       PolymorphicDimensionalVector{spare_vector, settings.cgetTypeHash()});
+}
+
+void emptyQueue(DataPool& data_pool, NonConstTag)
+{
+  while (data_pool.size() > 0) {
+    auto vec = data_pool.front()._vec;
+    for (const auto& i : vec) {
+      std::visit(Visitor{[](auto const& variant_val) {
+                           std::cout << variant_val << ' ';
+                         },
+                         [](int8_t value) { std::cout << +value << ' '; },
+                         [](uint8_t value) { std::cout << +value << ' '; }},
+                 i);
+    }
+    std::cout << " - "
+              << static_containers::getHashToTypeInfo()
+                     .at(data_pool.front()._type_hash)
+                     .second
+              << '\n';
+
+    data_pool.pop();
+  }
+  std::cout << "Queue is empty\n";
+}
+void printVector(DataPool& arr, NonConstTag)
+{
+  if (arr.size() == 0) {
+    std::cout << "Empty queue\n";
+    return;
+  }
+
+  for (const auto& i : arr.front()._vec) {
+    std::visit(Visitor{[](auto const& variant_val) {
+                         std::cout << variant_val << ' ';
+                       },
+                       [](int8_t value) { std::cout << +value << ' '; },
+                       [](uint8_t value) { std::cout << +value << ' '; }},
+               i);
+  }
+  std::cout << '\n';
 }
 }  // namespace menu_functions_protei

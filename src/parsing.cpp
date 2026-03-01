@@ -1,6 +1,5 @@
 #include "parsing.hpp"
 #include <array>
-#include <cassert>
 #include <charconv>
 #include <expected>
 #include <span>

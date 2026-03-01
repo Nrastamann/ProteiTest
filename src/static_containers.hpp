@@ -31,7 +31,7 @@ enum class MenuOptions : uint8_t {
   WrongOption,
   EmptyQueue,
 };
-std::unordered_map<size_t, std::string_view> const& getImplementedTypes();
-std::unordered_map<size_t, EnumTypes> const& getEnumType();
+std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const&
+getHashToTypeInfo();
 std::unordered_map<size_t, MenuOptions> const& getMenuOptions();
 };  // namespace static_containers

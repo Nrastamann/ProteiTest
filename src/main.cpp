@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <array>
-#include <cassert>
 #include <expected>
 #include <functional>
 #include <iostream>
@@ -50,23 +49,6 @@ int main(int argc, char* argv[])
     std::cerr << "Invalid IP address\n";
     return 1;
   }
-
-  std::expected<size_t, parsing_protei::ParseResult> port =
-      parsing_protei::parsePort(argv_split->_port);
-
-  if (!port.has_value()) {
-    std::cerr << "Invalid port\n";
-    return 1;
-  }
-
-  std::expected<size_t, parsing_protei::ParseResult> index =
-      parsing_protei::parseIndex(argv_split->_index);
-
-  if (!index.has_value()) {
-    std::cerr << "Invalid index\n";
-    return 1;
-  }
-
   std::vector<std::array<uint8_t, kIpAddrOctetAmount>> ip_arr(
       ip_addresses.size());
 
@@ -76,11 +58,39 @@ int main(int argc, char* argv[])
                        parsing_protei::ParseResult>
              a) { return a.value(); });
 
-  AppSettings command_line_options{port.value(), index.value(),
-                                   std::move(argv_split->_lib_names), ip_arr,
-                                   argv_split->_role};
+  std::vector<std::expected<size_t, parsing_protei::ParseResult>> ports(
+      argv_split->_ports.size());
 
-  std::cout << "5?" << std::endl;
+  std::ranges::transform(
+      argv_split->_ports, ports.begin(),
+      [](std::string_view sv) { return parsing_protei::parsePort(sv); });
+
+  if (std::ranges::any_of(
+          ports,
+          [](const std::expected<size_t, parsing_protei::ParseResult>& res) {
+            return !res.has_value();
+          })) {
+    std::cerr << "Invalid port\n";
+    return 1;
+  }
+  std::vector<size_t> ports_arr(ports.size());
+
+  std::ranges::transform(
+      ports, ports_arr.begin(),
+      [](std::expected<size_t, parsing_protei::ParseResult> a) {
+        return a.value();
+      });
+
+  std::expected<size_t, parsing_protei::ParseResult> index =
+      parsing_protei::parseIndex(argv_split->_index);
+
+  if (!index.has_value()) {
+    std::cerr << "Invalid index\n";
+    return 1;
+  }
+
+  AppSettings command_line_options{ports_arr, argv_split->_lib_names, ip_arr,
+                                   argv_split->_role, index.value()};
 
   ui_protei::displayMenu();
 

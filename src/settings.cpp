@@ -1,5 +1,6 @@
 #include "settings.hpp"
 #include <iostream>
+#include "static_containers.hpp"
 
 namespace ui_protei {
 
@@ -25,15 +26,19 @@ void printAppSettings(AppSettings const& settings)
   }
 
   std::cout << '\n';
-  std::cout << "Port:\t\t" << settings.cgetPort() << '\n';
+  std::cout << "Port:\n";
+  for (const auto& port : settings.cgetPort()) {
+    std::cout << '\t' << port << '\n';
+  }
   std::cout << "Library names:\n";
   for (const auto& lib : settings.cGetLibName()) {
     std::cout << '\t' << lib << '\n';
   }
 
   std::cout << "Current type:\t"
-            << static_containers::getImplementedTypes().at(
-                   settings.cgetTypeHash())
+            << static_containers::getHashToTypeInfo()
+                   .at(settings.cgetTypeHash())
+                   .second
             << '\n';
   std::cout << "========================\n";
 }

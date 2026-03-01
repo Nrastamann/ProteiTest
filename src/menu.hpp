@@ -1,13 +1,10 @@
 #pragma once
 
 #include <functional>
-#include <unordered_map>
 #include "data_pool.hpp"
 #include "hooks.hpp"
 #include "menu_functions.hpp"
 #include "settings.hpp"
-#include "static_containers.hpp"
-#include "utility.hpp"
 
 using protei_function =
     std::variant<std::function<void(AppSettings&)>,
@@ -30,6 +27,13 @@ struct FunctionArgs {
   DataPool& _dataPool;
 };
 
+/**
+ * struct MenuItem - MenuItem - Abstraction of menu option call, it includes
+ * pre-hook call, function and post_hook function call
+ * Инвариант: 
+ * Вызываемая функция не должна иметь возвращаемое значение
+ * Тип вызываемых функций, должен быть включен в объекты protei_hook и protei_function
+ */
 struct MenuItem {
   explicit MenuItem(protei_function fn, protei_hook pre_hook = defaultEmpty,
                     protei_hook post_hook = defaultEmpty)
@@ -56,38 +60,9 @@ class Menu {
 
   using ref_function_container = function_container&;
   using cref_function_container = const function_container&;
-  static cref_function_container getContainer()
-  {
-    using static_containers::MenuOptions;
-    static function_container functions{
-        {MenuOptions::ChangeType, MenuItem{menu_functions_protei::changeType,
-                                           pre_hooks_protei::defaultClear,
-                                           post_hooks_protei::defaultClear}},
-        {MenuOptions::EmptyQueue,
-         MenuItem{menu_functions_protei::emptyQueue, defaultEmpty,
-                  post_hooks_protei::clearBuffer}},
-
-        {MenuOptions::ChangeRole, MenuItem{menu_functions_protei::changeName,
-                                           pre_hooks_protei::defaultClear,
-                                           post_hooks_protei::defaultClear}},
-        {MenuOptions::EnterVector, MenuItem{menu_functions_protei::enterVector,
-                                            pre_hooks_protei::defaultClear,
-                                            post_hooks_protei::defaultClear}},
-        {MenuOptions::PrintCurrentVector,
-         MenuItem{menu_functions_protei::printVector, defaultEmpty,
-                  post_hooks_protei::clearBuffer}},
-        {MenuOptions::PrintSettings,
-         MenuItem{menu_functions_protei::printCurrentAppSettings, defaultEmpty,
-                  post_hooks_protei::clearBuffer}},
-        {MenuOptions::WrongOption,
-         MenuItem{menu_functions_protei::wrongOption, defaultEmpty,
-                  post_hooks_protei::clearBuffer}},
-        {MenuOptions::QuitProgram,
-         MenuItem{menu_functions_protei::quit, defaultEmpty,
-                  post_hooks_protei::clearBuffer}},
-    };
-    return functions;
-  }
+  cref_function_container getContainer();
+  void callFunctionVariant(const protei_function& function,
+                           FunctionArgs& arguments) const;
 
  public:
   ~Menu() = default;
@@ -105,28 +80,9 @@ class Menu {
   {
     const MenuItem& menu_item = _items.at(option);
 
-    std::visit(Visitor{[](const std::function<void()>& fn) { fn(); }},
-               menu_item._pre_hook);
-
-    std::visit(
-        Visitor{
-            [&settings = arguments._cl_args](
-                const std::function<void(AppSettings&)>& fn) { fn(settings); },
-            [&vec = arguments._dataPool, &settings = arguments._cl_args](
-                const std::function<void(DataPool&, const AppSettings&)>& fn) {
-              fn(vec, settings);
-            },
-            [&vec = arguments._dataPool](
-                const std::function<void(DataPool&, NonConstTag)>& fn) {
-              fn(vec, {});
-            },
-            [&vec = arguments._dataPool](
-                const std::function<void(const DataPool&)>& fn) { fn(vec); },
-            [](const std::function<void()>& fn) { fn(); }},
-        menu_item._fn);
-
-    std::visit(Visitor{[](const std::function<void()>& fn) { fn(); }},
-               menu_item._post_hook);
+    callHook(menu_item._pre_hook);
+    callFunctionVariant(menu_item._fn, arguments);
+    callHook(menu_item._post_hook);
   }
 
  private:
