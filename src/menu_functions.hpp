@@ -5,6 +5,7 @@
 #include <variant>
 #include "settings.hpp"
 #include "static_containers.hpp"
+#include "utility.hpp"
 
 static constexpr size_t kVectorDimensionsAmount{4};
 
@@ -42,7 +43,11 @@ inline void printCurrentSettings(Settings& settings)
 inline void printVector(const PolymorphicVector<kVectorDimensionsAmount>& arr)
 {
   for (const auto& i : arr) {
-    std::visit([](auto const& variant_val) { std::cout << variant_val << ' '; },
+    std::visit(Visitor{[](auto const& variant_val) {
+                         std::cout << variant_val << ' ';
+                       },
+                       [](int8_t value) { std::cout << +value << ' '; },
+                       [](uint8_t value) { std::cout << +value << ' '; }},
                i);
   }
   std::cout << '\n';

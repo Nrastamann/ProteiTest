@@ -4,20 +4,14 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <variant>
 
 #include "display.hpp"
 #include "hashed_values.hpp"
+#include "menu.hpp"
 #include "menu_functions.hpp"
-#include "menu_functions_container.hpp"
 #include "parsing.hpp"
 #include "settings.hpp"
 #include "static_containers.hpp"
-
-template <typename... Callable>
-struct Visitor : Callable... {
-  using Callable::operator()...;
-};
 
 int main(int argc, char* argv[])
 {
@@ -71,7 +65,9 @@ int main(int argc, char* argv[])
   const std::unordered_map<size_t, static_containers::MenuOptions>&
       menu_options = static_containers::getMenuOptions();
 
-  MenuContainer menu_functions;
+  Menu menu;
+
+  FunctionArgs arguments{command_line_options, task_vector};
 
   while (!command_line_options.cgetShouldClose()) {
     std::string text_option;
@@ -89,42 +85,7 @@ int main(int argc, char* argv[])
         is_correct_option ? menu_options.at(input_hash)
                           : static_containers::MenuOptions::WrongOption;
 
-    std::visit(
-        Visitor{
-            [&command_line_options](
-                const std::function<void(Settings&)>& func) {
-              func(command_line_options);
-            },
-            [](const std::function<void()>& func) { func(); },
-            [&task_vector](
-                const std::function<void(
-                    const PolymorphicVector<kVectorDimensionsAmount>&)>& func) {
-              func(task_vector);
-            },
-            [&task_vector, &command_line_options](
-                const std::function<void(
-                    PolymorphicVector<kVectorDimensionsAmount>&,
-                    const Settings&)>& func) {
-              func(task_vector, command_line_options);
-            },
-
-        },
-        menu_functions.getFunction(picked_option));
-
-    switch (picked_option) {
-      case static_containers::MenuOptions::ChangeRole:
-      case static_containers::MenuOptions::ChangeType:
-      case static_containers::MenuOptions::EnterVector:
-        ui_protei::displayMenu();
-        break;
-
-      case static_containers::MenuOptions::PrintSettings:
-      case static_containers::MenuOptions::PrintCurrentVector:
-        break;
-
-      default:
-    }
-    ui_protei::clearCinBuffer();
+    menu.callFunction(picked_option, 0, 0, arguments);
   }
   ui_protei::clearScreen();
 }

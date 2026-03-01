@@ -8,6 +8,7 @@
 #include "hashed_values.hpp"
 #include "menu_functions.hpp"
 #include "static_containers.hpp"
+#include "utility.hpp"
 
 namespace static_containers {
 const std::unordered_map<static_containers::EnumTypes, any_type>&
@@ -142,11 +143,6 @@ static inline std::from_chars_result convertAnyTypeBool(
   emplace_element = result;
   return conv_result;
 }
-
-template <typename... Callable>
-struct Visitor : Callable... {
-  using Callable::operator()...;
-};
 
 inline static std::from_chars_result emplaceInVector(
     any_type& emplace_element, std::string_view string_input,
