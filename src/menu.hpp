@@ -2,18 +2,18 @@
 
 #include <functional>
 #include <unordered_map>
+#include "data_pool.hpp"
 #include "hooks.hpp"
 #include "menu_functions.hpp"
 #include "settings.hpp"
 #include "static_containers.hpp"
 #include "utility.hpp"
 
-using protei_function = std::variant<
-    std::function<void(Settings&)>,
-    std::function<void(PolymorphicVector<kVectorDimensionsAmount>&,
-                       const Settings&)>,
-    std::function<void(const PolymorphicVector<kVectorDimensionsAmount>&)>,
-    std::function<void()>>;
+using protei_function =
+    std::variant<std::function<void(AppSettings&)>,
+                 std::function<void(DataPool&, const AppSettings&)>,
+                 std::function<void(DataPool&, NonConstTag)>,
+                 std::function<void(const DataPool&)>, std::function<void()>>;
 
 struct FunctionArgs {
   ~FunctionArgs() = default;
@@ -21,14 +21,13 @@ struct FunctionArgs {
   FunctionArgs(FunctionArgs&&) = delete;
   FunctionArgs& operator=(const FunctionArgs&) = delete;
   FunctionArgs& operator=(FunctionArgs&&) = delete;
-  FunctionArgs(Settings& cl_args,
-               PolymorphicVector<kVectorDimensionsAmount>& vector)
-      : _cl_args(cl_args), _vector(vector)
+  FunctionArgs(AppSettings& cl_args, DataPool& data_pool)
+      : _cl_args(cl_args), _dataPool(data_pool)
   {
   }
 
-  Settings& _cl_args;
-  PolymorphicVector<kVectorDimensionsAmount>& _vector;
+  AppSettings& _cl_args;
+  DataPool& _dataPool;
 };
 
 struct MenuItem {
@@ -64,7 +63,11 @@ class Menu {
         {MenuOptions::ChangeType, MenuItem{menu_functions_protei::changeType,
                                            pre_hooks_protei::defaultClear,
                                            post_hooks_protei::defaultClear}},
-        {MenuOptions::ChangeRole, MenuItem{menu_functions_protei::changeRole,
+        {MenuOptions::EmptyQueue,
+         MenuItem{menu_functions_protei::emptyQueue, defaultEmpty,
+                  post_hooks_protei::clearBuffer}},
+
+        {MenuOptions::ChangeRole, MenuItem{menu_functions_protei::changeName,
                                            pre_hooks_protei::defaultClear,
                                            post_hooks_protei::defaultClear}},
         {MenuOptions::EnterVector, MenuItem{menu_functions_protei::enterVector,
@@ -74,7 +77,7 @@ class Menu {
          MenuItem{menu_functions_protei::printVector, defaultEmpty,
                   post_hooks_protei::clearBuffer}},
         {MenuOptions::PrintSettings,
-         MenuItem{menu_functions_protei::printCurrentSettings, defaultEmpty,
+         MenuItem{menu_functions_protei::printCurrentAppSettings, defaultEmpty,
                   post_hooks_protei::clearBuffer}},
         {MenuOptions::WrongOption,
          MenuItem{menu_functions_protei::wrongOption, defaultEmpty,
@@ -108,18 +111,18 @@ class Menu {
     std::visit(
         Visitor{
             [&settings = arguments._cl_args](
-                const std::function<void(Settings&)>& fn) { fn(settings); },
-            [](const std::function<void()>& fn) { fn(); },
-            [&vec = arguments._vector](
-                const std::function<void(
-                    const PolymorphicVector<kVectorDimensionsAmount>&)>& fn) {
-              fn(vec);
+                const std::function<void(AppSettings&)>& fn) { fn(settings); },
+            [&vec = arguments._dataPool, &settings = arguments._cl_args](
+                const std::function<void(DataPool&, const AppSettings&)>& fn) {
+              fn(vec, settings);
             },
-            [&vec = arguments._vector, &settings = arguments._cl_args](
-                const std::function<void(
-                    PolymorphicVector<kVectorDimensionsAmount>&,
-                    const Settings&)>& fn) { fn(vec, settings); },
-        },
+            [&vec = arguments._dataPool](
+                const std::function<void(DataPool&, NonConstTag)>& fn) {
+              fn(vec, {});
+            },
+            [&vec = arguments._dataPool](
+                const std::function<void(const DataPool&)>& fn) { fn(vec); },
+            [](const std::function<void()>& fn) { fn(); }},
         menu_item._fn);
 
     std::visit(Visitor{[](const std::function<void()>& fn) { fn(); }},

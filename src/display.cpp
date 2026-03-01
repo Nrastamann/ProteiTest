@@ -12,9 +12,10 @@ void displayMenu()
 
   std::cout << hint_text << delimeter << '\n';
 
-  std::cout << "Role\t\tenter role name\n";
+  std::cout << "Name\t\tenter your name\n";
   std::cout << "Type\t\tenter type\n";
   std::cout << "Settings:\tprint settings\n";
+  std::cout << "Empty:\t\tempty datapool and print it\n";
   std::cout << "Vector:\t\tenter 4-dimensional vector\n";
   std::cout << "Print:\t\tprint 4-dimensional vector\n";
   std::cout << "Quit:\t\tquit the program\n";

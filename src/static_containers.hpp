@@ -29,6 +29,7 @@ enum class MenuOptions : uint8_t {
   PrintCurrentVector,
   QuitProgram,
   WrongOption,
+  EmptyQueue,
 };
 std::unordered_map<size_t, std::string_view> const& getImplementedTypes();
 std::unordered_map<size_t, EnumTypes> const& getEnumType();

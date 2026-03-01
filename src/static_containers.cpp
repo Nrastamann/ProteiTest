@@ -43,11 +43,12 @@ std::unordered_map<size_t, EnumTypes> const& getEnumType()
 std::unordered_map<size_t, MenuOptions> const& getMenuOptions()
 {
   static std::unordered_map<size_t, MenuOptions> const k_menu_options{
-      {hashed::kRoleMenuHash, MenuOptions::ChangeRole},
+      {hashed::kNameMenuHash, MenuOptions::ChangeRole},
       {hashed::kTypeMenuHash, MenuOptions::ChangeType},
       {hashed::kVectorMenuHash, MenuOptions::EnterVector},
       {hashed::kPrintHash, MenuOptions::PrintCurrentVector},
       {hashed::kQuitMenuHash, MenuOptions::QuitProgram},
+      {hashed::kEmptyQueue, MenuOptions::EmptyQueue},
       {hashed::kSettingsMenuHash, MenuOptions::PrintSettings}};
 
   return k_menu_options;

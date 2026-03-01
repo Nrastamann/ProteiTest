@@ -7,11 +7,12 @@ inline size_t const kRoleHash = {std::hash<std::string_view>{}("-r")};
 inline size_t const kIndexHash = {std::hash<std::string_view>{}("-i")};
 inline size_t const kLibHash = {std::hash<std::string_view>{}("-L")};
 
-inline size_t const kRoleMenuHash = std::hash<std::string_view>{}("role");
+inline size_t const kNameMenuHash = std::hash<std::string_view>{}("name");
 inline size_t const kTypeMenuHash = std::hash<std::string_view>{}("type");
 inline size_t const kVectorMenuHash = std::hash<std::string_view>{}("vector");
 inline size_t const kPrintHash = std::hash<std::string_view>{}("print");
 inline size_t const kQuitMenuHash = std::hash<std::string_view>{}("quit");
+inline size_t const kEmptyQueue = std::hash<std::string_view>{}("empty");
 inline size_t const kSettingsMenuHash =
     std::hash<std::string_view>{}("settings");
 

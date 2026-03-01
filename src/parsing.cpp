@@ -1,8 +1,13 @@
 #include "parsing.hpp"
+#include <array>
+#include <cassert>
 #include <charconv>
+#include <expected>
 #include <span>
+#include "settings.hpp"
 namespace parsing_protei {
-bool parseAddr(std::string_view ip_addr, Settings& settings)
+std::expected<std::array<uint8_t, kIpAddrOctetAmount>, ParseResult> parseAddr(
+    std::string_view ip_addr)
 {
   std::array<uint8_t, kIpAddrOctetAmount> addr{0};
 
@@ -14,77 +19,67 @@ bool parseAddr(std::string_view ip_addr, Settings& settings)
         std::from_chars(substr_octet.begin(), substr_octet.end(), octet);
 
     if (ec != std::errc() || ptr != substr_octet.end()) {
-      return false;
+      return std::unexpected(ParseResult::SV_PARSING_ERR);
     }
 
     ip_addr.remove_prefix(delimeter_pos + 1);
   }
 
-  settings.setAddr(addr);
-  return true;
+  return addr;
 }
 
-bool parsePort(std::string_view port, Settings& settings)
+std::expected<size_t, ParseResult> parsePort(std::string_view port)
 {
   size_t port_number{};
   auto [ptr, ec] = std::from_chars(port.begin(), port.end(), port_number);
 
   if (ec != std::errc() || ptr != port.end()) {
-    return false;
+    return std::unexpected(ParseResult::SV_PARSING_ERR);
   }
 
-  settings.setPort(port_number);
-  return true;
+  return port_number;
 }
 
-bool parseIndex(std::string_view index, Settings& settings)
+std::expected<size_t, ParseResult> parseIndex(std::string_view index)
 {
   size_t index_number{};
   auto [ptr, ec] = std::from_chars(index.begin(), index.end(), index_number);
 
   if (ec != std::errc() || ptr != index.end()) {
-    return false;
+    return std::unexpected(ParseResult::SV_PARSING_ERR);
   }
 
-  settings.setPort(index_number);
-  return true;
+  return index_number;
 }
 
-ParseResult parseClArgs(
-    std::unordered_map<size_t, std::string_view>& argument_map, char** argv,
-    int argc)
+std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(char** argv,
+                                                              int argc)
 {
+  CommandLineArgsHolder argument_holder{};
   bool is_next_arg = false;
-  bool first_arg = true;
-  auto it = argument_map.begin();
+  auto argv_span = std::span(argv, argc).subspan(1);
+  size_t hash = 0;
 
-  for (auto& argument : std::span(argv, argc)) {
-    //need to skip program name as variable without warning about pointer
-    //arithmetic, idk how else i can do this
-    if (first_arg) {
-      first_arg = false;
-      continue;
-    }
-
+  for (auto& argument : argv_span) {
     if (is_next_arg) {
-      is_next_arg = false;
-      it->second = argument;
+      bool is_valid_argument = argument_holder.setArgument(hash, argument);
+
+      if (!is_valid_argument) {
+        return std::unexpected(ParseResult::WRONG_FLAG);
+      }
+
+      is_next_arg = !is_next_arg;
       continue;
     }
-
-    it = argument_map.find(std::hash<std::string_view>{}(argument));
-
-    if (it == argument_map.end()) {
-      return ParseResult::WRONG_FLAG;
-    }
-
-    is_next_arg = true;
+    hash = std::hash<std::string_view>{}(argument);
+    is_next_arg = !is_next_arg;
   }
 
   if (is_next_arg) {
-    return ParseResult::NO_ARGUMENT;
+    return std::unexpected(ParseResult::NO_ARGUMENT);
   }
 
-  return ParseResult::NO_ERR;
+  return argument_holder;
 }
+
 };  // namespace parsing_protei

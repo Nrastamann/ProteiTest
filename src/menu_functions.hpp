@@ -3,46 +3,57 @@
 #include <iostream>
 #include <unordered_map>
 #include <variant>
+#include "data_pool.hpp"
 #include "settings.hpp"
 #include "static_containers.hpp"
 #include "utility.hpp"
-
-static constexpr size_t kVectorDimensionsAmount{4};
-
-using any_type =
-    std::variant<float, double, char, std::string, bool, int8_t, int16_t,
-                 int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t>;
-
-template <size_t N>
-using PolymorphicVector = std::array<any_type, kVectorDimensionsAmount>;
-
-using ProteiVector = PolymorphicVector<kVectorDimensionsAmount>;
-
+struct NonConstTag {};
 namespace static_containers {
 const std::unordered_map<static_containers::EnumTypes, any_type>&
 getDefaultValues();
 }  // namespace static_containers
 
 namespace menu_functions_protei {
-void changeType(Settings& settings);
-void changeRole(Settings& settings);
+void changeType(AppSettings& settings);
+void changeName(AppSettings& settings);
 
-void enterVector(PolymorphicVector<kVectorDimensionsAmount>& vector,
-                 Settings const& settings);
+void enterVector(DataPool& vector, AppSettings const& settings);
 
-inline void quit(Settings& settings)
+inline void quit(AppSettings& settings)
 {
   settings.setShouldClose();
 }
 
-inline void printCurrentSettings(Settings& settings)
+inline void emptyQueue(DataPool& data_pool, NonConstTag)
 {
-  ui_protei::printSettings(settings);
+  while (data_pool.size() > 0) {
+    auto vec = data_pool.front()._vec;
+    for (const auto& i : vec) {
+      std::visit(Visitor{[](auto const& variant_val) {
+                           std::cout << variant_val << ' ';
+                         },
+                         [](int8_t value) { std::cout << +value << ' '; },
+                         [](uint8_t value) { std::cout << +value << ' '; }},
+                 i);
+    }
+    std::cout << " - "
+              << static_containers::getImplementedTypes().at(
+                     data_pool.front()._type_hash)
+              << '\n';
+
+    data_pool.pop();
+  }
+  std::cout << "Queue is empty\n";
 }
 
-inline void printVector(const PolymorphicVector<kVectorDimensionsAmount>& arr)
+inline void printCurrentAppSettings(AppSettings& settings)
 {
-  for (const auto& i : arr) {
+  ui_protei::printAppSettings(settings);
+}
+
+inline void printVector(const DataPool& arr)
+{
+  for (const auto& i : arr.front()._vec) {
     std::visit(Visitor{[](auto const& variant_val) {
                          std::cout << variant_val << ' ';
                        },

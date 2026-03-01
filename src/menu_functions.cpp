@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <variant>
 
+#include "data_pool.hpp"
 #include "display.hpp"
 #include "hashed_values.hpp"
 #include "menu_functions.hpp"
@@ -38,7 +39,7 @@ getDefaultValues()
 }  // namespace static_containers
 
 namespace menu_functions_protei {
-void changeType(Settings& settings)
+void changeType(AppSettings& settings)
 {
   ui_protei::clearScreen();
   std::string string_input;
@@ -72,15 +73,13 @@ void changeType(Settings& settings)
   }
 }
 
-void changeRole(Settings& settings)
+void changeName(AppSettings& settings)
 {
   ui_protei::clearScreen();
   std::string string_input;
-  std::size_t index{};
   while (true) {
-    std::cout
-        << "Enter your new role and index(first role, and then index) or\n"
-           "enter 'quit' if you've changed your mind: ";
+    std::cout << "Enter your new name or\n"
+                 "enter 'quit' if you've changed your mind: ";
 
     std::cin >> string_input;
     std::ranges::transform(string_input, string_input.begin(), ::tolower);
@@ -88,10 +87,8 @@ void changeRole(Settings& settings)
       return;
     }
 
-    std::cin >> index;
     if (std::cin.good()) {
-      settings.setRole(string_input);
-      settings.setIndex(index);
+      settings.setName(std::move(string_input));
       return;
     }
 
@@ -163,10 +160,9 @@ inline static std::from_chars_result emplaceInVector(
   return conv_result;
 }
 
-void enterVector(PolymorphicVector<kVectorDimensionsAmount>& vector,
-                 Settings const& settings)
+void enterVector(DataPool& vector, AppSettings const& settings)
 {
-  PolymorphicVector<kVectorDimensionsAmount> spare_vector;
+  ProteiVector spare_vector;
 
   std::cout << "Enter " << kVectorDimensionsAmount << "-dimensional vector of "
             << static_containers::getImplementedTypes().at(
@@ -177,7 +173,6 @@ void enterVector(PolymorphicVector<kVectorDimensionsAmount>& vector,
             << kVectorDimensionsAmount << " values separated by whitespaces: ";
 
   bool is_conversion_not_done = true;
-
   std::string string_input;
   std::string lowercase_input;
   const auto& default_value =
@@ -214,6 +209,7 @@ void enterVector(PolymorphicVector<kVectorDimensionsAmount>& vector,
     }
   }
 
-  vector = spare_vector;
+  vector.push(
+      PolymorphicDimensionalVector{spare_vector, settings.cgetTypeHash()});
 }
 }  // namespace menu_functions_protei
