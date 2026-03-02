@@ -5,7 +5,7 @@
 
 #include "data_pool.hpp"
 #include "display.hpp"
-#include "logger.h"
+#include "logger.hpp"
 #include "menu_functions.hpp"
 #include "static_containers.hpp"
 #include "utility.hpp"

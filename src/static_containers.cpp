@@ -1,6 +1,6 @@
 #include "static_containers.hpp"
 #include "hashed_values.hpp"
-#include "logger.h"
+#include "logger.hpp"
 namespace static_containers {
 std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const&
 getHashToTypeInfo()

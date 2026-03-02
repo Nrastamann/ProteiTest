@@ -5,7 +5,7 @@
 #include <format>
 #include <span>
 #include "config.h"
-#include "logger.h"
+#include "logger.hpp"
 #include "settings.hpp"
 namespace parsing_protei {
 std::expected<std::array<uint8_t, kIpAddrOctetAmount>, ParseResult> parseAddr(
@@ -65,6 +65,8 @@ std::expected<size_t, ParseResult> parseIndex(std::string_view index)
 std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(char** argv,
                                                               int argc)
 {
+  logger_presets::functionCall();
+
   CommandLineArgsHolder argument_holder{};
   bool is_next_arg = false;
   auto argv_span = std::span(argv, argc).subspan(1);
@@ -74,8 +76,7 @@ std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(char** argv,
       bool is_valid_argument = argument_holder.setArgument(hash, argument);
 
       if (!is_valid_argument) {
-        Logger::writeToLog<config::LogVerbosity::Error>(std::format(
-            "Couldn't save argument - {} with hash - {}", argument, hash));
+        logger_presets::parsingInputError(argument, *argument);
         return std::unexpected(ParseResult::WRONG_FLAG);
       }
 
@@ -87,7 +88,7 @@ std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(char** argv,
   }
 
   if (is_next_arg) {
-    Logger::writeToLog<config::LogVerbosity::Error>(
+    logger_presets::defaultError(
         std::format("Last unpaired flag - {}", argv_span.last(1)));
 
     return std::unexpected(ParseResult::NO_ARGUMENT);

@@ -1,5 +1,5 @@
 #include "menu.hpp"
-#include "logger.h"
+#include "logger.hpp"
 #include "static_containers.hpp"
 
 namespace hashed {

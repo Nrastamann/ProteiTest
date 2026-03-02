@@ -3,7 +3,7 @@
 #include <queue>
 #include <utility>
 #include "config.h"
-#include "logger.h"
+#include "logger.hpp"
 #include "utility.hpp"
 
 struct PolymorphicDimensionalVector {

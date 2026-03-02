@@ -9,7 +9,7 @@
 #include "config.h"
 #include "data_pool.hpp"
 #include "display.hpp"
-#include "logger.h"
+#include "logger.hpp"
 #include "menu.hpp"
 #include "parsing.hpp"
 #include "settings.hpp"
@@ -21,7 +21,6 @@ int main(int argc, char* argv[])
   DataPool data_pool;
 
   auto argv_split = parsing_protei::parseClArgs(argv, argc);
-  Logger::writeToLog<config::LogVerbosity::Info>("Starting parse argv");
 
   switch (argv_split.error_or(parsing_protei::ParseResult::NO_ERR)) {
     case parsing_protei::ParseResult::WRONG_FLAG:

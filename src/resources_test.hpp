@@ -9,7 +9,7 @@
 #include <iostream>
 #include <string_view>
 #include "config.h"
-#include "logger.h"
+#include "logger.hpp"
 
 class ITest {
  public:

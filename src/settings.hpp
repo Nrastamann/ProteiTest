@@ -5,7 +5,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
-#include "logger.h"
+#include "logger.hpp"
 #include "resources_test.hpp"
 
 #include "hashed_values.hpp"
