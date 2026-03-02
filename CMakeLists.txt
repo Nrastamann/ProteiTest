@@ -19,9 +19,15 @@ if(SANITIZERS)
 endif()
 
 add_compile_options(-Wall -Wextra -Werror)
+
+#configure_file("${CMAKE_CURRENT_SOURCE_DIR}/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/generated/config.h" @ONLY)
+
 add_executable(task1)
+#target_include_directories(task1 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+
 file(GLOB_RECURSE SRCS CONFIGURE_DEPENDS src/*.cpp)
 target_sources(task1 PRIVATE ${SRCS})
+
 
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_MULTITHREADED ON)
