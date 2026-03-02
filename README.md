@@ -74,4 +74,3 @@ gcovr --gcov-executable "llvm-cov gcov" --filter src/ --filter include/ --html-d
 Пример результатов работы gcovr:
 
 ![gcovr](screens/gcovr.png "gcover coverage")
-
