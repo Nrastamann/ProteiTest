@@ -48,8 +48,7 @@ void printAppSettings(AppSettings const& settings)
 bool CommandLineArgsHolder::setArgument(size_t hash, std::string_view value)
 {
 
-  Logger::writeToLog(
-      config::LogVerbosity::Info,
+  Logger::writeToLog<config::LogVerbosity::Info>(
       std::format("Started pushing arguments to CommandLineArgsHolder - {} {}",
                   hash, value));
 

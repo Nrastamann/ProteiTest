@@ -26,15 +26,16 @@ class Logger {
     log_file += str;
     std::ofstream file(log_file);
     if (file.is_open()) {
-      file << "Log is started\n\n";
       file.close();
     }
   }
+
+  template <config::LogVerbosity LogLevel>
   static void writeToLog(
-      config::LogVerbosity log_level, std::string_view str,
+      std::string_view str,
       std::source_location loc = std::source_location::current())
   {
-    if (log_level > config::kLogVerbosity) {
+    if (LogLevel > config::kLogVerbosity) {
       return;
     }
     std::ofstream file(log_file, std::ios::app);
@@ -43,19 +44,21 @@ class Logger {
       return;
     }
     file << '[' << std::chrono::system_clock::now()
-         << "]: " << config::toStr(log_level) << '\n'
+         << "]: " << config::toStr(LogLevel) << '\n'
          << loc.file_name() << ' ' << loc.function_name() << ' ' << loc.line()
          << '\n'
          << str << "\n\n";
 
     file.close();
   }
+
+  template <config::LogVerbosity LogLevel>
   static void writeToLogNCl(
-      const config::LogVerbosity log_level, std::string_view str,
+      std::string_view str,
       std::source_location loc = std::source_location::current())
   {
     std::cout << str << '\n';
-    writeToLog(log_level, str, loc);
+    writeToLog<LogLevel>(str, loc);
   }
   Logger() = default;
   ~Logger() = default;

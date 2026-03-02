@@ -25,8 +25,8 @@ std::unordered_map<size_t, MenuOptions> const& getMenuOptions()
       {hashed::kEmptyQueue, MenuOptions::EmptyQueue},
       {hashed::kSettingsMenu, MenuOptions::PrintSettings}};
 
-  Logger::writeToLog(config::LogVerbosity::Trace,
-                     "Created static menu options container");
+  Logger::writeToLog<config::LogVerbosity::Trace>(
+      "Created static menu options container");
 
   return k_menu_options;
 }
@@ -36,8 +36,8 @@ void Menu::callFunctionVariant(const protei_function& function,
                                FunctionArgs& arguments) const
 {
 
-  Logger::writeToLog(config::LogVerbosity::Trace,
-                     "Starting menu function call");
+  Logger::writeToLog<config::LogVerbosity::Trace>(
+      "Starting menu function call");
 
   std::visit(
       Visitor{
@@ -87,7 +87,7 @@ Menu::cref_function_container Menu::getContainer()
        MenuItem{menu_functions_protei::quit, defaultEmpty,
                 post_hooks_protei::clearBuffer}},
   };
-  Logger::writeToLog(config::LogVerbosity::Trace,
-                     "Created menu functions container");
+  Logger::writeToLog<config::LogVerbosity::Trace>(
+      "Created menu functions container");
   return functions;
 }

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <format>
 #include <queue>
 #include <utility>
 #include "config.h"
@@ -37,7 +36,7 @@ class DataPool {
 
   void push(PolymorphicDimensionalVector&& vec)
   {
-    Logger::writeToLog(config::LogVerbosity::Debug, "Pushing to DataPool");
+    Logger::writeToLog<config::LogVerbosity::Debug>("Pushing to DataPool");
 
     _queue.push(std::move(vec));
   }
@@ -50,7 +49,7 @@ class DataPool {
 
   void pop()
   {
-    Logger::writeToLog(config::LogVerbosity::Debug, "Poping from DataPool");
+    Logger::writeToLog<config::LogVerbosity::Debug>("Poping from DataPool");
     _queue.pop();
   }
 

@@ -69,7 +69,7 @@ class AppSettings {
         !(ResourceTest{_lib_name}() && ConnectionTest{_ip_addr, _ports}());
 
     _should_close
-        ? Logger::writeToLog(config::LogVerbosity::Error, "Invalid Resources")
+        ? Logger::writeToLog<config::LogVerbosity::Error>("Invalid Resources")
         : void();
   }
   [[nodiscard]] std::vector<std::array<uint8_t, kIpAddrOctetAmount>>& getAddr()

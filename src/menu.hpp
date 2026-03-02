@@ -78,7 +78,7 @@ class Menu {
                     [[maybe_unused]] V&& post_hook_arg,
                     FunctionArgs& arguments) const
   {
-    Logger::writeToLog(config::LogVerbosity::Info, "Calling callFunction");
+    Logger::writeToLog<config::LogVerbosity::Info>("Calling callFunction");
 
     const MenuItem& menu_item = _items.at(option);
 

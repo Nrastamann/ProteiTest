@@ -1,7 +1,7 @@
 #pragma once
 
-#include <string_view>
 #include <cstdint>
+#include <string_view>
 namespace config {
 
 enum class LogVerbosity : uint8_t {
@@ -12,10 +12,11 @@ enum class LogVerbosity : uint8_t {
   Trace = 4
 };
 
-#cmakedefine LOG_VERBOSITY LogVerbosity::@LOG_VERBOSITY@
-
 std::string_view toStr(LogVerbosity verbosity);
 
-constexpr LogVerbosity kLogVerbosity{LOG_VERBOSITY};
+constexpr LogVerbosity kLogVerbosity
+{
+  LogVerbosity::@LOG_VERBOSITY@
+};
 
 }  // namespace config
