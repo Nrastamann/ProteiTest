@@ -5,6 +5,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include "logger.h"
 #include "resources_test.hpp"
 
 #include "hashed_values.hpp"
@@ -66,6 +67,10 @@ class AppSettings {
   {
     _should_close =
         !(ResourceTest{_lib_name}() && ConnectionTest{_ip_addr, _ports}());
+
+    _should_close
+        ? Logger::writeToLog(config::LogVerbosity::Error, "Invalid Resources")
+        : void();
   }
   [[nodiscard]] std::vector<std::array<uint8_t, kIpAddrOctetAmount>>& getAddr()
   {

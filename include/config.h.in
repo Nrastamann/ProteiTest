@@ -1,0 +1,21 @@
+#pragma once
+
+#include <string_view>
+#include <cstdint>
+namespace config {
+
+enum class LogVerbosity : uint8_t {
+  Error = 0,
+  Warning = 1,
+  Info = 2,
+  Debug = 3,
+  Trace = 4
+};
+
+#cmakedefine LOG_VERBOSITY LogVerbosity::@LOG_VERBOSITY@
+
+std::string_view toStr(LogVerbosity verbosity);
+
+constexpr LogVerbosity kLogVerbosity{LOG_VERBOSITY};
+
+}  // namespace config

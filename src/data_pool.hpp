@@ -1,7 +1,10 @@
 #pragma once
 
+#include <format>
 #include <queue>
 #include <utility>
+#include "config.h"
+#include "logger.h"
 #include "utility.hpp"
 
 struct PolymorphicDimensionalVector {
@@ -32,7 +35,12 @@ class DataPool {
   [[nodiscard]] size_t size() const { return _queue.size(); }
   return_reference_type back() { return _queue.back(); }
 
-  void push(PolymorphicDimensionalVector&& vec) { _queue.push(std::move(vec)); }
+  void push(PolymorphicDimensionalVector&& vec)
+  {
+    Logger::writeToLog(config::LogVerbosity::Debug, "Pushing to DataPool");
+
+    _queue.push(std::move(vec));
+  }
 
   return_reference_type front() { return _queue.front(); }
   [[nodiscard]] const_return_reference_type front() const
@@ -40,7 +48,11 @@ class DataPool {
     return _queue.front();
   }
 
-  void pop() { _queue.pop(); }
+  void pop()
+  {
+    Logger::writeToLog(config::LogVerbosity::Debug, "Poping from DataPool");
+    _queue.pop();
+  }
 
  private:
   std::queue<PolymorphicDimensionalVector> _queue;

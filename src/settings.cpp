@@ -12,7 +12,7 @@ void printAppSettings(AppSettings const& settings)
 
   std::cout << "Role:\t\t" << settings.cgetRole() << '\n';
   std::cout << "Index:\t\t" << settings.cgetIndex() << '\n';
-  std::cout << "IP address:\t";
+  std::cout << "IP address:\n";
   size_t delimeter_index = 0;
 
   for (const auto& addr : settings.cgetAddress()) {
@@ -47,7 +47,14 @@ void printAppSettings(AppSettings const& settings)
 
 bool CommandLineArgsHolder::setArgument(size_t hash, std::string_view value)
 {
+
+  Logger::writeToLog(
+      config::LogVerbosity::Info,
+      std::format("Started pushing arguments to CommandLineArgsHolder - {} {}",
+                  hash, value));
+
   static std::unordered_map<size_t, std::function<void(std::string_view)>>
+
       cl_args = {
           {hashed::kAddrHash,
            [&arg_holder = *this](std::string_view sv) {

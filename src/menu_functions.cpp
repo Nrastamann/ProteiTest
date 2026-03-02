@@ -5,6 +5,7 @@
 
 #include "data_pool.hpp"
 #include "display.hpp"
+#include "logger.h"
 #include "menu_functions.hpp"
 #include "static_containers.hpp"
 #include "utility.hpp"
@@ -32,6 +33,9 @@ getDefaultValues()
           {EnumTypes::String, ""},
 
       };
+
+  Logger::writeToLog(config::LogVerbosity::Trace,
+                     "Created type dispatching container");
   return type_dispatch;
 }
 }  // namespace static_containers
@@ -84,6 +88,8 @@ inline static std::from_chars_result emplaceInVector(
 {
   std::from_chars_result conv_result{};
 
+  Logger::writeToLog(config::LogVerbosity::Trace, "Starting emplace to vector");
+
   conv_result = std::visit(
       Visitor{[string_input]<typename T>(T& emplace_element) {
                 return convertAnyType<T>(string_input, emplace_element);
@@ -99,6 +105,10 @@ inline static std::from_chars_result emplaceInVector(
 
 void changeType(AppSettings& settings)
 {
+
+  Logger::writeToLog(config::LogVerbosity::Info,
+                     "Starting changeType procedure");
+
   ui_protei::clearScreen();
   std::string string_input;
   const auto& implemented_types_reference =
@@ -117,6 +127,8 @@ void changeType(AppSettings& settings)
     size_t hashed_input = std::hash<std::string_view>{}(string_input);
 
     if (hashed_input == hashed::kQuit) {
+      Logger::writeToLog(config::LogVerbosity::Info, "Quiting procedure");
+
       return;
     }
 
@@ -124,9 +136,11 @@ void changeType(AppSettings& settings)
       settings.setTypeHash(hashed_input);
       settings.setTypeEnum(
           static_containers::getHashToTypeInfo().at(hashed_input).first);
+      Logger::writeToLog(config::LogVerbosity::Info, "Quiting procedure");
       return;
     }
 
+    Logger::writeToLog(config::LogVerbosity::Warning, "Wrong input");
     ui_protei::clearCinBuffer();
     std::cerr << "Wrong input, try again: ";
   }
@@ -134,6 +148,9 @@ void changeType(AppSettings& settings)
 
 void changeName(AppSettings& settings)
 {
+  Logger::writeToLog(config::LogVerbosity::Info,
+                     "Starting changeName procedure");
+
   ui_protei::clearScreen();
   std::string string_input;
   while (true) {
@@ -143,23 +160,29 @@ void changeName(AppSettings& settings)
     std::cin >> string_input;
     std::ranges::transform(string_input, string_input.begin(), ::tolower);
     if (std::hash<std::string_view>{}(string_input) == hashed::kQuit) {
+
+      Logger::writeToLog(config::LogVerbosity::Info, "Quiting procedure");
       return;
     }
 
     if (std::cin.good()) {
       settings.setName(std::move(string_input));
+      Logger::writeToLog(config::LogVerbosity::Info, "Quiting procedure");
       return;
     }
 
     ui_protei::clearCinBuffer();
+    Logger::writeToLog(config::LogVerbosity::Warning, "Wrong input");
     std::cerr << "Wrong input, try again: ";
   }
 }
 
 void enterVector(DataPool& vector, AppSettings const& settings)
 {
-  ProteiVector spare_vector;
+  Logger::writeToLog(config::LogVerbosity::Info,
+                     "Starting enterVector procedure");
 
+  ProteiVector spare_vector;
   std::cout << "Enter " << kVectorDimensionsAmount << "-dimensional vector of "
             << static_containers::getHashToTypeInfo()
                    .at(settings.cgetTypeHash())
@@ -191,6 +214,8 @@ void enterVector(DataPool& vector, AppSettings const& settings)
       size_t hashed_input = std::hash<std::string_view>{}(lowercase_input);
 
       if (hashed_input == hashed::kQuit) {
+        Logger::writeToLog(config::LogVerbosity::Info, "Quiting procedure");
+
         return;
       }
 
@@ -198,6 +223,7 @@ void enterVector(DataPool& vector, AppSettings const& settings)
 
       if (ec != std::errc() || ptr != string_input.end().base()) {
         is_conversion_not_done = true;
+        Logger::writeToLog(config::LogVerbosity::Warning, "Wrong input");
 
         ui_protei::clearCinBuffer();
         std::cout << "Error during type conversion, re-input: ";
@@ -206,12 +232,16 @@ void enterVector(DataPool& vector, AppSettings const& settings)
     }
   }
 
+  Logger::writeToLog(config::LogVerbosity::Info, "Quiting procedure");
   vector.push(
       PolymorphicDimensionalVector{spare_vector, settings.cgetTypeHash()});
 }
 
 void emptyQueue(DataPool& data_pool, NonConstTag)
 {
+  Logger::writeToLog(config::LogVerbosity::Info,
+                     "Starting emptyQueue procedure");
+
   while (data_pool.size() > 0) {
     auto vec = data_pool.front()._vec;
     for (const auto& i : vec) {
@@ -230,12 +260,20 @@ void emptyQueue(DataPool& data_pool, NonConstTag)
 
     data_pool.pop();
   }
+
+  Logger::writeToLog(config::LogVerbosity::Info, "Quiting procedure");
+
   std::cout << "Queue is empty\n";
 }
 void printVector(DataPool& arr, NonConstTag)
 {
+  Logger::writeToLog(config::LogVerbosity::Info,
+                     "Starting procedure printVector");
+
   if (arr.size() == 0) {
     std::cout << "Empty queue\n";
+    Logger::writeToLog(config::LogVerbosity::Warning,
+                       "Empty queue at printing, quiting procedure");
     return;
   }
 
@@ -248,5 +286,8 @@ void printVector(DataPool& arr, NonConstTag)
                i);
   }
   std::cout << '\n';
+
+  Logger::writeToLog(config::LogVerbosity::Info, "Quiting procedure");
 }
+
 }  // namespace menu_functions_protei

@@ -8,6 +8,8 @@
 #include <filesystem>
 #include <iostream>
 #include <string_view>
+#include "config.h"
+#include "logger.h"
 
 class ITest {
  public:
@@ -62,6 +64,8 @@ class ConnectionTest final : ITest {
 
     if (ports.size() != resources.size()) {
       _invalid_state = true;
+      Logger::writeToLog(config::LogVerbosity::Warning,
+                         "Invalid ConnectionTest state");
       return;
     }
     std::ranges::transform(
@@ -73,8 +77,11 @@ class ConnectionTest final : ITest {
   bool operator()() override
   {
     if (_invalid_state) {
+      Logger::writeToLog(config::LogVerbosity::Error,
+                         "Couldn't acquire resource");
+
       std::cerr << "Non-equal port and address spans\n";
-      return _invalid_state;
+      return false;
     }
 
     return _resources.size() == 0

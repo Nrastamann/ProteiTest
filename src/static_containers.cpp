@@ -1,5 +1,6 @@
 #include "static_containers.hpp"
 #include "hashed_values.hpp"
+#include "logger.h"
 namespace static_containers {
 std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const&
 getHashToTypeInfo()
@@ -24,6 +25,10 @@ getHashToTypeInfo()
           {hashed::kUInt32, {EnumTypes::UInt32, "uint32_t"}},
           {hashed::kUInt64, {EnumTypes::UInt64, "uint64_t"}},
       };
+
+  Logger::writeToLog(config::LogVerbosity::Info,
+                     "Created static unordered_map for type dispatching");
+
   return enum_types_converter;
 }
 };  // namespace static_containers

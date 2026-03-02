@@ -1,4 +1,5 @@
 #include "menu.hpp"
+#include "logger.h"
 #include "static_containers.hpp"
 
 namespace hashed {
@@ -14,6 +15,7 @@ namespace static_containers {
 
 std::unordered_map<size_t, MenuOptions> const& getMenuOptions()
 {
+
   static std::unordered_map<size_t, MenuOptions> const k_menu_options{
       {hashed::kNameMenu, MenuOptions::ChangeRole},
       {hashed::kTypeMenu, MenuOptions::ChangeType},
@@ -23,6 +25,9 @@ std::unordered_map<size_t, MenuOptions> const& getMenuOptions()
       {hashed::kEmptyQueue, MenuOptions::EmptyQueue},
       {hashed::kSettingsMenu, MenuOptions::PrintSettings}};
 
+  Logger::writeToLog(config::LogVerbosity::Trace,
+                     "Created static menu options container");
+
   return k_menu_options;
 }
 }  // namespace static_containers
@@ -30,6 +35,10 @@ std::unordered_map<size_t, MenuOptions> const& getMenuOptions()
 void Menu::callFunctionVariant(const protei_function& function,
                                FunctionArgs& arguments) const
 {
+
+  Logger::writeToLog(config::LogVerbosity::Trace,
+                     "Starting menu function call");
+
   std::visit(
       Visitor{
           [&settings = arguments._cl_args](
@@ -78,5 +87,7 @@ Menu::cref_function_container Menu::getContainer()
        MenuItem{menu_functions_protei::quit, defaultEmpty,
                 post_hooks_protei::clearBuffer}},
   };
+  Logger::writeToLog(config::LogVerbosity::Trace,
+                     "Created menu functions container");
   return functions;
 }

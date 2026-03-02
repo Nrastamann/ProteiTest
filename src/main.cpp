@@ -17,25 +17,24 @@
 
 int main(int argc, char* argv[])
 {
-  Logger logger;
-  logger.loggerInit();
+  Logger::loggerInit();
   DataPool data_pool;
 
   auto argv_split = parsing_protei::parseClArgs(argv, argc);
-  logger.writeToLog(config::LogVerbosity::Info, "Starting parse argv");
+  Logger::writeToLog(config::LogVerbosity::Info, "Starting parse argv");
 
   switch (argv_split.error_or(parsing_protei::ParseResult::NO_ERR)) {
     case parsing_protei::ParseResult::WRONG_FLAG:
-      logger.writeToLogNCl(config::LogVerbosity::Error, "Wrong flag passed");
+      Logger::writeToLogNCl(config::LogVerbosity::Error, "Wrong flag passed");
       return 1;
       break;
     case parsing_protei::ParseResult::NO_ARGUMENT:
-      logger.writeToLogNCl(config::LogVerbosity::Error,
-                           "Flag with argument passed without one");
+      Logger::writeToLogNCl(config::LogVerbosity::Error,
+                            "Flag with argument passed without one");
       return 1;
     default:
-      logger.writeToLogNCl(config::LogVerbosity::Debug,
-                           "Parsing done successfully");
+      Logger::writeToLog(config::LogVerbosity::Debug,
+                         "Argv moved to arguments holder successfully");
 
       break;
   }
@@ -55,8 +54,8 @@ int main(int argc, char* argv[])
             return !res.has_value();
           })) {
 
-    logger.writeToLogNCl(config::LogVerbosity::Error,
-                         "Couldn't parse one of the ip_addresses");
+    Logger::writeToLogNCl(config::LogVerbosity::Error,
+                          "Couldn't parse one of the ip_addresses");
     return 1;
   }
   std::vector<std::array<uint8_t, kIpAddrOctetAmount>> ip_arr(
@@ -81,8 +80,8 @@ int main(int argc, char* argv[])
             return !res.has_value();
           })) {
 
-    logger.writeToLogNCl(config::LogVerbosity::Error,
-                         "Couldn't parse one of the ports");
+    Logger::writeToLogNCl(config::LogVerbosity::Error,
+                          "Couldn't parse one of the ports");
     return 1;
   }
   std::vector<size_t> ports_arr(ports.size());
@@ -97,12 +96,12 @@ int main(int argc, char* argv[])
       parsing_protei::parseIndex(argv_split->_index);
 
   if (!index.has_value()) {
-    logger.writeToLogNCl(config::LogVerbosity::Error, "Couldn't parse index");
+    Logger::writeToLogNCl(config::LogVerbosity::Error, "Couldn't parse index");
     return 1;
   }
 
-  logger.writeToLog(config::LogVerbosity::Debug,
-                    "Starting AppSettings construction");
+  Logger::writeToLog(config::LogVerbosity::Debug,
+                     "Starting AppSettings construction");
   AppSettings command_line_options{ports_arr, argv_split->_lib_names, ip_arr,
                                    argv_split->_role, index.value()};
 
@@ -117,17 +116,17 @@ int main(int argc, char* argv[])
 
   FunctionArgs arguments{command_line_options, data_pool};
 
-  logger.writeToLog(config::LogVerbosity::Debug, "Starting main-loop");
+  Logger::writeToLog(config::LogVerbosity::Debug, "Starting main-loop");
 
   while (!command_line_options.cgetShouldClose()) {
     std::string text_option;
 
-    logger.writeToLog(config::LogVerbosity::Debug, "Starting main-loop");
+    Logger::writeToLog(config::LogVerbosity::Debug, "Starting main-loop");
 
-    logger.writeToLogNCl(config::LogVerbosity::Trace, "Your command: ");
+    Logger::writeToLogNCl(config::LogVerbosity::Trace, "Your command: ");
 
     std::cin >> text_option;
-    logger.writeToLog(config::LogVerbosity::Trace, text_option);
+    Logger::writeToLog(config::LogVerbosity::Trace, text_option);
     std::ranges::transform(text_option, text_option.begin(), ::tolower);
 
     size_t input_hash = std::hash<std::string_view>{}(text_option);
@@ -138,7 +137,7 @@ int main(int argc, char* argv[])
         is_correct_option ? menu_options.at(input_hash)
                           : static_containers::MenuOptions::WrongOption;
 
-    logger.writeToLog(config::LogVerbosity::Debug, "Call function");
+    Logger::writeToLog(config::LogVerbosity::Debug, "Call function");
     menu.callFunction(picked_option, 0, 0, arguments);
   }
   ui_protei::clearScreen();
