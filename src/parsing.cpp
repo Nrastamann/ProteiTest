@@ -4,13 +4,13 @@
 #include <expected>
 #include <format>
 #include <span>
-#include "config.h"
 #include "logger.hpp"
 #include "settings.hpp"
 namespace parsing_protei {
 std::expected<std::array<uint8_t, kIpAddrOctetAmount>, ParseResult> parseAddr(
     std::string_view ip_addr)
 {
+  logger_presets::functionCall();
   std::array<uint8_t, kIpAddrOctetAmount> addr{0};
 
   for (auto& octet : addr) {
@@ -21,9 +21,7 @@ std::expected<std::array<uint8_t, kIpAddrOctetAmount>, ParseResult> parseAddr(
         std::from_chars(substr_octet.begin(), substr_octet.end(), octet);
 
     if (ec != std::errc() || ptr != substr_octet.end()) {
-      Logger::writeToLog<config::LogVerbosity::Error>(std::format(
-          "Couldn't parse octet - {} at the symbol - {}", octet, *ptr));
-
+      logger_presets::userInputError(substr_octet, *ptr);
       return std::unexpected(ParseResult::SV_PARSING_ERR);
     }
 
@@ -35,12 +33,13 @@ std::expected<std::array<uint8_t, kIpAddrOctetAmount>, ParseResult> parseAddr(
 
 std::expected<size_t, ParseResult> parsePort(std::string_view port)
 {
+  logger_presets::functionCall();
+
   size_t port_number{};
   auto [ptr, ec] = std::from_chars(port.begin(), port.end(), port_number);
 
   if (ec != std::errc() || ptr != port.end()) {
-    Logger::writeToLog<config::LogVerbosity::Error>(
-        std::format("Couldn't parse port - {} at the symbol - {}", port, *ptr));
+    logger_presets::userInputError(port, *ptr);
 
     return std::unexpected(ParseResult::SV_PARSING_ERR);
   }
@@ -50,12 +49,12 @@ std::expected<size_t, ParseResult> parsePort(std::string_view port)
 
 std::expected<size_t, ParseResult> parseIndex(std::string_view index)
 {
+  logger_presets::functionCall();
+
   size_t index_number{};
   auto [ptr, ec] = std::from_chars(index.begin(), index.end(), index_number);
   if (ec != std::errc() || ptr != index.end()) {
-    Logger::writeToLog<config::LogVerbosity::Error>(std::format(
-        "Couldn't parse index - {} at the symbol - {}", index, *ptr));
-
+    logger_presets::userInputError(index, *ptr);
     return std::unexpected(ParseResult::SV_PARSING_ERR);
   }
 

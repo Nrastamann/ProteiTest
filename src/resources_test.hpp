@@ -6,9 +6,8 @@
 #include <boost/asio/ip/address_v4.hpp>
 #include <cassert>
 #include <filesystem>
-#include <iostream>
+#include <format>
 #include <string_view>
-#include "config.h"
 #include "logger.hpp"
 
 class ITest {
@@ -38,12 +37,18 @@ class ResourceTest final : ITest {
 
   bool operator()() override
   {
-    return _resources.size() == 0
-               ? true
-               : std::ranges::all_of(_resources.begin(), _resources.end(),
-                                     [](std::string_view sv) {
-                                       return std::filesystem::exists(sv);
-                                     });
+    bool value = true;
+    if (_resources.size() != 0 &&
+        !std::ranges::all_of(
+            _resources.begin(), _resources.end(),
+            [](std::string_view sv) { return std::filesystem::exists(sv); })) {
+
+      logger_presets::acquiringResourceError<ResourceTest>(
+          std::format("{}", _resources));
+      value = false;
+    }
+
+    return value;
   };
 
  private:
@@ -64,8 +69,6 @@ class ConnectionTest final : ITest {
 
     if (ports.size() != resources.size()) {
       _invalid_state = true;
-      Logger::writeToLog<config::LogVerbosity::Warning>(
-          "Invalid ConnectionTest state");
       return;
     }
     std::ranges::transform(
@@ -74,38 +77,39 @@ class ConnectionTest final : ITest {
           return std::pair(ip_addr, port);
         });
   }
+
   bool operator()() override
   {
-    if (_invalid_state) {
-      Logger::writeToLog<config::LogVerbosity::Error>(
-          "Couldn't acquire resource");
+    bool value = true;
 
-      std::cerr << "Non-equal port and address spans\n";
-      return false;
+    auto test_resource =
+        [](const std::pair<std::array<uint8_t, 4>, size_t>& addr) {
+          using namespace boost::asio;
+
+          boost::asio::io_context service;
+          ip::tcp::endpoint ep(ip::make_address_v4(addr.first),
+                               static_cast<unsigned short>(addr.second));
+          ip::tcp::socket sock(service);
+          boost::system::error_code err;
+          err = sock.connect(ep, err);
+
+          if (err) {
+            return false;
+          }
+
+          sock.close();
+          return true;
+        };
+
+    if (_invalid_state || (_resources.size() != 0 &&
+                           !std::ranges::all_of(_resources, test_resource))) {
+      logger_presets::acquiringResourceError<ConnectionTest>(
+          std::format("{} - addresses/ports, {} - invalid size", _resources,
+                      _invalid_state));
+      value = false;
     }
 
-    return _resources.size() == 0
-               ? true
-               : std::ranges::all_of(
-                     _resources,
-                     [](const std::pair<std::array<uint8_t, 4>, size_t>& addr) {
-                       using namespace boost::asio;
-
-                       boost::asio::io_context service;
-                       ip::tcp::endpoint ep(
-                           ip::make_address_v4(addr.first),
-                           static_cast<unsigned short>(addr.second));
-                       ip::tcp::socket sock(service);
-                       boost::system::error_code err;
-                       err = sock.connect(ep, err);
-
-                       if (err) {
-                         return false;
-                       }
-
-                       sock.close();
-                       return true;
-                     });
+    return value;
   };
 
  private:

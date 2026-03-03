@@ -1,8 +1,8 @@
 #pragma once
 
+#include <format>
 #include <queue>
 #include <utility>
-#include "config.h"
 #include "logger.hpp"
 #include "utility.hpp"
 
@@ -18,10 +18,32 @@ struct PolymorphicDimensionalVector {
   PolymorphicDimensionalVector(ProteiVector vec, size_t type_hash)
       : _vec(std::move(vec)), _type_hash(type_hash)
   {
+    logger_presets::createObject<PolymorphicDimensionalVector>();
   }
 
   ProteiVector _vec;
   size_t _type_hash;
+};
+
+template <>
+struct std::formatter<PolymorphicDimensionalVector>
+    : std::formatter<std::string> {
+  auto format(const PolymorphicDimensionalVector& vec,
+              std::format_context& ctx) const
+  {
+    std::string out;
+    size_t type = vec._type_hash;
+    for (const auto& i : vec._vec) {
+      std::visit(Visitor{[&out](auto const& variant_val) {
+                   out += std::format("{} ", variant_val);
+                 }},
+                 //  [&out](int8_t value) { std::cout << +value << ' '; },
+                 //  [&out](uint8_t value) { std::cout << +value << ' '; }},
+                 i);
+    }
+    out += std::format("{}", type);
+    return std::formatter<std::string>::format(out, ctx);
+  }
 };
 
 class DataPool {
@@ -36,8 +58,7 @@ class DataPool {
 
   void push(PolymorphicDimensionalVector&& vec)
   {
-    Logger::writeToLog<config::LogVerbosity::Debug>("Pushing to DataPool");
-
+    logger_presets::containerPush<DataPool>(std::format("{}", vec));
     _queue.push(std::move(vec));
   }
 
@@ -49,7 +70,8 @@ class DataPool {
 
   void pop()
   {
-    Logger::writeToLog<config::LogVerbosity::Debug>("Poping from DataPool");
+    logger_presets::containerRemove<DataPool>(
+        std::format("{}", _queue.front()));
     _queue.pop();
   }
 

@@ -3,6 +3,7 @@
 #include <expected>
 #include <functional>
 #include <iostream>
+#include <ranges>
 #include <string>
 #include <string_view>
 
@@ -14,95 +15,73 @@
 #include "parsing.hpp"
 #include "settings.hpp"
 #include "static_containers.hpp"
+namespace rv = std::ranges::views;
 
 int main(int argc, char* argv[])
 {
   Logger::loggerInit();
-  DataPool data_pool;
 
   auto argv_split = parsing_protei::parseClArgs(argv, argc);
 
   switch (argv_split.error_or(parsing_protei::ParseResult::NO_ERR)) {
     case parsing_protei::ParseResult::WRONG_FLAG:
-      Logger::writeToLogNCl<config::LogVerbosity::Error>("Wrong flag passed");
+      logger_presets::defaultError("Wrong flag passed");
       return 1;
-      break;
     case parsing_protei::ParseResult::NO_ARGUMENT:
-      Logger::writeToLogNCl<config::LogVerbosity::Error>(
-          "Flag with argument passed without one");
+      logger_presets::defaultError("Flag with argument passed without one");
       return 1;
     default:
-      Logger::writeToLog<config::LogVerbosity::Debug>(
-          "Argv moved to arguments holder successfully");
-
-      break;
   }
 
-  std::vector<std::expected<std::array<uint8_t, kIpAddrOctetAmount>,
-                            parsing_protei::ParseResult>>
-      ip_addresses(argv_split->_addresses.size());
+  using addr_parse_result =
+      std::expected<std::array<uint8_t, kIpAddrOctetAmount>,
+                    parsing_protei::ParseResult>;
+  std::vector<std::array<uint8_t, kIpAddrOctetAmount>> ip_arr;
 
-  std::ranges::transform(
-      argv_split->_addresses, ip_addresses.begin(),
-      [](std::string_view sv) { return parsing_protei::parseAddr(sv); });
+  auto addresses_view = argv_split->_addresses |
+                        rv::transform(&parsing_protei::parseAddr) |
+                        rv::take_while(&addr_parse_result::has_value) |
+                        rv::transform([](const auto& a) { return a.value(); });
 
-  if (std::ranges::any_of(
-          ip_addresses,
-          [](const std::expected<std::array<uint8_t, kIpAddrOctetAmount>,
-                                 parsing_protei::ParseResult>& res) {
-            return !res.has_value();
-          })) {
+  for (const auto& i : addresses_view) {
+    ip_arr.push_back(i);
+  }
 
-    Logger::writeToLogNCl<config::LogVerbosity::Error>(
-        "Couldn't parse one of the ip_addresses");
+  if (ip_arr.size() != argv_split->_addresses.size()) {
     return 1;
   }
-  std::vector<std::array<uint8_t, kIpAddrOctetAmount>> ip_arr(
-      ip_addresses.size());
 
-  std::ranges::transform(
-      ip_addresses, ip_arr.begin(),
-      [](std::expected<std::array<uint8_t, kIpAddrOctetAmount>,
-                       parsing_protei::ParseResult>
-             a) { return a.value(); });
+  using port_parse_result = std::expected<size_t, parsing_protei::ParseResult>;
+  std::vector<size_t> ports_arr;
 
-  std::vector<std::expected<size_t, parsing_protei::ParseResult>> ports(
-      argv_split->_ports.size());
+  auto ports_view = argv_split->_ports |
+                    rv::transform(&parsing_protei::parsePort) |
+                    rv::take_while(&port_parse_result::has_value) |
+                    rv::transform([](const auto& a) { return a.value(); });
 
-  std::ranges::transform(
-      argv_split->_ports, ports.begin(),
-      [](std::string_view sv) { return parsing_protei::parsePort(sv); });
+  for (const auto& i : ports_view) {
+    ports_arr.push_back(i);
+  }
 
-  if (std::ranges::any_of(
-          ports,
-          [](const std::expected<size_t, parsing_protei::ParseResult>& res) {
-            return !res.has_value();
-          })) {
-
-    Logger::writeToLogNCl<config::LogVerbosity::Error>(
-        "Couldn't parse one of the ports");
+  if (ports_arr.size() != argv_split->_ports.size()) {
     return 1;
   }
-  std::vector<size_t> ports_arr(ports.size());
-
-  std::ranges::transform(
-      ports, ports_arr.begin(),
-      [](std::expected<size_t, parsing_protei::ParseResult> a) {
-        return a.value();
-      });
 
   std::expected<size_t, parsing_protei::ParseResult> index =
       parsing_protei::parseIndex(argv_split->_index);
 
   if (!index.has_value()) {
-    Logger::writeToLogNCl<config::LogVerbosity::Error>("Couldn't parse index");
+    logger_presets::defaultError("Couldn't parse the index");
     return 1;
   }
 
-  Logger::writeToLog<config::LogVerbosity::Debug>(
-      "Starting AppSettings construction");
+  logger_presets::createObject<AppSettings>();
   AppSettings command_line_options{ports_arr, argv_split->_lib_names, ip_arr,
                                    argv_split->_role, index.value()};
+
+  if (command_line_options.cgetShouldClose()) {
+    return 1;
+  }
 
   ui_protei::displayMenu();
 
@@ -113,19 +92,19 @@ int main(int argc, char* argv[])
 
   Menu menu;
 
-  FunctionArgs arguments{command_line_options, data_pool};
+  logger_presets::createObject<DataPool>();
+  DataPool data_pool;
 
-  Logger::writeToLog<config::LogVerbosity::Debug>("Starting main-loop");
+  logger_presets::createObject<FunctionArgs>();
+  FunctionArgs arguments{command_line_options, data_pool};
 
   while (!command_line_options.cgetShouldClose()) {
     std::string text_option;
 
-    Logger::writeToLog<config::LogVerbosity::Debug>("Starting main-loop");
-
-    Logger::writeToLogNCl<config::LogVerbosity::Trace>("Your command: ");
+    Logger::writeToLogNCl<config::LogVerbosity::Debug>("Your command: ");
 
     std::cin >> text_option;
-    Logger::writeToLog<config::LogVerbosity::Trace>(text_option);
+    Logger::writeToLog<config::LogVerbosity::Debug>(text_option);
     std::ranges::transform(text_option, text_option.begin(), ::tolower);
 
     size_t input_hash = std::hash<std::string_view>{}(text_option);
@@ -136,7 +115,6 @@ int main(int argc, char* argv[])
         is_correct_option ? menu_options.at(input_hash)
                           : static_containers::MenuOptions::WrongOption;
 
-    Logger::writeToLog<config::LogVerbosity::Debug>("Call function");
     menu.callFunction(picked_option, 0, 0, arguments);
   }
   ui_protei::clearScreen();

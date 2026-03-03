@@ -3,6 +3,7 @@
 #include <functional>
 #include "data_pool.hpp"
 #include "hooks.hpp"
+#include "logger.hpp"
 #include "menu_functions.hpp"
 #include "settings.hpp"
 
@@ -22,7 +23,6 @@ struct FunctionArgs {
       : _cl_args(cl_args), _dataPool(data_pool)
   {
   }
-
   AppSettings& _cl_args;
   DataPool& _dataPool;
 };
@@ -78,8 +78,7 @@ class Menu {
                     [[maybe_unused]] V&& post_hook_arg,
                     FunctionArgs& arguments) const
   {
-    Logger::writeToLog<config::LogVerbosity::Info>("Calling callFunction");
-
+    logger_presets::functionCall();
     const MenuItem& menu_item = _items.at(option);
 
     callHook(menu_item._pre_hook);

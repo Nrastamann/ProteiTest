@@ -1,14 +1,23 @@
 #pragma once
+#include <cxxabi.h>
 #include <chrono>
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <source_location>
 #include <string>
 #include <string_view>
 #include <thread>
 #include "config.h"  //!!!
+
+template <typename T>
+std::unique_ptr<char, void (*)(void*)> acquireName()
+{
+  return {abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, nullptr),
+          std::free};
+}
 
 class Logger {
 
@@ -46,7 +55,7 @@ class Logger {
       return;
     }
 
-    file << std::format("[{}]: <{}> [{} : {} : {} : {}] | {}",
+    file << std::format("[{}]: <{}> [{} : {} : {} : {}] | {}\n",
                         std::chrono::system_clock::now(),
                         config::toStr(LogLevel), std::this_thread::get_id(),
                         loc.file_name(), loc.function_name(), loc.line(), str);
@@ -75,24 +84,24 @@ class Logger {
 
 namespace logger_presets {
 
-inline void userInputError(
+void userInputError(std::string_view input_str, char symbol,
+                    std::source_location loc = std::source_location::current());
+void parsingInputError(
     std::string_view input_str, char symbol,
     std::source_location loc = std::source_location::current());
-inline void parsingInputError(
-    std::string_view input_str, char symbol,
-    std::source_location loc = std::source_location::current());
-inline void defaultError(
-    std::string_view metadata,
-    std::source_location loc = std::source_location::current());
+void defaultError(std::string_view metadata,
+                  std::source_location loc = std::source_location::current());
 
 template <typename T>
 inline void acquiringResourceError(
     std::string_view metadata,
     std::source_location loc = std::source_location::current())
 {
+  auto ptr = acquireName<T>();
+
   Logger::writeToLogNCl<config::LogVerbosity::Error>(
-      std::format("Error during acquiring {} with metadata {}",
-                  acquireName<T>(), metadata),
+      std::format("Error during acquiring {} with metadata {}", ptr.get(),
+                  metadata),
       loc);
 }
 template <typename T>
@@ -100,9 +109,10 @@ inline void containerRemove(
     std::string_view metadata,
     std::source_location loc = std::source_location::current())
 {
+  auto ptr = acquireName<T>();
+
   Logger::writeToLog<config::LogVerbosity::Info>(
-      std::format("Removed object from {} - metadata {}", acquireName<T>(),
-                  metadata),
+      std::format("Removed object from {} - metadata {}", ptr.get(), metadata),
       loc);
 }
 template <typename T>
@@ -110,9 +120,10 @@ inline void containerPush(
     std::string_view metadata,
     std::source_location loc = std::source_location::current())
 {
+  auto ptr = acquireName<T>();
+
   Logger::writeToLog<config::LogVerbosity::Info>(
-      std::format("Pushed object to {} - metadata {}", acquireName<T>(),
-                  metadata),
+      std::format("Pushed object to {} - metadata {}", ptr.get(), metadata),
       loc);
 }
 
@@ -120,13 +131,18 @@ template <typename T>
 inline void createObject(
     std::source_location loc = std::source_location::current())
 {
+  auto ptr = acquireName<T>();
+
   Logger::writeToLog<config::LogVerbosity::Info>(
-      std::format("Starting {} creation", acquireName<T>()), loc);
+      std::format("Starting {} creation", ptr.get()), loc);
 }
 
-inline void createdStaticContainer(
+void createdStaticContainer(
     std::string_view description,
     std::source_location loc = std::source_location::current());
-inline void functionCall(
-    std::source_location loc = std::source_location::current());
+void functionCall(std::source_location loc = std::source_location::current());
+void menuQuit(std::source_location loc = std::source_location::current());
+void wrongInput(std::source_location loc = std::source_location::current());
+void userInput(std::string_view input,
+               std::source_location loc = std::source_location::current());
 }  // namespace logger_presets

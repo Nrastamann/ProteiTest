@@ -22,10 +22,9 @@ add_compile_options(-Wall -Wextra -Werror)
 
 SET(LOG_VERBOSITY "Trace" CACHE STRING "Verbosity log")
 
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/generated/config.h" @ONLY)
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/config.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/src/config.h" @ONLY)
 
 add_executable(task1)
-target_include_directories(task1 PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/generated")
 
 file(GLOB_RECURSE SRCS CONFIGURE_DEPENDS src/*.cpp)
 target_sources(task1 PRIVATE ${SRCS})

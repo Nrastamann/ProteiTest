@@ -26,9 +26,8 @@ getHashToTypeInfo()
           {hashed::kUInt64, {EnumTypes::UInt64, "uint64_t"}},
       };
 
-  Logger::writeToLog<config::LogVerbosity::Info>(
-      "Created static unordered_map for type dispatching");
-
+  logger_presets::createdStaticContainer(
+      "Hashed type - pair <EnumType, TypeName> - unordered_map");
   return enum_types_converter;
 }
 };  // namespace static_containers

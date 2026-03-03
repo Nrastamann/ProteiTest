@@ -65,12 +65,11 @@ class AppSettings {
         _type_enum(type_enum),
         _index(index)
   {
+    logger_presets::createObject<ResourceTest>();
+    logger_presets::createObject<ConnectionTest>();
+
     _should_close =
         !(ResourceTest{_lib_name}() && ConnectionTest{_ip_addr, _ports}());
-
-    _should_close
-        ? Logger::writeToLog<config::LogVerbosity::Error>("Invalid Resources")
-        : void();
   }
   [[nodiscard]] std::vector<std::array<uint8_t, kIpAddrOctetAmount>>& getAddr()
   {
