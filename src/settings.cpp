@@ -1,48 +1,49 @@
 #include "settings.hpp"
-#include <iostream>
+#include "io_manager.hpp"
 #include "static_containers.hpp"
 
 namespace ui_protei {
 
 void printAppSettings(AppSettings const& settings)
 {
+  auto& out = protei_io::io().cout();
   logger_presets::functionCall();
 
-  std::cout << "========================\n";
-  std::cout << "Current settings:\n";
-  std::cout << "UserName:\t" << settings.cgetName() << '\n';
+  out << "========================\n";
+  out << "Current settings:\n";
+  out << "UserName:\t" << settings.cgetName() << '\n';
 
-  std::cout << "Role:\t\t" << settings.cgetRole() << '\n';
-  std::cout << "Index:\t\t" << settings.cgetIndex() << '\n';
-  std::cout << "IP address:\n";
+  out << "Role:\t\t" << settings.cgetRole() << '\n';
+  out << "Index:\t\t" << settings.cgetIndex() << '\n';
+  out << "IP address:\n";
   size_t delimeter_index = 0;
 
   for (const auto& addr : settings.cgetAddress()) {
-    std::cout << '\t';
+    out << '\t';
     for (const auto& octet : addr) {
       char delimeter = ++delimeter_index < kIpAddrOctetAmount ? '.' : ' ';
-      std::cout << +octet << delimeter;
+      out << +octet << delimeter;
     }
     delimeter_index = 0;
-    std::cout << "\n";
+    out << "\n";
   }
 
-  std::cout << '\n';
-  std::cout << "Port:\n";
+  out << '\n';
+  out << "Port:\n";
   for (const auto& port : settings.cgetPort()) {
-    std::cout << '\t' << port << '\n';
+    out << '\t' << port << '\n';
   }
-  std::cout << "Library names:\n";
+  out << "Library names:\n";
   for (const auto& lib : settings.cGetLibName()) {
-    std::cout << '\t' << lib << '\n';
+    out << '\t' << lib << '\n';
   }
 
-  std::cout << "Current type:\t"
-            << static_containers::getHashToTypeInfo()
-                   .at(settings.cgetTypeHash())
-                   .second
-            << '\n';
-  std::cout << "========================\n";
+  out << "Current type:\t"
+      << static_containers::getHashToTypeInfo()
+             .at(settings.cgetTypeHash())
+             .second
+      << '\n';
+  out << "========================\n";
 }
 
 }  // namespace ui_protei

@@ -37,8 +37,8 @@ struct std::formatter<PolymorphicDimensionalVector>
       std::visit(Visitor{[&out](auto const& variant_val) {
                    out += std::format("{} ", variant_val);
                  }},
-                 //  [&out](int8_t value) { std::cout << +value << ' '; },
-                 //  [&out](uint8_t value) { std::cout << +value << ' '; }},
+                 //  [&out](int8_t value) { out << +value << ' '; },
+                 //  [&out](uint8_t value) { out << +value << ' '; }},
                  i);
     }
     out += std::format("{}", type);

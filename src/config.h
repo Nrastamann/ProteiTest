@@ -14,9 +14,6 @@ enum class LogVerbosity : uint8_t {
 
 std::string_view toStr(LogVerbosity verbosity);
 
-constexpr LogVerbosity kLogVerbosity
-{
-  LogVerbosity::Trace
-};
+constexpr LogVerbosity kLogVerbosity{LogVerbosity::Trace};
 
 }  // namespace config
