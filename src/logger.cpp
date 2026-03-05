@@ -2,7 +2,7 @@
 #include <format>
 #include <source_location>
 #include <string_view>
-#include "config.h"
+#include "config.hpp"
 
 namespace logger_presets {
 void userInputError(std::string_view input_str, char symbol,

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <unordered_map>
 #include "data_pool.hpp"
-#include "io_manager.hpp"
+
 #include "settings.hpp"
 #include "static_containers.hpp"
 #include "utility.hpp"
@@ -44,6 +44,6 @@ inline void printCurrentAppSettings(AppSettings& settings)
 
 inline void wrongOption()
 {
-  protei_io::io().cout() << "Wrong menu option, try again\n";
+  std::cout << "Wrong menu option, try again\n";
 }
 }  // namespace menu_functions_protei

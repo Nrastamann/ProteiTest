@@ -68,7 +68,7 @@ std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(char** argv,
 
   CommandLineArgsHolder argument_holder{};
   bool is_next_arg = false;
-  auto argv_span = std::span(argv, argc).subspan(1);
+  auto argv_span = std::span(argv, static_cast<size_t>(argc)).subspan(1);
   size_t hash = 0;
   for (auto& argument : argv_span) {
     if (is_next_arg) {

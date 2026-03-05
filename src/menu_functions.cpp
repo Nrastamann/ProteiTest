@@ -5,7 +5,7 @@
 
 #include "data_pool.hpp"
 #include "display.hpp"
-#include "io_manager.hpp"
+
 #include "logger.hpp"
 #include "menu_functions.hpp"
 #include "static_containers.hpp"
@@ -114,22 +114,20 @@ void changeType(AppSettings& settings)
 {
   logger_presets::functionCall();
 
-  auto& out = protei_io::io().cout();
-  auto& in = protei_io::io().cin();
-
   ui_protei::clearScreen();
   std::string string_input;
   const auto& implemented_types_reference =
       static_containers::getHashToTypeInfo();
 
   while (true) {
-    out << "Enter new type (name must correspond with c++ types) or "
+    std::cout
+        << "Enter new type (name must correspond with c++ types) or "
            "enter 'quit' if you've changed your "
            "mind\nlist of supported type is:\n\t-all uint/int types with "
            "bit width\n\t-float\n\t-double\n\t-string\n\t-bool\n\t-common "
            "int\n\t-char\nEnter new type: ";
 
-    in >> string_input;
+    std::cin >> string_input;
     logger_presets::userInput(string_input);
 
     std::ranges::transform(string_input, string_input.begin(), ::tolower);
@@ -140,7 +138,7 @@ void changeType(AppSettings& settings)
       return;
     }
 
-    if (in.good() && implemented_types_reference.contains(hashed_input)) {
+    if (std::cin.good() && implemented_types_reference.contains(hashed_input)) {
       settings.setTypeHash(hashed_input);
       settings.setTypeEnum(
           static_containers::getHashToTypeInfo().at(hashed_input).first);
@@ -158,16 +156,13 @@ void changeName(AppSettings& settings)
 {
   logger_presets::functionCall();
 
-  auto& out = protei_io::io().cout();
-  auto& in = protei_io::io().cin();
-
   ui_protei::clearScreen();
   std::string string_input;
   while (true) {
-    out << "Enter your new name or\n"
-           "enter 'quit' if you've changed your mind: ";
+    std::cout << "Enter your new name or\n"
+                 "enter 'quit' if you've changed your mind: ";
 
-    in >> string_input;
+    std::cin >> string_input;
     logger_presets::userInput(string_input);
 
     std::ranges::transform(string_input, string_input.begin(), ::tolower);
@@ -176,7 +171,7 @@ void changeName(AppSettings& settings)
       return;
     }
 
-    if (in.good()) {
+    if (std::cin.good()) {
       settings.setName(std::move(string_input));
       logger_presets::menuQuit();
       return;
@@ -189,20 +184,18 @@ void changeName(AppSettings& settings)
 
 void enterVector(DataPool& vector, AppSettings const& settings)
 {
-  auto& out = protei_io::io().cout();
-  auto& in = protei_io::io().cin();
 
   logger_presets::functionCall();
 
   ProteiVector spare_vector;
-  out << "Enter " << kVectorDimensionsAmount << "-dimensional vector of "
-      << static_containers::getHashToTypeInfo()
-             .at(settings.cgetTypeHash())
-             .second
-      << " or "
-         "enter 'quit' if you've changed your "
-         "mind.\nFormat is "
-      << kVectorDimensionsAmount << " values separated by whitespaces: ";
+  std::cout << "Enter " << kVectorDimensionsAmount << "-dimensional vector of "
+            << static_containers::getHashToTypeInfo()
+                   .at(settings.cgetTypeHash())
+                   .second
+            << " or "
+               "enter 'quit' if you've changed your "
+               "mind.\nFormat is "
+            << kVectorDimensionsAmount << " values separated by whitespaces: ";
 
   bool is_conversion_not_done = true;
   std::string string_input;
@@ -218,7 +211,7 @@ void enterVector(DataPool& vector, AppSettings const& settings)
     is_conversion_not_done = false;
 
     for (auto& element : spare_vector) {
-      in >> string_input;
+      std::cin >> string_input;
       logger_presets::userInput(string_input);
 
       lowercase_input = string_input;
@@ -249,52 +242,51 @@ void enterVector(DataPool& vector, AppSettings const& settings)
 
 void emptyQueue(DataPool& data_pool, NonConstTag)
 {
-  auto& out = protei_io::io().cout();
 
   logger_presets::functionCall();
 
   while (data_pool.size() > 0) {
     auto vec = data_pool.front()._vec;
     for (const auto& i : vec) {
-      std::visit(Visitor{[&out](auto const& variant_val) {
-                           out << variant_val << ' ';
+      std::visit(Visitor{[](auto const& variant_val) {
+                           std::cout << variant_val << ' ';
                          },
-                         [&out](int8_t value) { out << +value << ' '; },
-                         [&out](uint8_t value) { out << +value << ' '; }},
+                         [](int8_t value) { std::cout << +value << ' '; },
+                         [](uint8_t value) { std::cout << +value << ' '; }},
                  i);
     }
-    out << " - "
-        << static_containers::getHashToTypeInfo()
-               .at(data_pool.front()._type_hash)
-               .second
-        << '\n';
+    std::cout << " - "
+              << static_containers::getHashToTypeInfo()
+                     .at(data_pool.front()._type_hash)
+                     .second
+              << '\n';
 
     data_pool.pop();
   }
 
   logger_presets::menuQuit();
-  out << "Queue is empty\n";
+  std::cout << "Queue is empty\n";
 }
 void printVector(DataPool& arr, NonConstTag)
 {
-  auto& out = protei_io::io().cout();
   logger_presets::menuQuit();
 
   if (arr.size() == 0) {
-    out << "Empty queue\n";
+    std::cout << "Empty queue\n";
     Logger::writeToLog<config::LogVerbosity::Warning>(
         "Empty queue at printing, quiting procedure");
     return;
   }
 
   for (const auto& i : arr.front()._vec) {
-    std::visit(
-        Visitor{[&out](auto const& variant_val) { out << variant_val << ' '; },
-                [&out](int8_t value) { out << +value << ' '; },
-                [&out](uint8_t value) { out << +value << ' '; }},
-        i);
+    std::visit(Visitor{[](auto const& variant_val) {
+                         std::cout << variant_val << ' ';
+                       },
+                       [](int8_t value) { std::cout << +value << ' '; },
+                       [](uint8_t value) { std::cout << +value << ' '; }},
+               i);
   }
-  out << '\n';
+  std::cout << '\n';
   logger_presets::menuQuit();
 }
 

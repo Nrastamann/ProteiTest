@@ -1,4 +1,4 @@
-#include "config.h"
+#include "config.hpp"
 namespace config {
 std::string_view toStr(LogVerbosity verbosity)
 {

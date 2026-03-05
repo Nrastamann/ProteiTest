@@ -10,8 +10,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
-#include "config.h"  //!!!
-#include "io_manager.hpp"
+#include "config.hpp"  //!!!
 
 template <typename T>
 std::unique_ptr<char, void (*)(void*)> acquireName()
@@ -52,7 +51,7 @@ class Logger {
     }
     std::ofstream file(log_file, std::ios::app);
     if (!file.is_open()) {
-      protei_io::io().cout() << "Couldn't open the log_file!\n";
+      std::cout << "Couldn't open the log_file!\n";
       return;
     }
 
@@ -69,7 +68,7 @@ class Logger {
       std::string_view str,
       std::source_location loc = std::source_location::current())
   {
-    protei_io::io().cout() << str << '\n';
+    std::cout << str << '\n';
     writeToLog<LogLevel>(str, loc);
   }
   Logger() = default;

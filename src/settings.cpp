@@ -1,49 +1,48 @@
 #include "settings.hpp"
-#include "io_manager.hpp"
+
 #include "static_containers.hpp"
 
 namespace ui_protei {
 
 void printAppSettings(AppSettings const& settings)
 {
-  auto& out = protei_io::io().cout();
   logger_presets::functionCall();
 
-  out << "========================\n";
-  out << "Current settings:\n";
-  out << "UserName:\t" << settings.cgetName() << '\n';
+  std::cout << "========================\n";
+  std::cout << "Current settings:\n";
+  std::cout << "UserName:\t" << settings.cgetName() << '\n';
 
-  out << "Role:\t\t" << settings.cgetRole() << '\n';
-  out << "Index:\t\t" << settings.cgetIndex() << '\n';
-  out << "IP address:\n";
+  std::cout << "Role:\t\t" << settings.cgetRole() << '\n';
+  std::cout << "Index:\t\t" << settings.cgetIndex() << '\n';
+  std::cout << "IP address:\n";
   size_t delimeter_index = 0;
 
   for (const auto& addr : settings.cgetAddress()) {
-    out << '\t';
+    std::cout << '\t';
     for (const auto& octet : addr) {
       char delimeter = ++delimeter_index < kIpAddrOctetAmount ? '.' : ' ';
-      out << +octet << delimeter;
+      std::cout << +octet << delimeter;
     }
     delimeter_index = 0;
-    out << "\n";
+    std::cout << "\n";
   }
 
-  out << '\n';
-  out << "Port:\n";
+  std::cout << '\n';
+  std::cout << "Port:\n";
   for (const auto& port : settings.cgetPort()) {
-    out << '\t' << port << '\n';
+    std::cout << '\t' << port << '\n';
   }
-  out << "Library names:\n";
+  std::cout << "Library names:\n";
   for (const auto& lib : settings.cGetLibName()) {
-    out << '\t' << lib << '\n';
+    std::cout << '\t' << lib << '\n';
   }
 
-  out << "Current type:\t"
-      << static_containers::getHashToTypeInfo()
-             .at(settings.cgetTypeHash())
-             .second
-      << '\n';
-  out << "========================\n";
+  std::cout << "Current type:\t"
+            << static_containers::getHashToTypeInfo()
+                   .at(settings.cgetTypeHash())
+                   .second
+            << '\n';
+  std::cout << "========================\n";
 }
 
 }  // namespace ui_protei

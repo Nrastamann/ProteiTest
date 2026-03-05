@@ -6,10 +6,10 @@
 #include <string>
 #include <string_view>
 
-#include "config.h"
+#include "config.hpp"
 #include "data_pool.hpp"
 #include "display.hpp"
-#include "io_manager.hpp"
+
 #include "logger.hpp"
 #include "menu.hpp"
 #include "parsing.hpp"
@@ -20,7 +20,6 @@ namespace rv = std::ranges::views;
 
 int main(int argc, char* argv[])
 {
-  auto& in = protei_io::io().cin();
   Logger::loggerInit();
 
   auto argv_split = parsing_protei::parseClArgs(argv, argc);
@@ -105,7 +104,7 @@ int main(int argc, char* argv[])
 
     Logger::writeToLogNCl<config::LogVerbosity::Debug>("Your command: ");
 
-    in >> text_option;
+    std::cin >> text_option;
     Logger::writeToLog<config::LogVerbosity::Debug>(text_option);
     std::ranges::transform(text_option, text_option.begin(), ::tolower);
 
