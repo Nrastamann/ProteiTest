@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <format>
 #include <string_view>
+#include "ip_addr.hpp"
 #include "logger.hpp"
 
 class ITest {
@@ -62,50 +63,43 @@ class ConnectionTest final : ITest {
   ConnectionTest(ConnectionTest&&) = default;
   ConnectionTest& operator=(const ConnectionTest&) = default;
   ConnectionTest& operator=(ConnectionTest&&) = default;
-  ConnectionTest(std::span<std::array<uint8_t, 4>> resources,
-                 std::span<size_t> ports)
-      : _resources(resources.size())
+  explicit ConnectionTest(std::span<IpAddr> addresses)
   {
-
-    if (ports.size() != resources.size()) {
-      _invalid_state = true;
-      return;
+    for (auto& addr : addresses) {
+      _resources.push_back(addr);
     }
-    std::ranges::transform(
-        resources, ports, _resources.begin(),
-        [](const std::array<uint8_t, 4>& ip_addr, size_t port) {
-          return std::pair(ip_addr, port);
-        });
   }
 
   bool operator()() override
   {
     bool value = true;
 
-    auto test_resource =
-        [](const std::pair<std::array<uint8_t, 4>, size_t>& addr) {
-          using namespace boost::asio;
+    auto test_resource = [](const IpAddr& addr) {
+      using namespace boost::asio;
 
-          boost::asio::io_context service;
-          ip::tcp::endpoint ep(ip::make_address_v4(addr.first),
-                               static_cast<unsigned short>(addr.second));
-          ip::tcp::socket sock(service);
-          boost::system::error_code err;
-          err = sock.connect(ep, err);
+      boost::asio::io_context service;
+      ip::tcp::endpoint ep(ip::make_address_v4(addr._addr),
+                           static_cast<unsigned short>(addr._port));
+      ip::tcp::socket sock(service);
+      boost::system::error_code err;
+      err = sock.connect(ep, err);
 
-          if (err) {
-            return false;
-          }
+      if (err) {
+        return false;
+      }
 
-          sock.close();
-          return true;
-        };
+      sock.close();
+      return true;
+    };
 
     if (_invalid_state || (_resources.size() != 0 &&
                            !std::ranges::all_of(_resources, test_resource))) {
-      logger_presets::acquiringResourceError<ConnectionTest>(
-          std::format("{} - addresses/ports, {} - invalid size", _resources,
-                      _invalid_state));
+      std::string output_str;
+      for (auto& ip_addr : _resources) {
+        output_str += std::format("{}\n", ip_addr);
+      }
+      logger_presets::acquiringResourceError<ConnectionTest>(output_str);
+
       value = false;
     }
 
@@ -113,7 +107,7 @@ class ConnectionTest final : ITest {
   };
 
  private:
-  std::vector<std::pair<std::array<uint8_t, 4>, size_t>> _resources;
+  std::vector<IpAddr> _resources;
 
   bool _invalid_state = false;
 };

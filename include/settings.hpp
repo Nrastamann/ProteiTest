@@ -5,13 +5,20 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include "hashed_values.hpp"
+#include "ip_addr.hpp"
 #include "logger.hpp"
 #include "resources_test.hpp"
-
-#include "hashed_values.hpp"
 #include "static_containers.hpp"
 
-inline constexpr size_t kIpAddrOctetAmount{4};
+/**
+ * struct CommandLineArgsHolder - Struct to hold strings for future parsing 
+ *
+ * If error occures during parsing of ports/addr/index - _error_parsing is set to true,
+ * so program ends
+ *
+ * If there's no error during parsing - _error_parsing sets to false
+ */
 struct CommandLineArgsHolder {
  private:
   using array_type = std::vector<std::string_view>;
@@ -44,10 +51,17 @@ struct CommandLineArgsHolder {
 
 std::vector<std::string> getInput(char** argv, int argc);
 
+/**
+ * class AppSettings - Class to hold settings during runtime 
+ *
+ * If error occures during checking resources (sockets or files) _should_close member is set to true
+ * and program ends
+ *
+ * If there's no error during getting resources - _should_close sets to false
+ */
 class AppSettings {
   std::vector<std::string_view> _lib_name;
-  std::vector<std::array<uint8_t, kIpAddrOctetAmount>> _ip_addr;
-  std::vector<size_t> _ports;
+  std::vector<IpAddr> _addresses;
 
   std::string _role;
   std::string _name;
@@ -66,25 +80,27 @@ class AppSettings {
       static_containers::EnumTypes type_enum =
           static_containers::EnumTypes::Int)
       : _lib_name(std::move(lib_names)),
-        _ip_addr(std::move(addresses)),
-        _ports(std::move(ports)),
         _role(role),
         _name(std::move(userName)),
         _type_hash(type_hash),
         _type_enum(type_enum),
         _index(index)
   {
+    if (addresses.size() != ports.size()) {
+      _should_close = true;
+      return;
+    }
+    for (size_t i = 0; i < addresses.size(); ++i) {
+      _addresses.push_back({addresses[i], ports[i]});
+    }
+
     logger_presets::createObject<ResourceTest>();
     logger_presets::createObject<ConnectionTest>();
 
     _should_close =
-        !(ResourceTest{_lib_name}() && ConnectionTest{_ip_addr, _ports}());
+        !(ResourceTest{_lib_name}() && ConnectionTest{_addresses}());
   }
-  [[nodiscard]] std::vector<std::array<uint8_t, kIpAddrOctetAmount>>& getAddr()
-  {
-    return _ip_addr;
-  }
-  [[nodiscard]] const std::vector<size_t>& cgetPort() const { return _ports; }
+  [[nodiscard]] std::vector<IpAddr>& getAddr() { return _addresses; }
   [[nodiscard]] std::vector<std::string_view> const& cGetLibName() const
   {
     return _lib_name;
@@ -98,10 +114,9 @@ class AppSettings {
   [[nodiscard]] std::string_view cgetRole() const { return _role; }
   [[nodiscard]] size_t cgetIndex() const { return _index; }
   [[nodiscard]] bool cgetShouldClose() const { return _should_close; }
-  [[nodiscard]] const std::vector<std::array<uint8_t, kIpAddrOctetAmount>>&
-  cgetAddress() const
+  [[nodiscard]] const std::vector<IpAddr>& cgetAddress() const
   {
-    return _ip_addr;
+    return _addresses;
   }
 
   void setShouldClose() { _should_close = true; }

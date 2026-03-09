@@ -437,7 +437,7 @@ TEST_F(InputFixture, PrintSettings)
   std::string_view result =
       "Your command: \n========================\nCurrent "
       "settings:\nUserName:\tUserName\nRole:\t\t\nIndex:\t\t42\nIP "
-      "address:\n\nPort:\nLibrary names:\nCurrent "
+      "address:\n\nLibrary names:\nCurrent "
       "type:\tint\n========================\n";
 
   EXPECT_EQ(result, _cout.str());

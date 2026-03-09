@@ -83,23 +83,11 @@ void printAppSettings(AppSettings const& settings)
   std::cout << "Role:\t\t" << settings.cgetRole() << '\n';
   std::cout << "Index:\t\t" << settings.cgetIndex() << '\n';
   std::cout << "IP address:\n";
-  size_t delimeter_index = 0;
-
-  for (const auto& addr : settings.cgetAddress()) {
-    std::cout << '\t';
-    for (const auto& octet : addr) {
-      char delimeter = ++delimeter_index < kIpAddrOctetAmount ? '.' : ' ';
-      std::cout << +octet << delimeter;
-    }
-    delimeter_index = 0;
-    std::cout << "\n";
+  for (const auto& address : settings.cgetAddress()) {
+    std::cout << '\t' << address << '\n';
   }
 
   std::cout << '\n';
-  std::cout << "Port:\n";
-  for (const auto& port : settings.cgetPort()) {
-    std::cout << '\t' << port << '\n';
-  }
   std::cout << "Library names:\n";
   for (const auto& lib : settings.cGetLibName()) {
     std::cout << '\t' << lib << '\n';
@@ -227,4 +215,12 @@ std::vector<std::string> getInput(char** argv, int argc)
     returning_vector.emplace_back(sv);
   }
   return returning_vector;
+}
+
+std::ostream& operator<<(std::ostream& stream, const IpAddr& addr)
+{
+  stream << std::format("{}.{}.{}.{}:{}", addr._addr[0], addr._addr[1],
+                        addr._addr[2], addr._addr[3], addr._port);
+
+  return stream;
 }
