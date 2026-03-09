@@ -91,6 +91,8 @@ class Menu {
                 [[maybe_unused]] V&& post_hook_arg,
                 FunctionArgs& arguments) const
   {
+    logger_presets::functionCall();
+
     std::string text_option;
 
     Logger::writeToLogNCl<config::LogVerbosity::Debug>("Your command: ");

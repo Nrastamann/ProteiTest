@@ -6,6 +6,7 @@
 #include <string>
 #include <string_view>
 
+#include "logger.hpp"
 #include "parsing.hpp"
 #include "static_containers.hpp"
 
@@ -154,6 +155,7 @@ bool CommandLineArgsHolder::setArgument(size_t hash, std::string_view value)
 static void joinAddr(std::vector<std::string>& result_vector,
                      std::string_view ip_addr)
 {
+  logger_presets::functionCall();
   std::string_view digits = "0123456789abcdef";
   std::string res_str;
 
@@ -190,6 +192,7 @@ static void joinAddr(std::vector<std::string>& result_vector,
 
 std::vector<std::string> getInput(char** argv, int argc)
 {
+  logger_presets::functionCall();
   std::vector<std::string> returning_vector;
   auto span_args = std::span(argv, static_cast<size_t>(argc));
   span_args = span_args.subspan(1);
