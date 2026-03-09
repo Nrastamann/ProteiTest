@@ -1,6 +1,4 @@
-#include <algorithm>
 #include <expected>
-#include <functional>
 #include <string>
 #include <string_view>
 
@@ -11,7 +9,6 @@
 #include "menu.hpp"
 #include "parsing.hpp"
 #include "settings.hpp"
-#include "static_containers.hpp"
 
 int main(int argc, char* argv[])
 {
@@ -41,11 +38,6 @@ int main(int argc, char* argv[])
 
   ui_protei::displayMenu();
 
-  //if i have reference to static object, as I know, there won't be any additional
-  //calls to check if static object is initialized
-  const std::unordered_map<size_t, static_containers::MenuOptions>&
-      menu_options = static_containers::getMenuOptions();
-
   Menu menu;
 
   logger_presets::createObject<DataPool>();
@@ -55,23 +47,7 @@ int main(int argc, char* argv[])
   FunctionArgs arguments{command_line_options, data_pool};
 
   while (!command_line_options.cgetShouldClose()) {
-    std::string text_option;
-
-    Logger::writeToLogNCl<config::LogVerbosity::Debug>("Your command: ");
-
-    std::cin >> text_option;
-    Logger::writeToLog<config::LogVerbosity::Debug>(text_option);
-    std::ranges::transform(text_option, text_option.begin(), ::tolower);
-
-    size_t input_hash = std::hash<std::string_view>{}(text_option);
-
-    bool is_correct_option = menu_options.contains(input_hash);
-
-    static_containers::MenuOptions picked_option =
-        is_correct_option ? menu_options.at(input_hash)
-                          : static_containers::MenuOptions::WrongOption;
-
-    menu.callFunction(picked_option, 0, 0, arguments);
+    menu.menuTask(0, 0, arguments);
   }
   ui_protei::clearScreen();
 }

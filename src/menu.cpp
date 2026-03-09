@@ -9,6 +9,7 @@ inline size_t const kVectorMenu = std::hash<std::string_view>{}("vector");
 inline size_t const kPrint = std::hash<std::string_view>{}("print");
 inline size_t const kEmptyQueue = std::hash<std::string_view>{}("empty");
 inline size_t const kSettingsMenu = std::hash<std::string_view>{}("settings");
+inline size_t const kExit = std::hash<std::string_view>{}("exit");
 }  // namespace hashed
 
 namespace static_containers {
@@ -22,6 +23,7 @@ std::unordered_map<size_t, MenuOptions> const& getMenuOptions()
       {hashed::kVectorMenu, MenuOptions::EnterVector},
       {hashed::kPrint, MenuOptions::PrintCurrentVector},
       {hashed::kQuit, MenuOptions::QuitProgram},
+      {hashed::kExit, MenuOptions::QuitProgram},
       {hashed::kEmptyQueue, MenuOptions::EmptyQueue},
       {hashed::kSettingsMenu, MenuOptions::PrintSettings}};
 

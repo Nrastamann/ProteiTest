@@ -86,6 +86,32 @@ class Menu {
     callHook(menu_item._post_hook);
   }
 
+  template <typename U, typename V>
+  void menuTask([[maybe_unused]] U&& pre_hook_arg,
+                [[maybe_unused]] V&& post_hook_arg,
+                FunctionArgs& arguments) const
+  {
+    std::string text_option;
+
+    Logger::writeToLogNCl<config::LogVerbosity::Debug>("Your command: ");
+
+    std::cin >> text_option;
+    Logger::writeToLog<config::LogVerbosity::Debug>(text_option);
+    std::ranges::transform(text_option, text_option.begin(), ::tolower);
+
+    size_t input_hash = std::hash<std::string_view>{}(text_option);
+
+    bool is_correct_option = _menu_options.contains(input_hash);
+
+    static_containers::MenuOptions picked_option =
+        is_correct_option ? _menu_options.at(input_hash)
+                          : static_containers::MenuOptions::WrongOption;
+
+    callFunction(picked_option, 0, 0, arguments);
+  }
+
  private:
   cref_function_container _items = getContainer();
+  const std::unordered_map<size_t, static_containers::MenuOptions>&
+      _menu_options = static_containers::getMenuOptions();
 };

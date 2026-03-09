@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <charconv>
+#include <string>
 #include <unordered_map>
 #include <variant>
 
@@ -164,9 +165,9 @@ void changeName(AppSettings& settings)
 
     std::cin >> string_input;
     logger_presets::userInput(string_input);
-
-    std::ranges::transform(string_input, string_input.begin(), ::tolower);
-    if (std::hash<std::string_view>{}(string_input) == hashed::kQuit) {
+    std::string lowered_input;
+    std::ranges::transform(string_input, lowered_input.begin(), ::tolower);
+    if (std::hash<std::string_view>{}(lowered_input) == hashed::kQuit) {
       logger_presets::menuQuit();
       return;
     }
