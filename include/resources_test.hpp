@@ -97,7 +97,7 @@ class ConnectionTest final : ITest {
             return false;
           }
 
-          sock.close();
+          sock.cancel();
           return true;
         };
 

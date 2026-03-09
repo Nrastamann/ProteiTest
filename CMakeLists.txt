@@ -63,14 +63,16 @@ FetchContent_Declare(
         GIT_TAG fa8438ae6b70c57010177de47a9f13d7041a6328        
 )
 
-FetchContent_MakeAvailable(googletest)
-set_property(
-        DIRECTORY ${googletest_SOURCE_DIR}
-        APPEND
-        PROPERTY COMPILE_OPTIONS -w)
 enable_testing()
 
 add_executable(proteip.test)
+
+FetchContent_MakeAvailable(googletest)
+set_property(
+        TARGET proteip.test
+        APPEND
+        PROPERTY COMPILE_OPTIONS -w)
+
 target_sources(proteip.test
     PRIVATE tests/test.cpp ${SRCS}
     PRIVATE

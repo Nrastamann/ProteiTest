@@ -26,5 +26,6 @@ parseIndex(std::string_view index);
 
 [[nodiscard("Discarding cl_args parse_result")]] std::expected<
     CommandLineArgsHolder, ParseResult>
-parseClArgs(char** argv, int argc);
+parseClArgs(std::span<std::string> vec);
+
 };  // namespace parsing_protei

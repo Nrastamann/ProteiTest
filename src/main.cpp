@@ -1,12 +1,9 @@
 #include <algorithm>
-#include <array>
 #include <expected>
 #include <functional>
-#include <ranges>
 #include <string>
 #include <string_view>
 
-#include "config.hpp"
 #include "data_pool.hpp"
 #include "display.hpp"
 
@@ -16,13 +13,12 @@
 #include "settings.hpp"
 #include "static_containers.hpp"
 
-namespace rv = std::ranges::views;
-
 int main(int argc, char* argv[])
 {
   Logger::loggerInit();
+  std::vector<std::string> wrapped_input = getInput(argv, argc);
 
-  auto argv_split = parsing_protei::parseClArgs(argv, argc);
+  auto argv_split = parsing_protei::parseClArgs(wrapped_input);
 
   switch (argv_split.error_or(parsing_protei::ParseResult::NO_ERR)) {
     case parsing_protei::ParseResult::WRONG_FLAG:
@@ -34,53 +30,12 @@ int main(int argc, char* argv[])
     default:
   }
 
-  using addr_parse_result =
-      std::expected<std::array<uint8_t, kIpAddrOctetAmount>,
-                    parsing_protei::ParseResult>;
-  std::vector<std::array<uint8_t, kIpAddrOctetAmount>> ip_arr;
-
-  auto addresses_view = argv_split->_addresses |
-                        rv::transform(&parsing_protei::parseAddr) |
-                        rv::take_while(&addr_parse_result::has_value) |
-                        rv::transform([](const auto& a) { return a.value(); });
-
-  for (const auto& i : addresses_view) {
-    ip_arr.push_back(i);
-  }
-
-  if (ip_arr.size() != argv_split->_addresses.size()) {
-    return 1;
-  }
-
-  using port_parse_result = std::expected<size_t, parsing_protei::ParseResult>;
-  std::vector<size_t> ports_arr;
-
-  auto ports_view = argv_split->_ports |
-                    rv::transform(&parsing_protei::parsePort) |
-                    rv::take_while(&port_parse_result::has_value) |
-                    rv::transform([](const auto& a) { return a.value(); });
-
-  for (const auto& i : ports_view) {
-    ports_arr.push_back(i);
-  }
-
-  if (ports_arr.size() != argv_split->_ports.size()) {
-    return 1;
-  }
-
-  std::expected<size_t, parsing_protei::ParseResult> index =
-      parsing_protei::parseIndex(argv_split->_index);
-
-  if (!index.has_value()) {
-    logger_presets::defaultError("Couldn't parse the index");
-    return 1;
-  }
-
   logger_presets::createObject<AppSettings>();
-  AppSettings command_line_options{ports_arr, argv_split->_lib_names, ip_arr,
-                                   argv_split->_role, index.value()};
+  AppSettings command_line_options{
+      argv_split->getPorts(), argv_split->getLibs(), argv_split->getAddresses(),
+      argv_split->getRole(), argv_split->getIndex()};
 
-  if (command_line_options.cgetShouldClose()) {
+  if (command_line_options.cgetShouldClose() || argv_split->parsingStatus()) {
     return 1;
   }
 

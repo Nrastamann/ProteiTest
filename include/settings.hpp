@@ -17,13 +17,12 @@ struct CommandLineArgsHolder {
   using array_type = std::vector<std::string_view>;
 
  public:
-  array_type _addresses;
-  array_type _lib_names;
-  array_type _resource_names;
-  array_type _ports;
-
-  std::string_view _role = "User";
-  std::string_view _index = "0";
+  std::vector<size_t> getPorts();
+  std::vector<std::array<uint8_t, kIpAddrOctetAmount>> getAddresses();
+  size_t getIndex();
+  std::string_view getRole() { return _role; }
+  array_type getLibs() { return _lib_names; }
+  [[nodiscard]] bool parsingStatus() const { return _error_parsing; }
 
   [[nodiscard]] bool setArgument(size_t hash, std::string_view value);
 
@@ -33,7 +32,17 @@ struct CommandLineArgsHolder {
   void addPort(std::string_view sv) { _ports.push_back(sv); }
   void addIndex(std::string_view sv) { _index = sv; }
   void addAddress(std::string_view sv) { _addresses.push_back(sv); }
+
+  array_type _addresses;
+  array_type _lib_names;
+  array_type _resource_names;
+  array_type _ports;
+  bool _error_parsing = false;
+  std::string_view _role = "User";
+  std::string_view _index = "0";
 };
+
+std::vector<std::string> getInput(char** argv, int argc);
 
 class AppSettings {
   std::vector<std::string_view> _lib_name;
@@ -111,10 +120,11 @@ class AppSettings {
 
 namespace hashed {
 inline size_t const kAddrHash = {std::hash<std::string_view>{}("-a")};
+inline size_t const kAddrBigHash = {std::hash<std::string_view>{}("-A")};
 inline size_t const kPortHash = {std::hash<std::string_view>{}("-p")};
 inline size_t const kRoleHash = {std::hash<std::string_view>{}("-r")};
 inline size_t const kIndexHash = {std::hash<std::string_view>{}("-i")};
-inline size_t const kLibHash = {std::hash<std::string_view>{}("-L")};
+inline size_t const kLibHash = {std::hash<std::string_view>{}("-l")};
 }  // namespace hashed
 
 namespace ui_protei {
