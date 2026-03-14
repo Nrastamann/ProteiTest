@@ -235,11 +235,12 @@ std::vector<uint16_t> CommandLineArgsHolder::getPorts()
   namespace rn = std::ranges;
   namespace rv = std::ranges::views;
 
-  std::vector<uint16_t> ports_arr;
-
   auto ports_view = _ports | rv::transform(&parsePort) |
                     rv::take_while(&port_parse_result::has_value) |
                     rv::transform([](const auto& a) { return a.value(); });
+
+  std::vector<uint16_t> ports_arr(
+      static_cast<size_t>(rn::distance(ports_view)));
 
   rn::copy(ports_view, ports_arr.begin());
 
@@ -258,11 +259,13 @@ CommandLineArgsHolder::getAddresses()
   namespace rv = std::ranges::views;
   using addr_parse_result =
       std::expected<std::array<uint8_t, kIpAddrOctetAmount>, ParseResult>;
-  std::vector<std::array<uint8_t, kIpAddrOctetAmount>> ip_arr;
 
   auto addresses_view = _addresses | rv::transform(&parseAddr) |
                         rv::take_while(&addr_parse_result::has_value) |
                         rv::transform([](const auto& a) { return a.value(); });
+
+  std::vector<std::array<uint8_t, kIpAddrOctetAmount>> ip_arr(
+      static_cast<size_t>(rn::distance(addresses_view)));
 
   rn::copy(addresses_view, ip_arr.begin());
 
