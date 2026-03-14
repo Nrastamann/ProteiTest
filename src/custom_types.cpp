@@ -1,7 +1,6 @@
-#include "static_containers.hpp"
-#include "hashed_values.hpp"
+#include "custom_types.hpp"
 #include "logger.hpp"
-namespace static_containers {
+namespace protei_types {
 std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const&
 getHashToTypeInfo()
 {
@@ -30,4 +29,4 @@ getHashToTypeInfo()
       "Hashed type - pair <EnumType, TypeName> - unordered_map");
   return enum_types_converter;
 }
-};  // namespace static_containers
+};  // namespace protei_types

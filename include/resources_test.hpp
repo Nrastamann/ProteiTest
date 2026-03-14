@@ -1,9 +1,9 @@
 #pragma once
 
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #include <algorithm>
-#include <boost/asio.hpp>
-#include <boost/asio/ip/address.hpp>
-#include <boost/asio/ip/address_v4.hpp>
 #include <cassert>
 #include <filesystem>
 #include <format>
@@ -63,11 +63,8 @@ class ConnectionTest final : ITest {
   ConnectionTest(ConnectionTest&&) = default;
   ConnectionTest& operator=(const ConnectionTest&) = default;
   ConnectionTest& operator=(ConnectionTest&&) = default;
-  explicit ConnectionTest(std::span<IpAddr> addresses)
+  explicit ConnectionTest(std::span<IpAddr> addresses) : _resources(addresses)
   {
-    for (auto& addr : addresses) {
-      _resources.push_back(addr);
-    }
   }
 
   bool operator()() override
@@ -75,20 +72,20 @@ class ConnectionTest final : ITest {
     bool value = true;
 
     auto test_resource = [](const IpAddr& addr) {
-      using namespace boost::asio;
+      int client_socket = socket(AF_INET, SOCK_STREAM, 0);
 
-      boost::asio::io_context service;
-      ip::tcp::endpoint ep(ip::make_address_v4(addr._addr),
-                           static_cast<unsigned short>(addr._port));
-      ip::tcp::socket sock(service);
-      boost::system::error_code err;
-      err = sock.connect(ep, err);
+      const sockaddr_in server_addr{.sin_family = AF_INET,
+                                    .sin_port = htons(addr._port),
+                                    .sin_addr{addr.htonlP()},
+                                    .sin_zero{0}};
 
-      if (err) {
+      int res = connect(client_socket,
+                        reinterpret_cast<const sockaddr*>(&server_addr),
+                        sizeof(server_addr));
+      if (res != 0) {
         return false;
       }
-
-      sock.close();
+      close(client_socket);
       return true;
     };
 
@@ -107,7 +104,7 @@ class ConnectionTest final : ITest {
   };
 
  private:
-  std::vector<IpAddr> _resources;
+  std::span<IpAddr> _resources;
 
   bool _invalid_state = false;
 };

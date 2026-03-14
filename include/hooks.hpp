@@ -1,15 +1,17 @@
 #pragma once
 #include <functional>
 #include <variant>
+#include "custom_types.hpp"
 #include "display.hpp"
 #include "logger.hpp"
-#include "utility.hpp"
 
 using protei_hook = std::variant<std::function<void()>>;
 inline void callHook(const protei_hook& hook)
 {
   logger_presets::functionCall();
-  std::visit(Visitor{[](const std::function<void()>& fn) { fn(); }}, hook);
+  std::visit(
+      protei_types::Visitor{[](const std::function<void()>& fn) { fn(); }},
+      hook);
 }
 
 inline void defaultEmpty() {}

@@ -2,9 +2,9 @@
 
 #include <format>
 #include <queue>
-#include <utility>
+
+#include "custom_types.hpp"
 #include "logger.hpp"
-#include "utility.hpp"
 
 struct PolymorphicDimensionalVector {
   ~PolymorphicDimensionalVector() = default;
@@ -15,13 +15,13 @@ struct PolymorphicDimensionalVector {
   PolymorphicDimensionalVector& operator=(PolymorphicDimensionalVector&&) =
       default;
 
-  PolymorphicDimensionalVector(ProteiVector vec, size_t type_hash)
+  PolymorphicDimensionalVector(protei_types::ProteiVector vec, size_t type_hash)
       : _vec(std::move(vec)), _type_hash(type_hash)
   {
     logger_presets::createObject<PolymorphicDimensionalVector>();
   }
 
-  ProteiVector _vec;
+  protei_types::ProteiVector _vec;
   size_t _type_hash;
 };
 
@@ -34,11 +34,9 @@ struct std::formatter<PolymorphicDimensionalVector>
     std::string out;
     size_t type = vec._type_hash;
     for (const auto& i : vec._vec) {
-      std::visit(Visitor{[&out](auto const& variant_val) {
+      std::visit(protei_types::Visitor{[&out](auto const& variant_val) {
                    out += std::format("{} ", variant_val);
                  }},
-                 //  [&out](int8_t value) { out << +value << ' '; },
-                 //  [&out](uint8_t value) { out << +value << ' '; }},
                  i);
     }
     out += std::format("{}", type);

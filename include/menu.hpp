@@ -7,6 +7,16 @@
 #include "menu_functions.hpp"
 #include "settings.hpp"
 
+namespace hashed {
+inline size_t const kNameMenu = std::hash<std::string_view>{}("name");
+inline size_t const kTypeMenu = std::hash<std::string_view>{}("type");
+inline size_t const kVectorMenu = std::hash<std::string_view>{}("vector");
+inline size_t const kPrint = std::hash<std::string_view>{}("print");
+inline size_t const kEmptyQueue = std::hash<std::string_view>{}("empty");
+inline size_t const kSettingsMenu = std::hash<std::string_view>{}("settings");
+inline size_t const kExit = std::hash<std::string_view>{}("exit");
+}  // namespace hashed
+
 using protei_function =
     std::variant<std::function<void(AppSettings&)>,
                  std::function<void(DataPool&, const AppSettings&)>,
@@ -56,13 +66,10 @@ struct MenuItem {
 
 class Menu {
   using function_container =
-      std::unordered_map<static_containers::MenuOptions, MenuItem>;
+      std::unordered_map<protei_types::MenuOptions, MenuItem>;
 
   using ref_function_container = function_container&;
   using cref_function_container = const function_container&;
-  cref_function_container getContainer();
-  void callFunctionVariant(const protei_function& function,
-                           FunctionArgs& arguments) const;
 
  public:
   ~Menu() = default;
@@ -73,7 +80,7 @@ class Menu {
   Menu& operator=(Menu&&) = delete;
 
   template <typename U, typename V>
-  void callFunction(static_containers::MenuOptions option,
+  void callFunction(protei_types::MenuOptions option,
                     [[maybe_unused]] U&& pre_hook_arg,
                     [[maybe_unused]] V&& post_hook_arg,
                     FunctionArgs& arguments) const
@@ -105,15 +112,74 @@ class Menu {
 
     bool is_correct_option = _menu_options.contains(input_hash);
 
-    static_containers::MenuOptions picked_option =
+    protei_types::MenuOptions picked_option =
         is_correct_option ? _menu_options.at(input_hash)
-                          : static_containers::MenuOptions::WrongOption;
+                          : protei_types::MenuOptions::WrongOption;
 
     callFunction(picked_option, 0, 0, arguments);
   }
 
  private:
+  static void callFunctionVariant(const protei_function& function,
+                                  const FunctionArgs& arguments)
+  {
+    logger_presets::functionCall();
+
+    std::visit(
+        protei_types::Visitor{
+            [&settings = arguments._cl_args](
+                const std::function<void(AppSettings&)>& fn) { fn(settings); },
+            [&vec = arguments._dataPool, &settings = arguments._cl_args](
+                const std::function<void(DataPool&, const AppSettings&)>& fn) {
+              fn(vec, settings);
+            },
+            [&vec = arguments._dataPool](
+                const std::function<void(DataPool&, NonConstTag)>& fn) {
+              fn(vec, {});
+            },
+            [&vec = arguments._dataPool](
+                const std::function<void(const DataPool&)>& fn) { fn(vec); },
+            [](const std::function<void()>& fn) { fn(); }},
+        function);
+  }
+
+  static cref_function_container getContainer()
+  {
+    using protei_types::MenuOptions;
+    static function_container functions{
+        {MenuOptions::ChangeType, MenuItem{menu_functions_protei::changeType,
+                                           pre_hooks_protei::defaultClear,
+                                           post_hooks_protei::defaultClear}},
+        {MenuOptions::EmptyQueue,
+         MenuItem{menu_functions_protei::emptyQueue, defaultEmpty,
+                  post_hooks_protei::clearBuffer}},
+
+        {MenuOptions::ChangeRole, MenuItem{menu_functions_protei::changeName,
+                                           pre_hooks_protei::defaultClear,
+                                           post_hooks_protei::defaultClear}},
+        {MenuOptions::EnterVector, MenuItem{menu_functions_protei::enterVector,
+                                            pre_hooks_protei::defaultClear,
+                                            post_hooks_protei::defaultClear}},
+        {MenuOptions::PrintCurrentVector,
+         MenuItem{menu_functions_protei::printVector, defaultEmpty,
+                  post_hooks_protei::clearBuffer}},
+        {MenuOptions::PrintSettings,
+         MenuItem{menu_functions_protei::printCurrentAppSettings, defaultEmpty,
+                  post_hooks_protei::clearBuffer}},
+        {MenuOptions::WrongOption,
+         MenuItem{menu_functions_protei::wrongOption, defaultEmpty,
+                  post_hooks_protei::clearBuffer}},
+        {MenuOptions::QuitProgram,
+         MenuItem{menu_functions_protei::quit, defaultEmpty,
+                  post_hooks_protei::clearBuffer}},
+    };
+    logger_presets::createdStaticContainer(
+        "MenuOptions - MenuItem unordered_map");
+
+    return functions;
+  }
+
   cref_function_container _items = getContainer();
-  const std::unordered_map<size_t, static_containers::MenuOptions>&
-      _menu_options = static_containers::getMenuOptions();
+  const std::unordered_map<size_t, protei_types::MenuOptions>& _menu_options =
+      protei_types::getMenuOptions();
 };

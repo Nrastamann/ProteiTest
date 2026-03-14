@@ -1,55 +1,13 @@
 #pragma once
 #include <array>
-#include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
-#include "hashed_values.hpp"
+#include "custom_types.hpp"
 #include "ip_addr.hpp"
 #include "logger.hpp"
 #include "resources_test.hpp"
-#include "static_containers.hpp"
-
-/**
- * struct CommandLineArgsHolder - Struct to hold strings for future parsing 
- *
- * If error occures during parsing of ports/addr/index - _error_parsing is set to true,
- * so program ends
- *
- * If there's no error during parsing - _error_parsing sets to false
- */
-struct CommandLineArgsHolder {
- private:
-  using array_type = std::vector<std::string_view>;
-
- public:
-  std::vector<size_t> getPorts();
-  std::vector<std::array<uint8_t, kIpAddrOctetAmount>> getAddresses();
-  size_t getIndex();
-  std::string_view getRole() { return _role; }
-  array_type getLibs() { return _lib_names; }
-  [[nodiscard]] bool parsingStatus() const { return _error_parsing; }
-
-  [[nodiscard]] bool setArgument(size_t hash, std::string_view value);
-
- private:
-  void addLib(std::string_view sv) { _lib_names.push_back(sv); }
-  void addRole(std::string_view sv) { _role = sv; }
-  void addPort(std::string_view sv) { _ports.push_back(sv); }
-  void addIndex(std::string_view sv) { _index = sv; }
-  void addAddress(std::string_view sv) { _addresses.push_back(sv); }
-
-  array_type _addresses;
-  array_type _lib_names;
-  array_type _resource_names;
-  array_type _ports;
-  bool _error_parsing = false;
-  std::string_view _role = "User";
-  std::string_view _index = "0";
-};
-
-std::vector<std::string> getInput(char** argv, int argc);
 
 /**
  * class AppSettings - Class to hold settings during runtime 
@@ -66,19 +24,18 @@ class AppSettings {
   std::string _role;
   std::string _name;
   size_t _type_hash;
-  static_containers::EnumTypes _type_enum;
+  protei_types::EnumTypes _type_enum;
 
   size_t _index{};
   bool _should_close = false;
 
  public:
   AppSettings(
-      std::vector<size_t> ports, std::vector<std::string_view> lib_names,
+      std::vector<uint16_t> ports, std::vector<std::string_view> lib_names,
       std::vector<std::array<unsigned char, kIpAddrOctetAmount>> addresses,
       std::string_view role, size_t index, std::string&& userName = "UserName",
       size_t type_hash = hashed::kInt,
-      static_containers::EnumTypes type_enum =
-          static_containers::EnumTypes::Int)
+      protei_types::EnumTypes type_enum = protei_types::EnumTypes::Int)
       : _lib_name(std::move(lib_names)),
         _role(role),
         _name(std::move(userName)),
@@ -87,6 +44,7 @@ class AppSettings {
         _index(index)
   {
     if (addresses.size() != ports.size()) {
+      logger_presets::userInput("Adresses number not equal ports");
       _should_close = true;
       return;
     }
@@ -106,7 +64,7 @@ class AppSettings {
     return _lib_name;
   }
   [[nodiscard]] size_t cgetTypeHash() const { return _type_hash; }
-  [[nodiscard]] static_containers::EnumTypes cgetTypeEnum() const
+  [[nodiscard]] protei_types::EnumTypes cgetTypeEnum() const
   {
     return _type_enum;
   }
@@ -123,7 +81,7 @@ class AppSettings {
   void setName(std::string&& str) { _name = std::move(str); }
 
   void setTypeHash(size_t hash) { _type_hash = hash; }
-  void setTypeEnum(static_containers::EnumTypes type) { _type_enum = type; }
+  void setTypeEnum(protei_types::EnumTypes type) { _type_enum = type; }
 
   ~AppSettings() = default;
   AppSettings() = delete;

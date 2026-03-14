@@ -3,16 +3,19 @@
 #include <unordered_map>
 #include "data_pool.hpp"
 
+#include "custom_types.hpp"
 #include "settings.hpp"
-#include "static_containers.hpp"
-#include "utility.hpp"
 
 struct NonConstTag {};
 
-namespace static_containers {
-const std::unordered_map<static_containers::EnumTypes, any_type>&
+namespace hashed {
+inline size_t const kQuit = std::hash<std::string_view>{}("quit");
+}  // namespace hashed
+
+namespace protei_types {
+const std::unordered_map<protei_types::EnumTypes, protei_types::any_type>&
 getDefaultValues();
-}  // namespace static_containers
+}  // namespace protei_types
 
 namespace hashed {
 inline size_t const kTrueSymbolic = std::hash<std::string_view>{}("true");
@@ -22,7 +25,7 @@ inline size_t const kFalseSymbolic = std::hash<std::string_view>{}("false");
 namespace menu_functions_protei {
 
 template <typename T>
-concept isPartOf = std::is_assignable_v<any_type, T>;
+concept isPartOf = std::is_assignable_v<protei_types::any_type, T>;
 
 void changeType(AppSettings& settings);
 void changeName(AppSettings& settings);
@@ -37,7 +40,7 @@ inline void quit(AppSettings& settings)
   settings.setShouldClose();
 }
 
-inline void printCurrentAppSettings(AppSettings& settings)
+inline void printCurrentAppSettings(const AppSettings& settings)
 {
   ui_protei::printAppSettings(settings);
 }
