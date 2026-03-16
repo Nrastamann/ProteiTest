@@ -12,28 +12,27 @@ namespace hashed {
 inline size_t const kQuit = std::hash<std::string_view>{}("quit");
 }  // namespace hashed
 
-namespace protei_types {
-const std::unordered_map<protei_types::EnumTypes, protei_types::any_type>&
-getDefaultValues();
-}  // namespace protei_types
+namespace custom_types {
+const std::unordered_map<EnumTypes, any_type>& getDefaultValues();
+}  // namespace custom_types
 
 namespace hashed {
 inline size_t const kTrueSymbolic = std::hash<std::string_view>{}("true");
 inline size_t const kFalseSymbolic = std::hash<std::string_view>{}("false");
 }  // namespace hashed
 
-namespace menu_functions_protei {
+namespace menu_functions {
 
 template <typename T>
-concept isPartOf = std::is_assignable_v<protei_types::any_type, T>;
+concept isPartOf = std::is_assignable_v<custom_types::any_type, T>;
 
 void changeType(AppSettings& settings);
 void changeName(AppSettings& settings);
 
-void enterVector(DataPool& vector, AppSettings const& settings);
-void emptyQueue(DataPool& data_pool, NonConstTag);
+void enterVector(data_storage::DataPool& vector, AppSettings const& settings);
+void emptyQueue(data_storage::DataPool& data_pool, NonConstTag);
 
-void printVector(DataPool& arr, NonConstTag);
+void printVector(data_storage::DataPool& arr, NonConstTag);
 
 inline void quit(AppSettings& settings)
 {
@@ -49,4 +48,4 @@ inline void wrongOption()
 {
   std::cout << "Wrong menu option, try again\n";
 }
-}  // namespace menu_functions_protei
+}  // namespace menu_functions

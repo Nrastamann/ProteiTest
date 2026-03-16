@@ -1,6 +1,7 @@
 #include "custom_types.hpp"
 #include "logger.hpp"
-namespace protei_types {
+
+namespace custom_types {
 std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const&
 getHashToTypeInfo()
 {
@@ -25,8 +26,8 @@ getHashToTypeInfo()
           {hashed::kUInt64, {EnumTypes::UInt64, "uint64_t"}},
       };
 
-  logger_presets::createdStaticContainer(
+  logging::logger_presets::createdStaticContainer(
       "Hashed type - pair <EnumType, TypeName> - unordered_map");
   return enum_types_converter;
 }
-};  // namespace protei_types
+};  // namespace custom_types

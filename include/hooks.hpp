@@ -5,12 +5,13 @@
 #include "display.hpp"
 #include "logger.hpp"
 
-using protei_hook = std::variant<std::function<void()>>;
-inline void callHook(const protei_hook& hook)
+namespace menu_hooks {
+using menu_hook = std::variant<std::function<void()>>;
+inline void callHook(const menu_hook& hook)
 {
-  logger_presets::functionCall();
+  logging::logger_presets::functionCall();
   std::visit(
-      protei_types::Visitor{[](const std::function<void()>& fn) { fn(); }},
+      custom_types::Visitor{[](const std::function<void()>& fn) { fn(); }},
       hook);
 }
 
@@ -19,24 +20,25 @@ inline void defaultEmpty() {}
 namespace pre_hooks_protei {
 inline void defaultClear()
 {
-  logger_presets::functionCall();
-  ui_protei::clearCinBuffer();
-  ui_protei::clearScreen();
+  logging::logger_presets::functionCall();
+  display::clearCinBuffer();
+  display::clearScreen();
 }
 }  // namespace pre_hooks_protei
 
 namespace post_hooks_protei {
 inline void defaultClear()
 {
-  logger_presets::functionCall();
-  ui_protei::clearCinBuffer();
-  ui_protei::clearScreen();
-  ui_protei::displayMenu();
+  logging::logger_presets::functionCall();
+  display::clearCinBuffer();
+  display::clearScreen();
+  display::displayMenu();
 }
 
 inline void clearBuffer()
 {
-  logger_presets::functionCall();
-  ui_protei::clearCinBuffer();
+  logging::logger_presets::functionCall();
+  display::clearCinBuffer();
 }
 }  // namespace post_hooks_protei
+};  // namespace menu_hooks

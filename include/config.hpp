@@ -27,10 +27,4 @@ static constexpr std::string_view toStr(const LogVerbosity verbosity)
       return "Warning";
   }
 }
-
-constexpr LogVerbosity kLogVerbosity
-{
-  LogVerbosity::Trace
-};
-
 }  // namespace config

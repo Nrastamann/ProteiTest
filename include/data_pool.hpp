@@ -6,6 +6,7 @@
 #include "custom_types.hpp"
 #include "logger.hpp"
 
+namespace data_storage {
 struct PolymorphicDimensionalVector {
   ~PolymorphicDimensionalVector() = default;
   PolymorphicDimensionalVector(const PolymorphicDimensionalVector&) = default;
@@ -15,26 +16,28 @@ struct PolymorphicDimensionalVector {
   PolymorphicDimensionalVector& operator=(PolymorphicDimensionalVector&&) =
       default;
 
-  PolymorphicDimensionalVector(protei_types::ProteiVector vec, size_t type_hash)
+  PolymorphicDimensionalVector(custom_types::PolymorphicVectorQuad vec,
+                               size_t type_hash)
       : _vec(std::move(vec)), _type_hash(type_hash)
   {
-    logger_presets::createObject<PolymorphicDimensionalVector>();
+    logging::logger_presets::createObject<PolymorphicDimensionalVector>();
   }
 
-  protei_types::ProteiVector _vec;
+  custom_types::PolymorphicVectorQuad _vec;
   size_t _type_hash;
 };
+}  // namespace data_storage
 
 template <>
-struct std::formatter<PolymorphicDimensionalVector>
+struct std::formatter<data_storage::PolymorphicDimensionalVector>
     : std::formatter<std::string> {
-  auto format(const PolymorphicDimensionalVector& vec,
+  auto format(const data_storage::PolymorphicDimensionalVector& vec,
               std::format_context& ctx) const
   {
     std::string out;
     size_t type = vec._type_hash;
     for (const auto& i : vec._vec) {
-      std::visit(protei_types::Visitor{[&out](auto const& variant_val) {
+      std::visit(custom_types::Visitor{[&out](auto const& variant_val) {
                    out += std::format("{} ", variant_val);
                  }},
                  i);
@@ -44,6 +47,7 @@ struct std::formatter<PolymorphicDimensionalVector>
   }
 };
 
+namespace data_storage {
 class DataPool {
   using return_type = PolymorphicDimensionalVector;
   using return_reference_type = return_type&;
@@ -56,7 +60,7 @@ class DataPool {
 
   void push(PolymorphicDimensionalVector&& vec)
   {
-    logger_presets::containerPush<DataPool>(std::format("{}", vec));
+    logging::logger_presets::containerPush<DataPool>(std::format("{}", vec));
     _queue.push(std::move(vec));
   }
 
@@ -68,7 +72,7 @@ class DataPool {
 
   void pop()
   {
-    logger_presets::containerRemove<DataPool>(
+    logging::logger_presets::containerRemove<DataPool>(
         std::format("{}", _queue.front()));
     _queue.pop();
   }
@@ -76,3 +80,4 @@ class DataPool {
  private:
   std::queue<PolymorphicDimensionalVector> _queue;
 };
+}  // namespace data_storage

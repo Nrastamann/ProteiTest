@@ -40,7 +40,7 @@ class InputFixture : public testing::Test {
 
   Menu _menu;
   AppSettings _command_line_options{{}, {}, {}, "", kIndexTest};
-  DataPool _data_pool;
+  data_storage::DataPool _data_pool;
   FunctionArgs _arguments{_command_line_options, _data_pool};
 };
 
@@ -133,7 +133,7 @@ class ResourceFixture : public testing::Test {
 TEST_F(ArgvFixture, AddressPortParsingTest)
 {
   std::vector<std::string> wrapped_input =
-      parsing_protei::getInput(_argv.data(), static_cast<int>(_argv.size()));
+      parsing::getInput(_argv.data(), static_cast<int>(_argv.size()));
 
   EXPECT_EQ(wrapped_input.size(), _parsed_data.size());
   auto it_wrapped = _parsed_data.begin();
@@ -145,9 +145,8 @@ TEST_F(ArgvFixture, AddressPortParsingTest)
 
 TEST_F(ParsingFixture, FlagsParsing)
 {
-  std::expected<parsing_protei::CommandLineArgsHolder,
-                parsing_protei::ParseResult>
-      argv_split = parsing_protei::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
+      argv_split = parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), true);
 
@@ -171,26 +170,24 @@ TEST_F(ParsingFixture, FlagsParsingWrongFlag)
 {
   _parsed_data.emplace_back("-M");
 
-  std::expected<parsing_protei::CommandLineArgsHolder,
-                parsing_protei::ParseResult>
-      argv_split = parsing_protei::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
+      argv_split = parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), false);
 
-  ASSERT_EQ(argv_split.error(), parsing_protei::ParseResult::WRONG_FLAG);
+  ASSERT_EQ(argv_split.error(), parsing::ParseResult::WRONG_FLAG);
 }
 
 TEST_F(ParsingFixture, FlagsParsingNotPairedFlag)
 {
   _parsed_data.emplace_back("-L");
 
-  std::expected<parsing_protei::CommandLineArgsHolder,
-                parsing_protei::ParseResult>
-      argv_split = parsing_protei::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
+      argv_split = parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), false);
 
-  ASSERT_EQ(argv_split.error(), parsing_protei::ParseResult::NO_ARGUMENT);
+  ASSERT_EQ(argv_split.error(), parsing::ParseResult::NO_ARGUMENT);
 }
 
 TEST_F(ParsingFixture, WrongPortParsing)
@@ -198,9 +195,8 @@ TEST_F(ParsingFixture, WrongPortParsing)
   _parsed_data.emplace_back("-p");
   _parsed_data.emplace_back("-30fds0");
 
-  std::expected<parsing_protei::CommandLineArgsHolder,
-                parsing_protei::ParseResult>
-      argv_split = parsing_protei::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
+      argv_split = parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), true);
 
@@ -214,9 +210,8 @@ TEST_F(ParsingFixture, WrongIndexParsing)
   _parsed_data.emplace_back("-i");
   _parsed_data.emplace_back("-30fds0");
 
-  std::expected<parsing_protei::CommandLineArgsHolder,
-                parsing_protei::ParseResult>
-      argv_split = parsing_protei::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
+      argv_split = parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), true);
 
@@ -230,9 +225,8 @@ TEST_F(ParsingFixture, WrongAddressParsing)
   _parsed_data.emplace_back("-a");
   _parsed_data.emplace_back("127.0.0.test");
 
-  std::expected<parsing_protei::CommandLineArgsHolder,
-                parsing_protei::ParseResult>
-      argv_split = parsing_protei::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
+      argv_split = parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), true);
 
@@ -246,7 +240,7 @@ TEST_F(InputFixture, OptionsPickTest)
   std::vector<std::string_view> arr{
       "QUIT", "EXIT", "TyPe", "Vector", "rolE", "PRINT", "EmpTY", "Settings",
   };
-  const auto& menu_options = protei_types::getMenuOptions();
+  const auto& menu_options = custom_types::getMenuOptions();
 
   EXPECT_EQ(arr.size(), menu_options.size());
 
@@ -293,7 +287,7 @@ TEST_F(InputFixture, TypeTest)
       "bool",    "int8_t",   "int16_t",  "int32_t",  "int64_t",
       "uint8_t", "uint16_t", "uint32_t", "uint64_t",
   };
-  EXPECT_EQ(types.size(), protei_types::getHashToTypeInfo().size());
+  EXPECT_EQ(types.size(), custom_types::getHashToTypeInfo().size());
 
   for (auto& type : types) {
     _cin << std::format("Type\n{}\n", type);
@@ -356,12 +350,14 @@ TEST_F(InputFixture, VectorTest)
 TEST_F(InputFixture, VectorTestMultiple)
 {
 
-  std::vector<std::array<protei_types::any_type, kIpAddrOctetAmount>> arr{
-      {-1, -2, -3, -4},
-      {"true", "false", 0, 1},
-      {"test", "string", "a", "b"},
-      {1, 2, 3, 4},
-  };
+  std::vector<
+      std::array<custom_types::any_type, network_addr::kIpAddrOctetAmount>>
+      arr{
+          {-1, -2, -3, -4},
+          {"true", "false", 0, 1},
+          {"test", "string", "a", "b"},
+          {1, 2, 3, 4},
+      };
 
   std::vector<std::string_view> types{"int8_t\n", "bool\n", "string\n",
                                       "uint8_t\n"};
@@ -390,7 +386,7 @@ TEST_F(InputFixture, VectorTestMultiple)
 
   while (_data_pool.size() != 0) {
     _cout.str(std::string());
-    menu_functions_protei::printVector(_data_pool, {});
+    menu_functions::printVector(_data_pool, {});
     _data_pool.pop();
 
     std::string string_to_check = _cout.str();
@@ -447,7 +443,7 @@ TEST_F(InputFixture, PrintSettings)
 }
 int main(int argc, char** argv)
 {
-  Logger::loggerInit();
+  logging::Logger::loggerInit();
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

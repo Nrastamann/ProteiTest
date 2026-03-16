@@ -2,7 +2,7 @@
 #include "custom_types.hpp"
 #include "logger.hpp"
 
-namespace protei_types {
+namespace custom_types {
 
 std::unordered_map<size_t, MenuOptions> const& getMenuOptions()
 {
@@ -17,7 +17,8 @@ std::unordered_map<size_t, MenuOptions> const& getMenuOptions()
       {hashed::kEmptyQueue, MenuOptions::EmptyQueue},
       {hashed::kSettingsMenu, MenuOptions::PrintSettings}};
 
-  logger_presets::createdStaticContainer("Hash - MenuOptions unordered_map");
+  logging::logger_presets::createdStaticContainer(
+      "Hash - MenuOptions unordered_map");
   return k_menu_options;
 }
-}  // namespace protei_types
+}  // namespace custom_types

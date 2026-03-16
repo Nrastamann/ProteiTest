@@ -11,42 +11,39 @@
 #include "logger.hpp"
 #include "menu_functions.hpp"
 
-namespace protei_types {
-const std::unordered_map<protei_types::EnumTypes, protei_types::any_type>&
-getDefaultValues()
+namespace custom_types {
+const std::unordered_map<EnumTypes, any_type>& getDefaultValues()
 {
-  using protei_types::EnumTypes;
-  static std::unordered_map<protei_types::EnumTypes, protei_types::any_type>
-      type_dispatch{
-          {EnumTypes::Bool, false},
-          {EnumTypes::Char, char{}},
-          {EnumTypes::Double, 0.},
-          {EnumTypes::Float, 0.F},
-          {EnumTypes::Int, 0},
-          {EnumTypes::Int16, static_cast<int16_t>(0)},
-          {EnumTypes::Int32, static_cast<int32_t>(0)},
-          {EnumTypes::Int64, static_cast<int64_t>(0)},
-          {EnumTypes::Int8, static_cast<int8_t>(0)},
-          {EnumTypes::UInt16, static_cast<uint16_t>(0)},
-          {EnumTypes::UInt32, static_cast<uint32_t>(0)},
-          {EnumTypes::UInt64, static_cast<uint64_t>(0)},
-          {EnumTypes::UInt8, static_cast<uint8_t>(0)},
-          {EnumTypes::String, ""},
+  static std::unordered_map<EnumTypes, any_type> type_dispatch{
+      {EnumTypes::Bool, false},
+      {EnumTypes::Char, char{}},
+      {EnumTypes::Double, 0.},
+      {EnumTypes::Float, 0.F},
+      {EnumTypes::Int, 0},
+      {EnumTypes::Int16, static_cast<int16_t>(0)},
+      {EnumTypes::Int32, static_cast<int32_t>(0)},
+      {EnumTypes::Int64, static_cast<int64_t>(0)},
+      {EnumTypes::Int8, static_cast<int8_t>(0)},
+      {EnumTypes::UInt16, static_cast<uint16_t>(0)},
+      {EnumTypes::UInt32, static_cast<uint32_t>(0)},
+      {EnumTypes::UInt64, static_cast<uint64_t>(0)},
+      {EnumTypes::UInt8, static_cast<uint8_t>(0)},
+      {EnumTypes::String, ""},
 
-      };
+  };
 
-  logger_presets::createdStaticContainer(
+  logging::logger_presets::createdStaticContainer(
       "EnumTypes - default_value - unordered_map");
   return type_dispatch;
 }
-}  // namespace protei_types
+}  // namespace custom_types
 
-namespace menu_functions_protei {
+namespace menu_functions {
 template <isPartOf T>
 static inline std::from_chars_result convertAnyType(
     std::string_view string_input, T& emplace_element)
 {
-  logger_presets::functionCall();
+  logging::logger_presets::functionCall();
 
   std::from_chars_result conv_result{};
 
@@ -62,7 +59,7 @@ template <>
 inline std::from_chars_result convertAnyType<std::string>(
     std::string_view string_input, std::string& emplace_element)
 {
-  logger_presets::functionCall();
+  logging::logger_presets::functionCall();
 
   emplace_element = string_input.data();
   return {.ptr = string_input.end(), .ec = std::errc()};
@@ -72,7 +69,7 @@ inline std::from_chars_result convertAnyType<std::string>(
 static inline std::from_chars_result convertAnyTypeBool(
     std::string_view string_input, bool& emplace_element, size_t hashed_input)
 {
-  logger_presets::functionCall();
+  logging::logger_presets::functionCall();
 
   std::from_chars_result conv_result(string_input.end());
 
@@ -90,15 +87,15 @@ static inline std::from_chars_result convertAnyTypeBool(
 }
 
 inline static std::from_chars_result emplaceInVector(
-    protei_types::any_type& emplace_element, std::string_view string_input,
+    custom_types::any_type& emplace_element, std::string_view string_input,
     size_t hashed_input)  //with hashed_input to support 'true'/'false' insert
 {
-  logger_presets::functionCall();
+  logging::logger_presets::functionCall();
 
   std::from_chars_result conv_result{};
 
   conv_result =
-      std::visit(protei_types::Visitor{
+      std::visit(custom_types::Visitor{
                      [string_input]<typename T>(T& emplace_element) {
                        return convertAnyType<T>(string_input, emplace_element);
                      },
@@ -113,11 +110,11 @@ inline static std::from_chars_result emplaceInVector(
 
 void changeType(AppSettings& settings)
 {
-  logger_presets::functionCall();
+  logging::logger_presets::functionCall();
 
-  ui_protei::clearScreen();
+  display::clearScreen();
   std::string string_input;
-  const auto& implemented_types_reference = protei_types::getHashToTypeInfo();
+  const auto& implemented_types_reference = custom_types::getHashToTypeInfo();
 
   while (true) {
     std::cout
@@ -128,80 +125,80 @@ void changeType(AppSettings& settings)
            "int\n\t-char\nEnter new type: ";
 
     std::cin >> string_input;
-    logger_presets::userInput(string_input);
+    logging::logger_presets::userInput(string_input);
 
     std::ranges::transform(string_input, string_input.begin(), ::tolower);
     size_t hashed_input = std::hash<std::string_view>{}(string_input);
 
     if (hashed_input == hashed::kQuit) {
-      logger_presets::menuQuit();
+      logging::logger_presets::menuQuit();
       return;
     }
 
     if (std::cin.good() && implemented_types_reference.contains(hashed_input)) {
       settings.setTypeHash(hashed_input);
       settings.setTypeEnum(
-          protei_types::getHashToTypeInfo().at(hashed_input).first);
+          custom_types::getHashToTypeInfo().at(hashed_input).first);
 
-      logger_presets::menuQuit();
+      logging::logger_presets::menuQuit();
       return;
     }
 
-    logger_presets::wrongInput();
-    ui_protei::clearCinBuffer();
+    logging::logger_presets::wrongInput();
+    display::clearCinBuffer();
   }
 }
 
 void changeName(AppSettings& settings)
 {
-  logger_presets::functionCall();
+  logging::logger_presets::functionCall();
 
-  ui_protei::clearScreen();
+  display::clearScreen();
   std::string string_input;
   while (true) {
     std::cout << "Enter your new name or\n"
                  "enter 'quit' if you've changed your mind: ";
 
     std::cin >> string_input;
-    logger_presets::userInput(string_input);
+    logging::logger_presets::userInput(string_input);
     std::string lowered_input;
     std::ranges::transform(string_input, lowered_input.begin(), ::tolower);
     if (std::hash<std::string_view>{}(lowered_input) == hashed::kQuit) {
-      logger_presets::menuQuit();
+      logging::logger_presets::menuQuit();
       return;
     }
 
     if (std::cin.good()) {
       settings.setName(std::move(string_input));
-      logger_presets::menuQuit();
+      logging::logger_presets::menuQuit();
       return;
     }
 
-    ui_protei::clearCinBuffer();
-    logger_presets::wrongInput();
+    display::clearCinBuffer();
+    logging::logger_presets::wrongInput();
   }
 }
 
-void enterVector(DataPool& vector, AppSettings const& settings)
+void enterVector(data_storage::DataPool& vector, AppSettings const& settings)
 {
   namespace rn = std::ranges;
-  logger_presets::functionCall();
+  logging::logger_presets::functionCall();
 
-  protei_types::ProteiVector spare_vector;
+  custom_types::PolymorphicVectorQuad spare_vector;
   std::cout
-      << "Enter " << protei_types::kVectorDimensionsAmount
+      << "Enter " << custom_types::kVectorDimensionsAmount
       << "-dimensional vector of "
-      << protei_types::getHashToTypeInfo().at(settings.cgetTypeHash()).second
+      << custom_types::getHashToTypeInfo().at(settings.cgetTypeHash()).second
       << " or "
          "enter 'quit' if you've changed your "
          "mind.\nFormat is "
-      << protei_types::kVectorDimensionsAmount
+      << custom_types::kVectorDimensionsAmount
       << " values separated by whitespaces: ";
 
   bool is_conversion_not_done = true;
   std::string string_input;
   const auto& default_value =
-      protei_types::getDefaultValues().at(settings.cgetTypeEnum());
+      custom_types::getDefaultValues().at(settings.cgetTypeEnum());
 
   rn::fill(spare_vector, default_value);
 
@@ -210,7 +207,7 @@ void enterVector(DataPool& vector, AppSettings const& settings)
 
     for (auto& element : spare_vector) {
       std::cin >> string_input;
-      logger_presets::userInput(string_input);
+      logging::logger_presets::userInput(string_input);
 
       std::string lowercase_input = string_input;
       std::ranges::transform(lowercase_input, lowercase_input.begin(),
@@ -218,7 +215,7 @@ void enterVector(DataPool& vector, AppSettings const& settings)
       size_t hashed_input = std::hash<std::string_view>{}(lowercase_input);
 
       if (hashed_input == hashed::kQuit) {
-        logger_presets::menuQuit();
+        logging::logger_presets::menuQuit();
         return;
       }
 
@@ -226,35 +223,35 @@ void enterVector(DataPool& vector, AppSettings const& settings)
 
       if (ec != std::errc() || ptr != string_input.end().base()) {
         is_conversion_not_done = true;
-        logger_presets::wrongInput();
-        ui_protei::clearCinBuffer();
+        logging::logger_presets::wrongInput();
+        display::clearCinBuffer();
         break;
       }
     }
   }
 
-  logger_presets::menuQuit();
-  vector.push(
-      PolymorphicDimensionalVector{spare_vector, settings.cgetTypeHash()});
+  logging::logger_presets::menuQuit();
+  vector.push(data_storage::PolymorphicDimensionalVector{
+      spare_vector, settings.cgetTypeHash()});
 }
 
-void emptyQueue(DataPool& data_pool, NonConstTag)
+void emptyQueue(data_storage::DataPool& data_pool, NonConstTag)
 {
 
-  logger_presets::functionCall();
+  logging::logger_presets::functionCall();
 
   while (data_pool.size() > 0) {
     auto vec = data_pool.front()._vec;
     for (const auto& i : vec) {
       std::visit(
-          protei_types::Visitor{
+          custom_types::Visitor{
               [](auto const& variant_val) { std::cout << variant_val << ' '; },
               [](int8_t value) { std::cout << +value << ' '; },
               [](uint8_t value) { std::cout << +value << ' '; }},
           i);
     }
     std::cout << " - "
-              << protei_types::getHashToTypeInfo()
+              << custom_types::getHashToTypeInfo()
                      .at(data_pool.front()._type_hash)
                      .second
               << '\n';
@@ -262,31 +259,31 @@ void emptyQueue(DataPool& data_pool, NonConstTag)
     data_pool.pop();
   }
 
-  logger_presets::menuQuit();
+  logging::logger_presets::menuQuit();
   std::cout << "Queue is empty\n";
 }
 
-void printVector(DataPool& arr, NonConstTag)
+void printVector(data_storage::DataPool& arr, NonConstTag)
 {
-  logger_presets::menuQuit();
+  logging::logger_presets::menuQuit();
 
   if (arr.size() == 0) {
     std::cout << "Empty queue\n";
-    Logger::writeToLog<config::LogVerbosity::Warning>(
+    logging::Logger::writeToLog<config::LogVerbosity::Warning>(
         "Empty queue at printing, quiting procedure");
     return;
   }
 
   for (const auto& i : arr.front()._vec) {
     std::visit(
-        protei_types::Visitor{
+        custom_types::Visitor{
             [](auto const& variant_val) { std::cout << variant_val << ' '; },
             [](int8_t value) { std::cout << +value << ' '; },
             [](uint8_t value) { std::cout << +value << ' '; }},
         i);
   }
   std::cout << '\n';
-  logger_presets::menuQuit();
+  logging::logger_presets::menuQuit();
 }
 
-}  // namespace menu_functions_protei
+}  // namespace menu_functions

@@ -7,17 +7,13 @@ project(ProteiPractice
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
 
-#log verbosity and compile options
-SET(LOG_VERBOSITY "Trace" CACHE STRING "Verbosity log")
 #sanitizers
 option(SANITIZERS "Build with sanitizers" OFF)
 option(BUILD_TESTS "Build tests" ON)
 option(TEST_COVERAGE "Build with coverage" OFF)
-option(cppcheck "Run CppCheck static code analysis" ON)
+option(cppcheck "Run CppCheck static code analysis" OFF)
 
 add_executable(proteip src/main.cpp)
-
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/config.hpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/include/config.hpp" @ONLY)
 
 set(SRCS
         src/logger.cpp  

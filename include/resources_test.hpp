@@ -1,5 +1,7 @@
 #pragma once
 
+#include <arpa/inet.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -11,6 +13,21 @@
 #include "ip_addr.hpp"
 #include "logger.hpp"
 
+template <>
+struct std::formatter<std::span<std::string_view>>
+    : std::formatter<std::string> {
+  auto format(std::span<std::string_view> vec, std::format_context& ctx) const
+  {
+    std::string out = "[ ";
+    for (const auto& i : vec) {
+      out += i;
+    }
+    out += " ]";
+    return std::formatter<std::string>::format(out, ctx);
+  }
+};
+
+namespace resources_tests {
 class ITest {
  public:
   virtual bool operator()() = 0;
@@ -44,7 +61,7 @@ class ResourceTest final : ITest {
             _resources.begin(), _resources.end(),
             [](std::string_view sv) { return std::filesystem::exists(sv); })) {
 
-      logger_presets::acquiringResourceError<ResourceTest>(
+      logging::logger_presets::acquiringResourceError<ResourceTest>(
           std::format("{}", _resources));
       value = false;
     }
@@ -63,7 +80,8 @@ class ConnectionTest final : ITest {
   ConnectionTest(ConnectionTest&&) = default;
   ConnectionTest& operator=(const ConnectionTest&) = default;
   ConnectionTest& operator=(ConnectionTest&&) = default;
-  explicit ConnectionTest(std::span<IpAddr> addresses) : _resources(addresses)
+  explicit ConnectionTest(std::span<network_addr::IpAddr> addresses)
+      : _resources(addresses)
   {
   }
 
@@ -71,17 +89,17 @@ class ConnectionTest final : ITest {
   {
     bool value = true;
 
-    auto test_resource = [](const IpAddr& addr) {
+    auto test_resource = [](const network_addr::IpAddr& addr) {
       int client_socket = socket(AF_INET, SOCK_STREAM, 0);
 
-      const sockaddr_in server_addr{.sin_family = AF_INET,
-                                    .sin_port = htons(addr._port),
-                                    .sin_addr{addr.htonlP()},
-                                    .sin_zero{0}};
+      sockaddr_in server_addr{.sin_family = AF_INET,
+                              .sin_port = htons(addr._port),
+                              .sin_addr{addr.addrToNetwork()},
+                              .sin_zero{0}};
 
-      int res = connect(client_socket,
-                        reinterpret_cast<const sockaddr*>(&server_addr),
-                        sizeof(server_addr));
+      int res =
+          connect(client_socket, reinterpret_cast<sockaddr*>(&server_addr),
+                  sizeof(server_addr));
       if (res != 0) {
         return false;
       }
@@ -95,7 +113,8 @@ class ConnectionTest final : ITest {
       for (auto& ip_addr : _resources) {
         output_str += std::format("{}\n", ip_addr);
       }
-      logger_presets::acquiringResourceError<ConnectionTest>(output_str);
+      logging::logger_presets::acquiringResourceError<ConnectionTest>(
+          output_str);
 
       value = false;
     }
@@ -104,7 +123,8 @@ class ConnectionTest final : ITest {
   };
 
  private:
-  std::span<IpAddr> _resources;
+  std::span<network_addr::IpAddr> _resources;
 
   bool _invalid_state = false;
 };
+}  // namespace resources_tests

@@ -23,7 +23,7 @@ inline size_t const kUInt32 = std::hash<std::string_view>{}("uint32_t");
 inline size_t const kUInt64 = std::hash<std::string_view>{}("uint64_t");
 }  // namespace hashed
 
-namespace protei_types {
+namespace custom_types {
 enum class EnumTypes : uint8_t {
   Int,
   Float,
@@ -68,8 +68,7 @@ using any_type =
                  int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t>;
 
 template <size_t N>
-using PolymorphicVector =
-    std::array<protei_types::any_type, kVectorDimensionsAmount>;
+using PolymorphicVector = std::array<any_type, kVectorDimensionsAmount>;
 
-using ProteiVector = PolymorphicVector<kVectorDimensionsAmount>;
-};  // namespace protei_types
+using PolymorphicVectorQuad = PolymorphicVector<kVectorDimensionsAmount>;
+};  // namespace custom_types

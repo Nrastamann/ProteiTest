@@ -18,8 +18,7 @@
                      "name": "Debug",
                      "displayName": "Debug build",
                      "cacheVariables": {
-                            "CMAKE_BUILD_TYPE": "Debug",
-                            "LOG_VERBOSITY": "Debug"
+                            "CMAKE_BUILD_TYPE": "Debug"
                      },
                      "inherits": [
                             "_root_config"
@@ -29,8 +28,7 @@
                      "name": "DebugSan",
                      "displayName": "Debug build with sanitizers",
                      "cacheVariables": {
-                            "SANITIZERS": "ON",
-                            "LOG_VERBOSITY": "Trace"
+                            "SANITIZERS": "ON"
                      },
                      "inherits": [
                             "Debug"
@@ -40,8 +38,7 @@
                      "name": "Release",
                      "displayName": "Release build",
                      "cacheVariables": {
-                            "CMAKE_BUILD_TYPE": "Release",
-                            "LOG_VERBOSITY": "Warning"
+                            "CMAKE_BUILD_TYPE": "Release"
                      },
                      "inherits": [
                             "_root_config"

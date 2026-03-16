@@ -2,9 +2,8 @@
 #include <format>
 #include <source_location>
 #include <string_view>
-#include "config.hpp"
 
-namespace logger_presets {
+namespace logging::logger_presets {
 void userInputError(std::string_view input_str, char symbol,
                     std::source_location loc)
 {
@@ -54,4 +53,4 @@ void userInput(std::string_view input, std::source_location loc)
   Logger::writeToLog<config::LogVerbosity::Debug>(
       std::format("input - {}", input), loc);
 }
-}  // namespace logger_presets
+}  // namespace logging::logger_presets

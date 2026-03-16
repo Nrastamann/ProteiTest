@@ -10,10 +10,10 @@
 #include <string>
 #include <string_view>
 #include <thread>
-#include "config.hpp"  //!!!
-
+#include "config.hpp"
+namespace logging {
 template <typename T>
-std::unique_ptr<char, void (*)(void*)> acquireName()
+static std::unique_ptr<char, void (*)(void*)> acquireName()
 {
   return {abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, nullptr),
           std::free};
@@ -22,11 +22,21 @@ std::unique_ptr<char, void (*)(void*)> acquireName()
 class Logger {
 
  public:
-  static void loggerInit(const std::string& path = "logs")
+  static void loggerInit(
+
+      const std::string& path = "logs",
+      config::LogVerbosity log_level = config::LogVerbosity::Info)
   {
+    verbosity = log_level;
     log_file = path;
+    log_on = true;
+
     if (!std::filesystem::exists(log_file)) {
-      std::filesystem::create_directory(log_file);
+      bool dir_created = std::filesystem::create_directory(log_file);
+      if (!dir_created) {
+        log_on = false;
+        return;
+      }
     }
 
     log_file += "/log-";
@@ -46,7 +56,7 @@ class Logger {
       std::string_view str,
       std::source_location loc = std::source_location::current())
   {
-    if (LogLevel > config::kLogVerbosity) {
+    if (LogLevel > verbosity && log_on) {
       return;
     }
     std::ofstream file(log_file, std::ios::app);
@@ -80,6 +90,8 @@ class Logger {
 
  private:
   inline static std::string log_file;
+  inline static config::LogVerbosity verbosity;
+  inline static bool log_on;
 };
 
 namespace logger_presets {
@@ -146,3 +158,4 @@ void wrongInput(std::source_location loc = std::source_location::current());
 void userInput(std::string_view input,
                std::source_location loc = std::source_location::current());
 }  // namespace logger_presets
+}  // namespace logging

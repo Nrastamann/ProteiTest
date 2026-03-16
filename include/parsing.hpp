@@ -5,7 +5,7 @@
 #include <vector>
 #include "ip_addr.hpp"
 
-namespace parsing_protei {
+namespace parsing {
 enum class ParseResult : uint8_t {
   NO_ERR,
   WRONG_FLAG,
@@ -26,7 +26,8 @@ struct CommandLineArgsHolder {
 
  public:
   std::vector<uint16_t> getPorts();
-  std::vector<std::array<uint8_t, kIpAddrOctetAmount>> getAddresses();
+  std::vector<std::array<uint8_t, network_addr::kIpAddrOctetAmount>>
+  getAddresses();
   size_t getIndex();
   std::string_view getRole() { return _role; }
   array_type& getLibs() { return _lib_names; }
@@ -54,7 +55,7 @@ struct CommandLineArgsHolder {
 std::vector<std::string> getInput(char** argv, int argc);
 
 [[nodiscard("Discarding address parsing result")]] std::expected<
-    std::array<uint8_t, kIpAddrOctetAmount>, ParseResult>
+    std::array<uint8_t, network_addr::kIpAddrOctetAmount>, ParseResult>
 parseAddr(std::string_view ip_addr);
 
 [[nodiscard(
@@ -69,4 +70,4 @@ parseIndex(std::string_view index);
     CommandLineArgsHolder, ParseResult>
 parseClArgs(std::span<std::string> vec);
 
-};  // namespace parsing_protei
+};  // namespace parsing

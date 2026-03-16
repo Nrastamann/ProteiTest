@@ -2,7 +2,7 @@
 #include <iostream>
 #include <limits>
 
-namespace ui_protei {
+namespace display {
 void displayMenu();
 inline void clearScreen()
 {
@@ -13,4 +13,4 @@ inline static void clearCinBuffer()
   std::cin.clear();
   std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 }
-}  // namespace ui_protei
+}  // namespace display

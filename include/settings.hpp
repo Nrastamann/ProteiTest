@@ -19,12 +19,12 @@
  */
 class AppSettings {
   std::vector<std::string_view> _lib_name;
-  std::vector<IpAddr> _addresses;
+  std::vector<network_addr::IpAddr> _addresses;
 
   std::string _role;
   std::string _name;
   size_t _type_hash;
-  protei_types::EnumTypes _type_enum;
+  custom_types::EnumTypes _type_enum;
 
   size_t _index{};
   bool _should_close = false;
@@ -32,10 +32,11 @@ class AppSettings {
  public:
   AppSettings(
       std::vector<uint16_t> ports, std::vector<std::string_view> lib_names,
-      std::vector<std::array<unsigned char, kIpAddrOctetAmount>> addresses,
+      std::vector<std::array<unsigned char, network_addr::kIpAddrOctetAmount>>
+          addresses,
       std::string_view role, size_t index, std::string&& userName = "UserName",
       size_t type_hash = hashed::kInt,
-      protei_types::EnumTypes type_enum = protei_types::EnumTypes::Int)
+      custom_types::EnumTypes type_enum = custom_types::EnumTypes::Int)
       : _lib_name(std::move(lib_names)),
         _role(role),
         _name(std::move(userName)),
@@ -44,7 +45,7 @@ class AppSettings {
         _index(index)
   {
     if (addresses.size() != ports.size()) {
-      logger_presets::userInput("Adresses number not equal ports");
+      logging::logger_presets::defaultError("Adresses number not equal ports");
       _should_close = true;
       return;
     }
@@ -52,19 +53,22 @@ class AppSettings {
       _addresses.push_back({addresses[i], ports[i]});
     }
 
-    logger_presets::createObject<ResourceTest>();
-    logger_presets::createObject<ConnectionTest>();
+    logging::logger_presets::createObject<resources_tests::ResourceTest>();
+    logging::logger_presets::createObject<resources_tests::ConnectionTest>();
 
-    _should_close =
-        !(ResourceTest{_lib_name}() && ConnectionTest{_addresses}());
+    _should_close = !(resources_tests::ResourceTest{_lib_name}() &&
+                      resources_tests::ConnectionTest{_addresses}());
   }
-  [[nodiscard]] std::vector<IpAddr>& getAddr() { return _addresses; }
+  [[nodiscard]] std::vector<network_addr::IpAddr>& getAddr()
+  {
+    return _addresses;
+  }
   [[nodiscard]] std::vector<std::string_view> const& cGetLibName() const
   {
     return _lib_name;
   }
   [[nodiscard]] size_t cgetTypeHash() const { return _type_hash; }
-  [[nodiscard]] protei_types::EnumTypes cgetTypeEnum() const
+  [[nodiscard]] custom_types::EnumTypes cgetTypeEnum() const
   {
     return _type_enum;
   }
@@ -72,7 +76,7 @@ class AppSettings {
   [[nodiscard]] std::string_view cgetRole() const { return _role; }
   [[nodiscard]] size_t cgetIndex() const { return _index; }
   [[nodiscard]] bool cgetShouldClose() const { return _should_close; }
-  [[nodiscard]] const std::vector<IpAddr>& cgetAddress() const
+  [[nodiscard]] const std::vector<network_addr::IpAddr>& cgetAddress() const
   {
     return _addresses;
   }
@@ -81,7 +85,7 @@ class AppSettings {
   void setName(std::string&& str) { _name = std::move(str); }
 
   void setTypeHash(size_t hash) { _type_hash = hash; }
-  void setTypeEnum(protei_types::EnumTypes type) { _type_enum = type; }
+  void setTypeEnum(custom_types::EnumTypes type) { _type_enum = type; }
 
   ~AppSettings() = default;
   AppSettings() = delete;
