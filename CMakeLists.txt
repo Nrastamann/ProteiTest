@@ -6,12 +6,12 @@ project(ProteiPractice
 )
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 23)
-
 #sanitizers
 option(SANITIZERS "Build with sanitizers" OFF)
 option(BUILD_TESTS "Build tests" ON)
 option(TEST_COVERAGE "Build with coverage" OFF)
-option(cppcheck "Run CppCheck static code analysis" OFF)
+option(CPPCHECK "Run CppCheck static code analysis" OFF)
+option(BENCHMARK "Build with benchmarks" OFF)
 
 add_executable(proteip src/main.cpp)
 add_executable(proteip.server src/server.cpp)
@@ -27,14 +27,14 @@ set(SRCS
 )
 
 target_compile_options(proteip PRIVATE
-        -Wall -Wextra -Wsign-conversion -Wconversion -Winline -Wno-error)
+        -Wall -Wextra -pedantic-errors -Wsign-conversion -Wconversion -Winline)
 
 target_compile_options(proteip.server PRIVATE
-        -Wall -Wextra -pedantic-errors -Wsign-conversion -Wconversion -Werror -Weffc++ -Winline)
+        -Wall -Wextra -pedantic-errors -Wsign-conversion -Wconversion -Winline)
 
 
 
-if(cppcheck)
+if(CPPCHECK)
   find_program(cppcheck_exe NAMES cppcheck REQUIRED)
   set(cppcheck_opts --enable=all --inline-suppr --quiet --suppressions-list=${PROJECT_SOURCE_DIR}/cppcheck.supp)
   set(CMAKE_C_CPPCHECK ${cppcheck_exe} --std=c23 ${cppcheck_opts})
@@ -73,11 +73,7 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/google/googletest.git
         GIT_TAG fa8438ae6b70c57010177de47a9f13d7041a6328        
 )
-FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/benchmark.git
-        GIT_TAG 192ef10025eb2c4cdd392bc502f0c852196baa48        
-)
+
 FetchContent_Declare(
         json
         URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
@@ -85,6 +81,7 @@ FetchContent_Declare(
 
 enable_testing()
 
+if(BUILD_TESTS)
 
 add_executable(proteip.test)
 
@@ -102,12 +99,48 @@ target_sources(proteip.test
             include
             tests
 )
+target_link_libraries(proteip.test PRIVATE nlohmann_json::nlohmann_json)
 
+target_link_libraries(proteip.test PRIVATE GTest::gtest_main)
+
+include(GoogleTest)
+gtest_discover_tests(proteip.test)
+endif()
+
+if(BENCHMARK)
+add_executable(proteip.benchmark)
+
+FetchContent_Declare( googlebenchmark
+GIT_REPOSITORY https://github.com/google/benchmark.git
+GIT_TAG main )
+
+FetchContent_MakeAvailable(googlebenchmark)
+
+target_link_libraries(proteip.benchmark PRIVATE nlohmann_json::nlohmann_json)
+set_property(
+        TARGET proteip.benchmark
+        APPEND
+        PROPERTY COMPILE_OPTIONS -w)
+
+
+FetchContent_MakeAvailable(googlebenchmark)
+target_sources(proteip.benchmark
+    PRIVATE benchmark/benchmark.cpp ${SRCS}
+    PRIVATE
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+            benchmark
+)
+
+target_link_libraries(proteip.benchmark PRIVATE benchmark::benchmark)
+
+endif()
 
 FetchContent_MakeAvailable(json)
 
 target_link_libraries(proteip PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(proteip.test PRIVATE nlohmann_json::nlohmann_json)
+
 target_link_libraries(proteip.server PRIVATE nlohmann_json::nlohmann_json)
 
 if(TEST_COVERAGE)
@@ -119,25 +152,3 @@ if(TEST_COVERAGE)
         target_compile_options(proteip.test PRIVATE
                 -fprofile-arcs -ftest-coverage -fprofile-instr-generate -fcoverage-mapping)
 endif()
-
-add_executable(proteip.benchmark)
-
-FetchContent_MakeAvailable(benchmark)
-set_property(
-        TARGET proteip.benchmark
-        APPEND
-        PROPERTY COMPILE_OPTIONS -w)
-
-target_sources(proteip.benchmark
-    PRIVATE benchmark/benchmark.cpp ${SRCS}
-    PRIVATE
-        FILE_SET HEADERS
-        BASE_DIRS
-            include
-            tests
-)
-
-target_link_libraries(proteip.test PRIVATE GTest::gtest_main)
-
-include(GoogleTest)
-gtest_discover_tests(proteip.test)
