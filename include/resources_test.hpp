@@ -6,9 +6,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <algorithm>
-#include <cassert>
 #include <filesystem>
 #include <format>
+#include <iterator>
 #include <string_view>
 #include "ip_addr.hpp"
 #include "logger.hpp"
@@ -56,13 +56,18 @@ class ResourceTest final : ITest {
   bool operator()() override
   {
     bool value = true;
-    if (_resources.size() != 0 &&
-        !std::ranges::all_of(
-            _resources.begin(), _resources.end(),
-            [](std::string_view sv) { return std::filesystem::exists(sv); })) {
+    auto bad_it{_resources.begin()};
 
-      logging::logger_presets::acquiringResourceError<ResourceTest>(
-          std::format("{}", _resources));
+    if (_resources.size() != 0 &&
+        !std::ranges::all_of(_resources.begin(), _resources.end(),
+                             [&bad_it](std::string_view sv) {
+                               std::advance(bad_it, 1);
+                               return std::filesystem::exists(sv);
+                             })) {
+
+      std::string output_str = std::format("{}", *(bad_it - 1));
+      logging::logger_presets::acquiringResourceError<ResourceTest>(output_str);
+
       value = false;
     }
 
@@ -88,8 +93,9 @@ class ConnectionTest final : ITest {
   bool operator()() override
   {
     bool value = true;
+    auto bad_it{_resources.begin()};
 
-    auto test_resource = [](const network_addr::IpAddr& addr) {
+    auto test_resource = [&bad_it](const network_addr::IpAddr& addr) {
       int client_socket = socket(AF_INET, SOCK_STREAM, 0);
       if (client_socket == -1) {
         return false;
@@ -106,16 +112,18 @@ class ConnectionTest final : ITest {
       if (res != 0) {
         return false;
       }
+
+      std::advance(bad_it, 1);
+
       close(client_socket);
       return true;
     };
 
     if (_invalid_state || (_resources.size() != 0 &&
                            !std::ranges::all_of(_resources, test_resource))) {
-      std::string output_str;
-      for (auto& ip_addr : _resources) {
-        output_str += std::format("{}\n", ip_addr);
-      }
+
+      std::string output_str = std::format("{}", *bad_it);
+
       logging::logger_presets::acquiringResourceError<ConnectionTest>(
           output_str);
 

@@ -15,6 +15,7 @@ inline size_t const kPrint = std::hash<std::string_view>{}("print");
 inline size_t const kEmptyQueue = std::hash<std::string_view>{}("empty");
 inline size_t const kSettingsMenu = std::hash<std::string_view>{}("settings");
 inline size_t const kExit = std::hash<std::string_view>{}("exit");
+inline size_t const kClear = std::hash<std::string_view>{}("clear");
 inline size_t const kSend = std::hash<std::string_view>{}("send");
 }  // namespace hashed
 
@@ -157,6 +158,7 @@ class Menu {
          MenuItem{menu_functions::changeType,
                   menu_hooks::pre_hooks_protei::defaultClear,
                   menu_hooks::post_hooks_protei::defaultClear}},
+
         {MenuOptions::EmptyQueue,
          MenuItem{menu_functions::emptyQueue, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
@@ -165,27 +167,36 @@ class Menu {
          MenuItem{menu_functions::changeName,
                   menu_hooks::pre_hooks_protei::defaultClear,
                   menu_hooks::post_hooks_protei::defaultClear}},
+
         {MenuOptions::EnterVector,
          MenuItem{menu_functions::enterVector,
                   menu_hooks::pre_hooks_protei::defaultClear,
                   menu_hooks::post_hooks_protei::defaultClear}},
+
         {MenuOptions::PrintCurrentVector,
          MenuItem{menu_functions::printVector, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
+
         {MenuOptions::PrintSettings,
          MenuItem{menu_functions::printCurrentAppSettings,
                   menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
+
         {MenuOptions::WrongOption,
          MenuItem{menu_functions::wrongOption, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
+
         {MenuOptions::QuitProgram,
          MenuItem{menu_functions::quit, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
+
         {MenuOptions::SendToServer,
          MenuItem{menu_functions::sendToServer, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
 
+        {MenuOptions::EmptyFunction,
+         MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
+                  menu_hooks::post_hooks_protei::defaultClear}},
     };
     logging::logger_presets::createdStaticContainer(
         "MenuOptions - MenuItem unordered_map");

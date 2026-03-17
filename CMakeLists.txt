@@ -14,6 +14,7 @@ option(TEST_COVERAGE "Build with coverage" OFF)
 option(cppcheck "Run CppCheck static code analysis" OFF)
 
 add_executable(proteip src/main.cpp)
+add_executable(proteip.server src/server.cpp)
 
 set(SRCS
         src/logger.cpp  
@@ -28,6 +29,10 @@ set(SRCS
 target_compile_options(proteip PRIVATE
         -Wall -Wextra -Wsign-conversion -Wconversion -Winline -Wno-error)
 
+target_compile_options(proteip.server PRIVATE
+        -Wall -Wextra -pedantic-errors -Wsign-conversion -Wconversion -Werror -Weffc++ -Winline)
+
+
 
 if(cppcheck)
   find_program(cppcheck_exe NAMES cppcheck REQUIRED)
@@ -38,6 +43,13 @@ endif()
 
 target_sources(proteip 
         PRIVATE src/main.cpp ${SRCS}
+        PRIVATE
+                FILE_SET HEADERS
+                BASE_DIRS include
+)
+
+target_sources(proteip.server 
+        PRIVATE src/server.cpp ${SRCS}
         PRIVATE
                 FILE_SET HEADERS
                 BASE_DIRS include
@@ -61,6 +73,15 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/google/googletest.git
         GIT_TAG fa8438ae6b70c57010177de47a9f13d7041a6328        
 )
+FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        GIT_TAG 192ef10025eb2c4cdd392bc502f0c852196baa48        
+)
+FetchContent_Declare(
+        json
+        URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+)
 
 enable_testing()
 
@@ -82,6 +103,13 @@ target_sources(proteip.test
             tests
 )
 
+
+FetchContent_MakeAvailable(json)
+
+target_link_libraries(proteip PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(proteip.test PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(proteip.server PRIVATE nlohmann_json::nlohmann_json)
+
 if(TEST_COVERAGE)
         set(CMAKE_C_FLAGS_COVERAGE "${CMAKE_C_FLAGS}--coverage")
         set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS}--coverage")
@@ -92,7 +120,22 @@ if(TEST_COVERAGE)
                 -fprofile-arcs -ftest-coverage -fprofile-instr-generate -fcoverage-mapping)
 endif()
 
+add_executable(proteip.benchmark)
 
+FetchContent_MakeAvailable(benchmark)
+set_property(
+        TARGET proteip.benchmark
+        APPEND
+        PROPERTY COMPILE_OPTIONS -w)
+
+target_sources(proteip.benchmark
+    PRIVATE benchmark/benchmark.cpp ${SRCS}
+    PRIVATE
+        FILE_SET HEADERS
+        BASE_DIRS
+            include
+            tests
+)
 
 target_link_libraries(proteip.test PRIVATE GTest::gtest_main)
 

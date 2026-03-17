@@ -7,9 +7,12 @@
 #include <format>
 #include <functional>
 #include <iterator>
+#include <nlohmann/json.hpp>
 #include <ranges>
 #include <span>
+
 #include "logger.hpp"
+#include "menu_functions.hpp"
 #include "settings.hpp"
 static constexpr size_t kHexBase{16};
 
@@ -289,6 +292,31 @@ size_t CommandLineArgsHolder::getIndex()
     return 0;
   }
   return index.value();
+}
+
+custom_types::PolymorphicVectorQuad parseStringVector(nlohmann::json& json)
+{
+  size_t hash = json["TypeHash"];
+  std::string vector_unparsed = json["Vector"];
+
+  custom_types::PolymorphicVectorQuad vector;
+
+  const auto& default_value = custom_types::getDefaultValues().at(
+      custom_types::getHashToTypeInfo().at(hash).first);
+
+  std::ranges::fill(vector, default_value);
+
+  //NOLINTNEXTLINE
+  std::stringstream streambuf(vector_unparsed.data());
+
+  std::string input_string;
+
+  for (auto& element : vector) {
+    streambuf >> input_string;
+    menu_functions::emplaceInVector(
+        element, input_string, std::hash<std::string_view>{}(input_string));
+  }
+  return vector;
 }
 
 };  // namespace parsing

@@ -4,10 +4,16 @@
 #include <unordered_map>
 #include <variant>
 
+#include <nlohmann/json.hpp>
+
 #include "data_pool.hpp"
 #include "display.hpp"
+#include "nlohmann/json_fwd.hpp"
+#include "parsing.hpp"
 
+#include <sys/socket.h>
 #include "custom_types.hpp"
+#include "ip_addr.hpp"
 #include "logger.hpp"
 #include "menu_functions.hpp"
 #include "resources_test.hpp"
@@ -40,6 +46,8 @@ const std::unordered_map<EnumTypes, any_type>& getDefaultValues()
 }  // namespace custom_types
 
 namespace menu_functions {
+static constexpr size_t kMaxBuffer{4096};
+
 template <isPartOf T>
 static inline std::from_chars_result convertAnyType(
     std::string_view string_input, T& emplace_element)
@@ -87,7 +95,84 @@ static inline std::from_chars_result convertAnyTypeBool(
   return conv_result;
 }
 
-inline static std::from_chars_result emplaceInVector(
+static nlohmann::json getJson(
+    data_storage::PolymorphicDimensionalVector& vector)
+{
+  logging::logger_presets::functionCall();
+
+  nlohmann::json json_to_send;
+
+  std::string vector_str;
+  for (const auto& i : vector._vec) {
+    std::visit(
+        custom_types::Visitor{
+            [&vector_str](auto const& variant_val) {
+              vector_str += std::format("{} ", variant_val);
+            },
+        },
+        i);
+  }
+
+  json_to_send["TypeHash"] = vector._type_hash;
+  json_to_send["Vector"] = std::move(vector_str);
+
+  return json_to_send;
+}
+
+static bool sendToSocket(const network_addr::IpAddr& ip_addr,
+                         std::string_view str_to_send, std::string& str_to_get,
+                         nlohmann::json& json_to_send,
+                         data_storage::DataPool& datapool)
+{
+  logging::logger_presets::functionCall();
+
+  int client_socket = socket(AF_INET, SOCK_STREAM, 0);
+  if (client_socket == -1) {
+    logging::logger_presets::acquiringResourceError<
+        resources_tests::ConnectionTest>(
+        std::format("couldn't create socket to {}", ip_addr));
+    return false;
+  }
+
+  sockaddr_in server_addr{.sin_family = AF_INET,
+                          .sin_port = htons(ip_addr._port),
+                          .sin_addr{ip_addr.addrToNetwork()},
+                          .sin_zero{0}};
+  //NOLINTNEXTLINE
+  int res = connect(client_socket, reinterpret_cast<sockaddr*>(&server_addr),
+                    sizeof(server_addr));
+
+  if (res != 0) {
+    close(client_socket);
+    logging::logger_presets::acquiringResourceError<
+        resources_tests::ConnectionTest>(
+        std::format("couldn't connect to {}", ip_addr));
+    return false;
+  }
+
+  if (send(client_socket, str_to_send.data(), str_to_send.length(), 0) == -1) {
+    close(client_socket);
+    logging::logger_presets::defaultError(
+        std::format("Couldn't send data to socket {}", client_socket));
+    return false;
+  }
+
+  std::ranges::fill(str_to_get, 0);
+
+  if (recv(client_socket, str_to_get.data(), str_to_get.length(), 0) == -1) {
+    logging::logger_presets::defaultError(
+        std::format("Couldn't get data from socket {}", client_socket));
+  }
+
+  json_to_send = nlohmann::json::parse(str_to_get);
+  datapool.push(data_storage::PolymorphicDimensionalVector{
+      parsing::parseStringVector(json_to_send), json_to_send["TypeHash"]});
+
+  close(client_socket);
+  return true;
+}
+
+std::from_chars_result emplaceInVector(
     custom_types::any_type& emplace_element, std::string_view string_input,
     size_t hashed_input)  //with hashed_input to support 'true'/'false' insert
 {
@@ -289,7 +374,14 @@ void printVector(data_storage::DataPool& arr, NonConstTag)
 void sendToServer([[maybe_unused]] data_storage::DataPool& datapool,
                   const AppSettings& settings)
 {
+
   logging::logger_presets::functionCall();
+  if (datapool.size() == 0) {
+    logging::logger_presets::defaultError(
+        "Empty datapool, can't send anything");
+    return;
+  }
+
   auto addresses = settings.cgetAddress();
   if (!resources_tests::ConnectionTest{addresses}()) {
     logging::logger_presets::acquiringResourceError<
@@ -297,29 +389,19 @@ void sendToServer([[maybe_unused]] data_storage::DataPool& datapool,
         "Couldn't access some of address to send vector");
     return;
   }
+
+  nlohmann::json json_to_send = getJson(datapool.front());
+
+  std::string str_to_send = json_to_send.dump();
+  std::string str_to_get;
+
+  logging::logger_presets::userInput(str_to_send);
+
+  str_to_get.resize(kMaxBuffer);
+
   for (const auto& ip_addr : addresses) {
-    int client_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (client_socket == -1) {
-      logging::logger_presets::acquiringResourceError<
-          resources_tests::ConnectionTest>(
-          std::format("couldn't create socket to {}", ip_addr));
-      return;
-    }
-    sockaddr_in server_addr{.sin_family = AF_INET,
-                            .sin_port = htons(ip_addr._port),
-                            .sin_addr{ip_addr.addrToNetwork()},
-                            .sin_zero{0}};
-
-    int res = connect(client_socket, reinterpret_cast<sockaddr*>(&server_addr),
-                      sizeof(server_addr));
-
-    if (res != 0) {
-      logging::logger_presets::acquiringResourceError<
-          resources_tests::ConnectionTest>(
-          std::format("couldn't connect to {}", ip_addr));
-      return;
-    }
-    close(client_socket);
+    sendToSocket(ip_addr, str_to_send, str_to_get, json_to_send, datapool);
   }
+  datapool.pop();
 }
 }  // namespace menu_functions

@@ -3,7 +3,9 @@
 #include <expected>
 #include <string_view>
 #include <vector>
+#include "custom_types.hpp"
 #include "ip_addr.hpp"
+#include "nlohmann/json_fwd.hpp"
 
 namespace parsing {
 enum class ParseResult : uint8_t {
@@ -70,4 +72,5 @@ parseIndex(std::string_view index);
     CommandLineArgsHolder, ParseResult>
 parseClArgs(std::span<std::string> vec);
 
+custom_types::PolymorphicVectorQuad parseStringVector(nlohmann::json& json);
 };  // namespace parsing

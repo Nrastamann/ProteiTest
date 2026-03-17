@@ -237,9 +237,9 @@ TEST_F(ParsingFixture, WrongAddressParsing)
 
 TEST_F(InputFixture, OptionsPickTest)
 {
-  std::vector<std::string_view> arr{
-      "QUIT", "EXIT", "TyPe", "Vector", "rolE", "PRINT", "EmpTY", "Settings",
-  };
+  std::vector<std::string_view> arr{"QUIT", "EXIT",  "TyPe",  "Vector",
+                                    "rolE", "PRINT", "EmpTY", "Settings",
+                                    "Send", "Clear"};
   const auto& menu_options = custom_types::getMenuOptions();
 
   EXPECT_EQ(arr.size(), menu_options.size());

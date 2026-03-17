@@ -16,7 +16,8 @@ std::unordered_map<size_t, MenuOptions> const& getMenuOptions()
       {hashed::kExit, MenuOptions::QuitProgram},
       {hashed::kEmptyQueue, MenuOptions::EmptyQueue},
       {hashed::kSettingsMenu, MenuOptions::PrintSettings},
-      {hashed::kSend, MenuOptions::SendToServer}};
+      {hashed::kSend, MenuOptions::SendToServer},
+      {hashed::kClear, MenuOptions::EmptyFunction}};
 
   logging::logger_presets::createdStaticContainer(
       "Hash - MenuOptions unordered_map");

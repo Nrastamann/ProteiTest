@@ -36,6 +36,11 @@ void printVector(data_storage::DataPool& arr, NonConstTag);
 void sendToServer(data_storage::DataPool& datapool,
                   const AppSettings& settings);
 
+std::from_chars_result emplaceInVector(custom_types::any_type& emplace_element,
+                                       std::string_view string_input,
+                                       size_t hashed_input);
+inline void emptyFunction() {}
+
 inline void quit(AppSettings& settings)
 {
   settings.setShouldClose();

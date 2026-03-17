@@ -51,6 +51,7 @@ enum class MenuOptions : uint8_t {
   WrongOption,
   EmptyQueue,
   SendToServer,
+  EmptyFunction,
 };
 
 std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const&
