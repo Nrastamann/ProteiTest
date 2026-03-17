@@ -80,7 +80,7 @@ class ConnectionTest final : ITest {
   ConnectionTest(ConnectionTest&&) = default;
   ConnectionTest& operator=(const ConnectionTest&) = default;
   ConnectionTest& operator=(ConnectionTest&&) = default;
-  explicit ConnectionTest(std::span<network_addr::IpAddr> addresses)
+  ConnectionTest(std::span<network_addr::IpAddr> addresses)
       : _resources(addresses)
   {
   }
@@ -91,6 +91,9 @@ class ConnectionTest final : ITest {
 
     auto test_resource = [](const network_addr::IpAddr& addr) {
       int client_socket = socket(AF_INET, SOCK_STREAM, 0);
+      if (client_socket == -1) {
+        return false;
+      }
 
       sockaddr_in server_addr{.sin_family = AF_INET,
                               .sin_port = htons(addr._port),

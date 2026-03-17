@@ -10,6 +10,7 @@
 #include "custom_types.hpp"
 #include "logger.hpp"
 #include "menu_functions.hpp"
+#include "resources_test.hpp"
 
 namespace custom_types {
 const std::unordered_map<EnumTypes, any_type>& getDefaultValues()
@@ -286,7 +287,39 @@ void printVector(data_storage::DataPool& arr, NonConstTag)
   logging::logger_presets::menuQuit();
 }
 void sendToServer([[maybe_unused]] data_storage::DataPool& datapool,
-                  NonConstTag)
+                  const AppSettings& settings)
 {
+  logging::logger_presets::functionCall();
+  auto addresses = settings.cgetAddress();
+  if (!resources_tests::ConnectionTest{addresses}()) {
+    logging::logger_presets::acquiringResourceError<
+        resources_tests::ConnectionTest>(
+        "Couldn't access some of address to send vector");
+    return;
+  }
+  for (const auto& ip_addr : addresses) {
+    int client_socket = socket(AF_INET, SOCK_STREAM, 0);
+    if (client_socket == -1) {
+      logging::logger_presets::acquiringResourceError<
+          resources_tests::ConnectionTest>(
+          std::format("couldn't create socket to {}", ip_addr));
+      return;
+    }
+    sockaddr_in server_addr{.sin_family = AF_INET,
+                            .sin_port = htons(ip_addr._port),
+                            .sin_addr{ip_addr.addrToNetwork()},
+                            .sin_zero{0}};
+
+    int res = connect(client_socket, reinterpret_cast<sockaddr*>(&server_addr),
+                      sizeof(server_addr));
+
+    if (res != 0) {
+      logging::logger_presets::acquiringResourceError<
+          resources_tests::ConnectionTest>(
+          std::format("couldn't connect to {}", ip_addr));
+      return;
+    }
+    close(client_socket);
+  }
 }
 }  // namespace menu_functions
