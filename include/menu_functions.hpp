@@ -33,6 +33,7 @@ void enterVector(data_storage::DataPool& vector, AppSettings const& settings);
 void emptyQueue(data_storage::DataPool& data_pool, NonConstTag);
 
 void printVector(data_storage::DataPool& arr, NonConstTag);
+void sendToServer(data_storage::DataPool& datapool, NonConstTag);
 
 inline void quit(AppSettings& settings)
 {

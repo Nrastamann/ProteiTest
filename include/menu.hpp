@@ -15,6 +15,7 @@ inline size_t const kPrint = std::hash<std::string_view>{}("print");
 inline size_t const kEmptyQueue = std::hash<std::string_view>{}("empty");
 inline size_t const kSettingsMenu = std::hash<std::string_view>{}("settings");
 inline size_t const kExit = std::hash<std::string_view>{}("exit");
+inline size_t const kSend = std::hash<std::string_view>{}("send");
 }  // namespace hashed
 
 using polymorphic_function = std::variant<
@@ -181,6 +182,10 @@ class Menu {
         {MenuOptions::QuitProgram,
          MenuItem{menu_functions::quit, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
+        {MenuOptions::SendToServer,
+         MenuItem{menu_functions::sendToServer, menu_hooks::defaultEmpty,
+                  menu_hooks::post_hooks_protei::clearBuffer}},
+
     };
     logging::logger_presets::createdStaticContainer(
         "MenuOptions - MenuItem unordered_map");

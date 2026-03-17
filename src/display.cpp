@@ -13,6 +13,8 @@ void displayMenu()
   std::cout << hint_text << delimeter << '\n';
 
   std::cout << "Name\t\tenter your name\n";
+  std::cout << "Send\t\tsend front vector to server and push changed vector to "
+               "the back\n";
   std::cout << "Type\t\tenter type\n";
   std::cout << "Settings:\tprint settings\n";
   std::cout << "Empty:\t\tempty datapool and print it\n";

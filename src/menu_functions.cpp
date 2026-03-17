@@ -285,5 +285,8 @@ void printVector(data_storage::DataPool& arr, NonConstTag)
   std::cout << '\n';
   logging::logger_presets::menuQuit();
 }
-
+void sendToServer([[maybe_unused]] data_storage::DataPool& datapool,
+                  NonConstTag)
+{
+}
 }  // namespace menu_functions
