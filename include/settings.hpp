@@ -82,7 +82,11 @@ class AppSettings {
   }
 
   void setShouldClose() { _should_close = true; }
-  void setName(std::string&& str) { _name = std::move(str); }
+  template <typename T>
+  void setName(T&& str)
+  {
+    _name = std::forward<T>(str);
+  }
 
   void setTypeHash(size_t hash) { _type_hash = hash; }
   void setTypeEnum(custom_types::EnumTypes type) { _type_enum = type; }

@@ -109,3 +109,7 @@ gcovr --gcov-executable "llvm-cov gcov" --filter src/ --filter include/ --html-d
 
 ![gcovr](screens/gcovr.png "gcover coverage")
 
+## Зависимости
+Единственной обязательной зависимостью на данный момент является googletest, также
+будут добавлены в последствии googlebenchmark и библиотека для формирования json-а для
+отправки вектора на сервер.
