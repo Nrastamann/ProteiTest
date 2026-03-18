@@ -17,9 +17,8 @@
 static constexpr size_t kHexBase{16};
 
 namespace parsing {
-std::expected<std::array<uint8_t, network_addr::kIpAddrOctetAmount>,
-              ParseResult>
-parseAddr(std::string_view ip_addr)
+std::expected<std::array<uint8_t, network_addr::kIpAddrOctetAmount>, ParseResult> parseAddr(
+    std::string_view ip_addr)
 {
 
   bool has_hex = ip_addr.find_first_of("abcdef") != std::string::npos;
@@ -31,10 +30,8 @@ parseAddr(std::string_view ip_addr)
     std::string_view substr_octet = ip_addr.substr(0, delimeter_pos);
 
     std::from_chars_result err_res =
-        has_hex
-            ? std::from_chars(substr_octet.begin(), substr_octet.end(), octet,
-                              kHexBase)
-            : std::from_chars(substr_octet.begin(), substr_octet.end(), octet);
+        has_hex ? std::from_chars(substr_octet.begin(), substr_octet.end(), octet, kHexBase)
+                : std::from_chars(substr_octet.begin(), substr_octet.end(), octet);
 
     if (err_res.ec != std::errc() || err_res.ptr != substr_octet.end()) {
       logging::logger_presets::userInputError(substr_octet, *err_res.ptr);
@@ -77,8 +74,7 @@ std::expected<size_t, ParseResult> parseIndex(std::string_view index)
   return index_number;
 }
 
-std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(
-    std::span<std::string> vec)
+std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(std::span<std::string> vec)
 {
   logging::logger_presets::functionCall();
 
@@ -109,8 +105,7 @@ std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(
     if (!is_valid_argument) {
       return std::unexpected(ParseResult::WRONG_FLAG);
     }
-    logging::logger_presets::defaultError(
-        std::format("Last unpaired flag - {}", vec.last(1)));
+    logging::logger_presets::defaultError(std::format("Last unpaired flag - {}", vec.last(1)));
 
     return std::unexpected(ParseResult::NO_ARGUMENT);
   }
@@ -118,8 +113,7 @@ std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(
   return argument_holder;
 }
 
-static void joinAddr(std::vector<std::string>& result_vector,
-                     std::string_view ip_addr)
+static void joinAddr(std::vector<std::string>& result_vector, std::string_view ip_addr)
 {
   logging::logger_presets::functionCall();
   std::string_view digits = "0123456789abcdef";
@@ -151,8 +145,7 @@ static void joinAddr(std::vector<std::string>& result_vector,
 
     size_t end = ip_addr.find_first_not_of(digits, substr_begin);
 
-    result_vector.emplace_back(
-        ip_addr.substr(substr_begin, end - substr_begin));
+    result_vector.emplace_back(ip_addr.substr(substr_begin, end - substr_begin));
   }
 }
 
@@ -204,26 +197,11 @@ bool CommandLineArgsHolder::setArgument(size_t hash, std::string_view value)
   static std::unordered_map<size_t, std::function<void(std::string_view)>>
 
       cl_args = {
-          {hashed::kAddrHash,
-           [&arg_holder = *this](std::string_view sv) {
-             arg_holder.addAddress(sv);
-           }},
-          {hashed::kPortHash,
-           [&arg_holder = *this](std::string_view sv) {
-             arg_holder.addPort(sv);
-           }},
-          {hashed::kRoleHash,
-           [&arg_holder = *this](std::string_view sv) {
-             arg_holder.addRole(sv);
-           }},
-          {hashed::kIndexHash,
-           [&arg_holder = *this](std::string_view sv) {
-             arg_holder.addIndex(sv);
-           }},
-          {hashed::kLibHash,
-           [&arg_holder = *this](std::string_view sv) {
-             arg_holder.addLib(sv);
-           }},
+          {hashed::kAddrHash, [*this](std::string_view sv) mutable { addAddress(sv); }},
+          {hashed::kPortHash, [*this](std::string_view sv) mutable { addPort(sv); }},
+          {hashed::kRoleHash, [*this](std::string_view sv) mutable { addRole(sv); }},
+          {hashed::kIndexHash, [*this](std::string_view sv) mutable { addIndex(sv); }},
+          {hashed::kLibHash, [*this](std::string_view sv) mutable { addLib(sv); }},
       };
 
   auto it = cl_args.find(hash);
@@ -243,8 +221,7 @@ std::vector<uint16_t> CommandLineArgsHolder::getPorts()
                     rv::take_while(&port_parse_result::has_value) |
                     rv::transform([](const auto& a) { return a.value(); });
 
-  std::vector<uint16_t> ports_arr(
-      static_cast<size_t>(rn::distance(ports_view)));
+  std::vector<uint16_t> ports_arr(static_cast<size_t>(rn::distance(ports_view)));
 
   rn::copy(ports_view, ports_arr.begin());
 
@@ -262,8 +239,7 @@ CommandLineArgsHolder::getAddresses()
   namespace rn = std::ranges;
   namespace rv = std::ranges::views;
   using addr_parse_result =
-      std::expected<std::array<uint8_t, network_addr::kIpAddrOctetAmount>,
-                    ParseResult>;
+      std::expected<std::array<uint8_t, network_addr::kIpAddrOctetAmount>, ParseResult>;
 
   auto addresses_view = _addresses | rv::transform(&parseAddr) |
                         rv::take_while(&addr_parse_result::has_value) |
@@ -301,8 +277,8 @@ custom_types::PolymorphicVectorQuad parseStringVector(nlohmann::json& json)
 
   custom_types::PolymorphicVectorQuad vector;
 
-  const auto& default_value = custom_types::getDefaultValues().at(
-      custom_types::getHashToTypeInfo().at(hash).first);
+  const auto& default_value =
+      custom_types::getDefaultValues().at(custom_types::getHashToTypeInfo().at(hash).first);
 
   std::ranges::fill(vector, default_value);
 
@@ -313,8 +289,8 @@ custom_types::PolymorphicVectorQuad parseStringVector(nlohmann::json& json)
 
   for (auto& element : vector) {
     streambuf >> input_string;
-    menu_functions::emplaceInVector(
-        element, input_string, std::hash<std::string_view>{}(input_string));
+    menu_functions::emplaceInVector(element, input_string,
+                                    std::hash<std::string_view>{}(input_string));
   }
   return vector;
 }

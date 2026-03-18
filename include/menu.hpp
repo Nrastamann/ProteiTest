@@ -1,6 +1,4 @@
 #pragma once
-
-#include <functional>
 #include "data_pool.hpp"
 #include "hooks.hpp"
 #include "logger.hpp"
@@ -19,11 +17,11 @@ inline size_t const kClear = std::hash<std::string_view>{}("clear");
 inline size_t const kSend = std::hash<std::string_view>{}("send");
 }  // namespace hashed
 
-using polymorphic_function = std::variant<
-    std::function<void(AppSettings&)>,
-    std::function<void(data_storage::DataPool&, const AppSettings&)>,
-    std::function<void(data_storage::DataPool&, NonConstTag)>,
-    std::function<void(const data_storage::DataPool&)>, std::function<void()>>;
+using polymorphic_function =
+    std::variant<std::function<void(AppSettings&)>,
+                 std::function<void(data_storage::DataPool&, const AppSettings&)>,
+                 std::function<void(data_storage::DataPool&, NonConstTag)>,
+                 std::function<void(const data_storage::DataPool&)>, std::function<void()>>;
 
 struct FunctionArgs {
   ~FunctionArgs() = default;
@@ -48,12 +46,9 @@ struct FunctionArgs {
  */
 struct MenuItem {
   using menu_hook = menu_hooks::menu_hook;
-  explicit MenuItem(polymorphic_function fn,
-                    menu_hook pre_hook = menu_hooks::defaultEmpty,
+  explicit MenuItem(polymorphic_function fn, menu_hook pre_hook = menu_hooks::defaultEmpty,
                     menu_hook post_hook = menu_hooks::defaultEmpty)
-      : _pre_hook(std::move(pre_hook)),
-        _fn(std::move(fn)),
-        _post_hook(std::move(post_hook))
+      : _pre_hook(std::move(pre_hook)), _fn(std::move(fn)), _post_hook(std::move(post_hook))
   {
   }
 
@@ -69,8 +64,7 @@ struct MenuItem {
 };
 
 class Menu {
-  using function_container =
-      std::unordered_map<custom_types::MenuOptions, MenuItem>;
+  using function_container = std::unordered_map<custom_types::MenuOptions, MenuItem>;
 
   using ref_function_container = function_container&;
   using cref_function_container = const function_container&;
@@ -84,10 +78,8 @@ class Menu {
   Menu& operator=(Menu&&) = delete;
 
   template <typename U, typename V>
-  void callFunction(custom_types::MenuOptions option,
-                    [[maybe_unused]] U&& pre_hook_arg,
-                    [[maybe_unused]] V&& post_hook_arg,
-                    FunctionArgs& arguments) const
+  void callFunction(custom_types::MenuOptions option, [[maybe_unused]] U&& pre_hook_arg,
+                    [[maybe_unused]] V&& post_hook_arg, FunctionArgs& arguments) const
   {
     logging::logger_presets::functionCall();
     const MenuItem& menu_item = _items.at(option);
@@ -98,16 +90,15 @@ class Menu {
   }
 
   template <typename U, typename V>
-  void menuTask([[maybe_unused]] U&& pre_hook_arg,
-                [[maybe_unused]] V&& post_hook_arg,
+  void menuTask([[maybe_unused]] U&& pre_hook_arg, [[maybe_unused]] V&& post_hook_arg,
                 FunctionArgs& arguments) const
   {
     logging::logger_presets::functionCall();
 
     std::string text_option;
 
-    logging::Logger::writeToLogNCl<config::LogVerbosity::Debug>(
-        "Your command: ");
+    std::cout << "Your command: \n";
+    logging::Logger::writeToLog<config::LogVerbosity::Info>("Your command: ");
 
     std::cin >> text_option;
     logging::Logger::writeToLog<config::LogVerbosity::Debug>(text_option);
@@ -117,9 +108,9 @@ class Menu {
 
     bool is_correct_option = _menu_options.contains(input_hash);
 
-    custom_types::MenuOptions picked_option =
-        is_correct_option ? _menu_options.at(input_hash)
-                          : custom_types::MenuOptions::WrongOption;
+    custom_types::MenuOptions picked_option = is_correct_option
+                                                  ? _menu_options.at(input_hash)
+                                                  : custom_types::MenuOptions::WrongOption;
 
     callFunction(picked_option, 0, 0, arguments);
   }
@@ -132,20 +123,19 @@ class Menu {
 
     std::visit(
         custom_types::Visitor{
-            [&settings = arguments._cl_args](
-                const std::function<void(AppSettings&)>& fn) { fn(settings); },
+            [&settings = arguments._cl_args](const std::function<void(AppSettings&)>& fn) {
+              fn(settings);
+            },
             [&vec = arguments._dataPool, &settings = arguments._cl_args](
-                const std::function<void(data_storage::DataPool&,
-                                         const AppSettings&)>& fn) {
+                const std::function<void(data_storage::DataPool&, const AppSettings&)>& fn) {
               fn(vec, settings);
             },
             [&vec = arguments._dataPool](
-                const std::function<void(data_storage::DataPool&, NonConstTag)>&
-                    fn) { fn(vec, {}); },
-            [&vec = arguments._dataPool](
-                const std::function<void(const data_storage::DataPool&)>& fn) {
-              fn(vec);
+                const std::function<void(data_storage::DataPool&, NonConstTag)>& fn) {
+              fn(vec, {});
             },
+            [&vec = arguments._dataPool](
+                const std::function<void(const data_storage::DataPool&)>& fn) { fn(vec); },
             [](const std::function<void()>& fn) { fn(); }},
         function);
   }
@@ -155,22 +145,18 @@ class Menu {
     using custom_types::MenuOptions;
     static function_container functions{
         {MenuOptions::ChangeType,
-         MenuItem{menu_functions::changeType,
-                  menu_hooks::pre_hooks_protei::defaultClear,
+         MenuItem{menu_functions::changeType, menu_hooks::pre_hooks_protei::defaultClear,
                   menu_hooks::post_hooks_protei::defaultClear}},
 
-        {MenuOptions::EmptyQueue,
-         MenuItem{menu_functions::emptyQueue, menu_hooks::defaultEmpty,
-                  menu_hooks::post_hooks_protei::clearBuffer}},
+        {MenuOptions::EmptyQueue, MenuItem{menu_functions::emptyQueue, menu_hooks::defaultEmpty,
+                                           menu_hooks::post_hooks_protei::clearBuffer}},
 
         {MenuOptions::ChangeRole,
-         MenuItem{menu_functions::changeName,
-                  menu_hooks::pre_hooks_protei::defaultClear,
+         MenuItem{menu_functions::changeName, menu_hooks::pre_hooks_protei::defaultClear,
                   menu_hooks::post_hooks_protei::defaultClear}},
 
         {MenuOptions::EnterVector,
-         MenuItem{menu_functions::enterVector,
-                  menu_hooks::pre_hooks_protei::defaultClear,
+         MenuItem{menu_functions::enterVector, menu_hooks::pre_hooks_protei::defaultClear,
                   menu_hooks::post_hooks_protei::defaultClear}},
 
         {MenuOptions::PrintCurrentVector,
@@ -178,17 +164,15 @@ class Menu {
                   menu_hooks::post_hooks_protei::clearBuffer}},
 
         {MenuOptions::PrintSettings,
-         MenuItem{menu_functions::printCurrentAppSettings,
-                  menu_hooks::defaultEmpty,
+         MenuItem{menu_functions::printCurrentAppSettings, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
 
         {MenuOptions::WrongOption,
          MenuItem{menu_functions::wrongOption, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
 
-        {MenuOptions::QuitProgram,
-         MenuItem{menu_functions::quit, menu_hooks::defaultEmpty,
-                  menu_hooks::post_hooks_protei::clearBuffer}},
+        {MenuOptions::QuitProgram, MenuItem{menu_functions::quit, menu_hooks::defaultEmpty,
+                                            menu_hooks::post_hooks_protei::clearBuffer}},
 
         {MenuOptions::SendToServer,
          MenuItem{menu_functions::sendToServer, menu_hooks::defaultEmpty,
@@ -198,8 +182,7 @@ class Menu {
          MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::defaultClear}},
     };
-    logging::logger_presets::createdStaticContainer(
-        "MenuOptions - MenuItem unordered_map");
+    logging::logger_presets::createdStaticContainer("MenuOptions - MenuItem unordered_map");
 
     return functions;
   }

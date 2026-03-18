@@ -5,11 +5,12 @@
 namespace config {
 
 enum class LogVerbosity : uint8_t {
-  Error = 0,
-  Warning = 1,
-  Info = 2,
-  Debug = 3,
-  Trace = 4
+  NOLOG = 0,
+  Error = 1,
+  Warning = 2,
+  Info = 3,
+  Debug = 4,
+  Trace = 5
 };
 
 static constexpr std::string_view toStr(const LogVerbosity verbosity)

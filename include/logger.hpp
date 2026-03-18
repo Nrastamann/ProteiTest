@@ -15,8 +15,7 @@ namespace logging {
 template <typename T>
 static std::unique_ptr<char, void (*)(void*)> acquireName()
 {
-  return {abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, nullptr),
-          std::free};
+  return {abi::__cxa_demangle(typeid(T).name(), nullptr, nullptr, nullptr), std::free};
 }
 
 class Logger {
@@ -40,8 +39,7 @@ class Logger {
     }
 
     log_file += "/log-";
-    auto t =
-        std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     auto str = std::string_view(std::ctime(&t));
     str.remove_suffix(1);
     log_file += str;
@@ -52,9 +50,8 @@ class Logger {
   }
 
   template <config::LogVerbosity LogLevel>
-  static void writeToLog(
-      std::string_view str,
-      std::source_location loc = std::source_location::current())
+  static void writeToLog(std::string_view str,
+                         std::source_location loc = std::source_location::current())
   {
     if (LogLevel > verbosity && log_on) {
       return;
@@ -66,18 +63,20 @@ class Logger {
     }
 
     file << std::format("[{}]: <{}> [{} : {} : {} : {}] | {}\n",
-                        std::chrono::system_clock::now(),
-                        config::toStr(LogLevel), std::this_thread::get_id(),
-                        loc.file_name(), loc.function_name(), loc.line(), str);
+                        std::chrono::system_clock::now(), config::toStr(LogLevel),
+                        std::this_thread::get_id(), loc.file_name(), loc.function_name(),
+                        loc.line(), str);
 
     file.close();
   }
 
   template <config::LogVerbosity LogLevel>
-  static void writeToLogNCl(
-      std::string_view str,
-      std::source_location loc = std::source_location::current())
+  static void writeToLogNCl(std::string_view str,
+                            std::source_location loc = std::source_location::current())
   {
+    if (verbosity <= LogLevel) {
+      return;
+    }
     std::cout << str << '\n';
     writeToLog<LogLevel>(str, loc);
   }
@@ -98,60 +97,50 @@ namespace logger_presets {
 
 void userInputError(std::string_view input_str, char symbol,
                     std::source_location loc = std::source_location::current());
-void parsingInputError(
-    std::string_view input_str, char symbol,
-    std::source_location loc = std::source_location::current());
+void parsingInputError(std::string_view input_str, char symbol,
+                       std::source_location loc = std::source_location::current());
 void defaultError(std::string_view metadata,
                   std::source_location loc = std::source_location::current());
 
 template <typename T>
-inline void acquiringResourceError(
-    std::string_view metadata,
-    std::source_location loc = std::source_location::current())
+inline void acquiringResourceError(std::string_view metadata,
+                                   std::source_location loc = std::source_location::current())
 {
   auto ptr = acquireName<T>();
 
   Logger::writeToLogNCl<config::LogVerbosity::Error>(
-      std::format("Error during acquiring {} with metadata {}", ptr.get(),
-                  metadata),
-      loc);
+      std::format("Error during acquiring {} with metadata {}", ptr.get(), metadata), loc);
 }
 template <typename T>
-inline void containerRemove(
-    std::string_view metadata,
-    std::source_location loc = std::source_location::current())
+inline void containerRemove(std::string_view metadata,
+                            std::source_location loc = std::source_location::current())
 {
   auto ptr = acquireName<T>();
 
   Logger::writeToLog<config::LogVerbosity::Info>(
-      std::format("Removed object from {} - metadata {}", ptr.get(), metadata),
-      loc);
+      std::format("Removed object from {} - metadata {}", ptr.get(), metadata), loc);
 }
 template <typename T>
-inline void containerPush(
-    std::string_view metadata,
-    std::source_location loc = std::source_location::current())
+inline void containerPush(std::string_view metadata,
+                          std::source_location loc = std::source_location::current())
 {
   auto ptr = acquireName<T>();
 
   Logger::writeToLog<config::LogVerbosity::Info>(
-      std::format("Pushed object to {} - metadata {}", ptr.get(), metadata),
-      loc);
+      std::format("Pushed object to {} - metadata {}", ptr.get(), metadata), loc);
 }
 
 template <typename T>
-inline void createObject(
-    std::source_location loc = std::source_location::current())
+inline void createObject(std::source_location loc = std::source_location::current())
 {
   auto ptr = acquireName<T>();
 
-  Logger::writeToLog<config::LogVerbosity::Info>(
-      std::format("Starting {} creation", ptr.get()), loc);
+  Logger::writeToLog<config::LogVerbosity::Info>(std::format("Starting {} creation", ptr.get()),
+                                                 loc);
 }
 
-void createdStaticContainer(
-    std::string_view description,
-    std::source_location loc = std::source_location::current());
+void createdStaticContainer(std::string_view description,
+                            std::source_location loc = std::source_location::current());
 void functionCall(std::source_location loc = std::source_location::current());
 void menuQuit(std::source_location loc = std::source_location::current());
 void wrongInput(std::source_location loc = std::source_location::current());

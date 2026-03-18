@@ -27,10 +27,10 @@ set(SRCS
 )
 
 target_compile_options(proteip PRIVATE
-        -Wall -Wextra -pedantic-errors -Wsign-conversion -Wconversion -Winline)
+        -Wall -Wextra -Wsign-conversion -Wconversion -Wno-error)
 
 target_compile_options(proteip.server PRIVATE
-        -Wall -Wextra -pedantic-errors -Wsign-conversion -Wconversion -Winline)
+        -Wall -Wextra -Wsign-conversion -Wconversion -Wno-error)
 
 
 
@@ -82,8 +82,11 @@ FetchContent_Declare(
 enable_testing()
 
 if(BUILD_TESTS)
-
-add_executable(proteip.test)
+        if ("${CMAKE_CXX_COMPILER_ID}$" MATCHES "GNU")
+                add_compile_options(-Wno-maybe-uninitialized)
+                add_link_options(-Wno-maybe-uninitialized)
+        endif()
+        add_executable(proteip.test)
 
 FetchContent_MakeAvailable(googletest)
 set_property(
@@ -117,11 +120,7 @@ GIT_TAG main )
 FetchContent_MakeAvailable(googlebenchmark)
 
 target_link_libraries(proteip.benchmark PRIVATE nlohmann_json::nlohmann_json)
-set_property(
-        TARGET proteip.benchmark
-        APPEND
-        PROPERTY COMPILE_OPTIONS -w)
-
+add_compile_options(-w)
 
 FetchContent_MakeAvailable(googlebenchmark)
 target_sources(proteip.benchmark

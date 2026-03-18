@@ -79,14 +79,13 @@ class ArgvFixture : public testing::Test {
                               "-i",
                               "12"};
 
-  std::vector<std::string_view> _parsed_data = {
-      "-a", "ff.00.ff.ff", "-p", "3000",
-      "-a", "127.0.0.1",   "-a", "122.12.122.122",
-      "-p", "5000",        "-a", "127.127.127.127",
-      "-p", "2228",        "-a", "127.127.127.127",
-      "-p", "2229",        "-a", "127.127.127.127",
-      "-p", "2230",        "-a", "127.127.127.127",
-      "-p", "2231",        "-i", "12"};
+  std::vector<std::string_view> _parsed_data = {"-a", "ff.00.ff.ff", "-p", "3000",
+                                                "-a", "127.0.0.1",   "-a", "122.12.122.122",
+                                                "-p", "5000",        "-a", "127.127.127.127",
+                                                "-p", "2228",        "-a", "127.127.127.127",
+                                                "-p", "2229",        "-a", "127.127.127.127",
+                                                "-p", "2230",        "-a", "127.127.127.127",
+                                                "-p", "2231",        "-i", "12"};
 };
 
 class ParsingFixture : public testing::Test {
@@ -100,13 +99,13 @@ class ParsingFixture : public testing::Test {
 
   std::vector<std::string> _parsed_data = {
       "-a",
-      std::format("{}.0{}.0{}.0{}", kTestIPAddr.at(0), kTestIPAddr.at(1),
-                  kTestIPAddr.at(2), kTestIPAddr.at(3)),
+      std::format("{}.0{}.0{}.0{}", kTestIPAddr.at(0), kTestIPAddr.at(1), kTestIPAddr.at(2),
+                  kTestIPAddr.at(3)),
       "-p",
       std::format("{}", kTestPort1),
       "-a",
-      std::format("{:#x}.0{}.0{}.0{}", kTestIPAddr.at(0), kTestIPAddr.at(1),
-                  kTestIPAddr.at(2), kTestIPAddr.at(3)),
+      std::format("{:#x}.0{}.0{}.0{}", kTestIPAddr.at(0), kTestIPAddr.at(1), kTestIPAddr.at(2),
+                  kTestIPAddr.at(3)),
       "-p",
       std::format("{}", kTestPort2),
       "-L",
@@ -143,8 +142,8 @@ TEST_F(ArgvFixture, AddressPortParsingTest)
 
 TEST_F(ParsingFixture, FlagsParsing)
 {
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
-      argv_split = parsing::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
+      parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), true);
 
@@ -168,8 +167,8 @@ TEST_F(ParsingFixture, FlagsParsingWrongFlag)
 {
   _parsed_data.emplace_back("-M");
 
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
-      argv_split = parsing::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
+      parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), false);
 
@@ -180,8 +179,8 @@ TEST_F(ParsingFixture, FlagsParsingNotPairedFlag)
 {
   _parsed_data.emplace_back("-L");
 
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
-      argv_split = parsing::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
+      parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), false);
 
@@ -193,8 +192,8 @@ TEST_F(ParsingFixture, WrongPortParsing)
   _parsed_data.emplace_back("-p");
   _parsed_data.emplace_back("-30fds0");
 
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
-      argv_split = parsing::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
+      parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), true);
 
@@ -208,8 +207,8 @@ TEST_F(ParsingFixture, WrongIndexParsing)
   _parsed_data.emplace_back("-i");
   _parsed_data.emplace_back("-30fds0");
 
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
-      argv_split = parsing::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
+      parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), true);
 
@@ -223,8 +222,8 @@ TEST_F(ParsingFixture, WrongAddressParsing)
   _parsed_data.emplace_back("-a");
   _parsed_data.emplace_back("127.0.0.test");
 
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult>
-      argv_split = parsing::parseClArgs(_parsed_data);
+  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
+      parsing::parseClArgs(_parsed_data);
 
   ASSERT_EQ(argv_split.has_value(), true);
 
@@ -235,9 +234,8 @@ TEST_F(ParsingFixture, WrongAddressParsing)
 
 TEST_F(InputFixture, OptionsPickTest)
 {
-  std::vector<std::string_view> arr{"QUIT", "EXIT",  "TyPe",  "Vector",
-                                    "rolE", "PRINT", "EmpTY", "Settings",
-                                    "Send", "Clear"};
+  std::vector<std::string_view> arr{"QUIT",  "EXIT",  "TyPe",     "Vector", "rolE",
+                                    "PRINT", "EmpTY", "Settings", "Send",   "Clear"};
   const auto& menu_options = custom_types::getMenuOptions();
 
   EXPECT_EQ(arr.size(), menu_options.size());
@@ -281,17 +279,15 @@ TEST_F(InputFixture, ExitTest)
 TEST_F(InputFixture, TypeTest)
 {
   std::vector<std::string_view> types{
-      "int",     "float",    "double",   "char",     "string",
-      "bool",    "int8_t",   "int16_t",  "int32_t",  "int64_t",
-      "uint8_t", "uint16_t", "uint32_t", "uint64_t",
+      "int",     "float",   "double",  "char",    "string",   "bool",     "int8_t",
+      "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
   };
   EXPECT_EQ(types.size(), custom_types::getHashToTypeInfo().size());
 
   for (auto& type : types) {
     _cin << std::format("Type\n{}\n", type);
     _menu.menuTask(0, 0, _arguments);
-    EXPECT_EQ(std::hash<std::string_view>{}(type),
-              _command_line_options.cgetTypeHash());
+    EXPECT_EQ(std::hash<std::string_view>{}(type), _command_line_options.cgetTypeHash());
   }
 
   _cin << "Type";
@@ -348,27 +344,23 @@ TEST_F(InputFixture, VectorTest)
 TEST_F(InputFixture, VectorTestMultiple)
 {
 
-  std::vector<
-      std::array<custom_types::any_type, network_addr::kIpAddrOctetAmount>>
-      arr{
-          {-1, -2, -3, -4},
-          {"true", "false", 0, 1},
-          {"test", "string", "a", "b"},
-          {1, 2, 3, 4},
-      };
+  std::vector<std::array<custom_types::any_type, network_addr::kIpAddrOctetAmount>> arr{
+      {-1, -2, -3, -4},
+      {"true", "false", 0, 1},
+      {"test", "string", "a", "b"},
+      {1, 2, 3, 4},
+  };
 
-  std::vector<std::string_view> types{"int8_t\n", "bool\n", "string\n",
-                                      "uint8_t\n"};
+  std::vector<std::string_view> types{"int8_t\n", "bool\n", "string\n", "uint8_t\n"};
 
   std::vector<std::string> input;
-  std::vector<std::string_view> input_correct{
-      "-1 -2 -3 -4 \n", "1 0 0 1 \n", "test string a b \n", "1 2 3 4 \n"};
+  std::vector<std::string_view> input_correct{"-1 -2 -3 -4 \n", "1 0 0 1 \n",
+                                              "test string a b \n", "1 2 3 4 \n"};
 
   for (auto& i : arr) {
     std::string str;
     for (auto& elem : i) {
-      str += std::visit(
-          [](const auto& elem) { return std::format("{} ", elem); }, elem);
+      str += std::visit([](const auto& elem) { return std::format("{} ", elem); }, elem);
     }
     input.push_back(str + '\n');
   }
@@ -415,13 +407,11 @@ TEST_F(InputFixture, EmptyVector)
   _cin << "Empty\n";
   _menu.menuTask(0, 0, _arguments);
 
-  std::string correct_string =
-      std::format("{} {} {} {}  - int8_t\n", test_arr[0], test_arr[1],
-                  test_arr[2], test_arr[3]);
+  std::string correct_string = std::format("{} {} {} {}  - int8_t\n", test_arr[0], test_arr[1],
+                                           test_arr[2], test_arr[3]);
 
-  std::string result =
-      std::format("Your command: \n{}{}{}Queue is empty\n", correct_string,
-                  correct_string, correct_string, correct_string);
+  std::string result = std::format("Your command: \n{}{}{}Queue is empty\n", correct_string,
+                                   correct_string, correct_string, correct_string);
 
   EXPECT_EQ(result, _cout.str());
 }
