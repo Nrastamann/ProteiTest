@@ -27,6 +27,7 @@ int main(int argc, char* argv[])
       log_pr::defaultError("Flag with argument passed without one");
       return 1;
     default:
+      break;
   }
 
   log_pr::createObject<AppSettings>();

@@ -18,13 +18,13 @@
  * If there's no error during getting resources - _should_close sets to false
  */
 class AppSettings {
-  std::vector<std::string_view> _lib_name;
-  std::vector<network_addr::IpAddr> _addresses;
+  std::vector<std::string_view> _lib_name{};
+  std::vector<network_addr::IpAddr> _addresses{};
 
-  std::string _role;
-  std::string _name;
-  size_t _type_hash;
-  custom_types::EnumTypes _type_enum;
+  std::string _role{};
+  std::string _name{};
+  size_t _type_hash{};
+  custom_types::EnumTypes _type_enum{};
 
   size_t _index{};
   bool _should_close = false;

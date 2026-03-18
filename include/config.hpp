@@ -25,6 +25,8 @@ static constexpr std::string_view toStr(const LogVerbosity verbosity)
       return "Error";
     case LogVerbosity::Warning:
       return "Warning";
+    default:
+      return "NotImplemented";
   }
 }
 }  // namespace config

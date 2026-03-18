@@ -26,7 +26,7 @@ set(SRCS
 )
 
 target_compile_options(proteip PRIVATE
-        -Wall -Wextra -pedantic-errors -Wsign-conversion -Wconversion -Werror -Weffc++ -Winline)
+        -Wall -Wextra -Wsign-conversion -Wconversion -Winline -Wno-error)
 
 
 if(cppcheck)

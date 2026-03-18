@@ -71,7 +71,7 @@ static inline std::from_chars_result convertAnyTypeBool(
 {
   logging::logger_presets::functionCall();
 
-  std::from_chars_result conv_result(string_input.end());
+  std::from_chars_result conv_result(string_input.end(), std::errc());
 
   bool result = hashed_input == hashed::kTrueSymbolic;
 
