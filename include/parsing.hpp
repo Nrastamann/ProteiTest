@@ -1,12 +1,14 @@
 #pragma once
+#include <algorithm>
 #include <cstdint>
 #include <expected>
+#include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 #include "custom_types.hpp"
 #include "ip_addr.hpp"
-#include "logger.hpp"
-#include "nlohmann/json.hpp"
+#include "nlohmann/json_fwd.hpp"
 
 namespace parsing {
 enum class ParseResult : uint8_t { NO_ERR, WRONG_FLAG, NO_ARGUMENT, SV_PARSING_ERR };
@@ -27,7 +29,14 @@ struct CommandLineArgsHolder {
   std::vector<std::array<uint8_t, network_addr::kIpAddrOctetAmount>> getAddresses();
   size_t getIndex();
   std::string_view getRole() { return _role; }
-  array_type& getLibs() { return _lib_names; }
+  std::vector<std::string> getLibs()
+  {
+    std::vector<std::string> temp_vec;
+    temp_vec.resize(_lib_names.size());
+    std::ranges::transform(_lib_names, temp_vec.begin(),
+                           [](std::string_view str) { return std::string{str}; });
+    return temp_vec;
+  }
 
   [[nodiscard]] bool parsingStatus() const { return _error_parsing; }
 

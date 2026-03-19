@@ -15,7 +15,9 @@
                             "CMAKE_COLOR_DIAGNOSTICS": "ON",
                             "CMAKE_CXX_STANDARD": "23",
                             "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                            "BENCHMARK_ENABLE_ASSEMBLY_TESTS": "OFF"
+                            "BENCHMARK_ENABLE_ASSEMBLY_TESTS": "OFF",
+                            "BENCHMARK_ENABLE_GTEST_TESTS": "OFF",
+                            "BENCHMARK_ENABLE_TESTING": "OFF"
                      }
               },
               {
@@ -69,8 +71,7 @@
                      "hidden": true,
                      "cacheVariables": {
                             "CMAKE_CXX_COMPILER": "clang++",
-                            "CMAKE_C_COMPILER": "clang",
-                            "COVERAGE_FLAGS": "-fprofile-arcs -ftest-coverage -fprofile-instr-generate -fcoverage"
+                            "CMAKE_C_COMPILER": "clang"
                      }
               },
               {

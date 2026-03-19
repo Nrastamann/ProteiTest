@@ -80,13 +80,20 @@ class ArgvFixture : public benchmark::Fixture {
                                     "-i",
                                     "12"};
 
-  std::vector<std::string_view> _parsed_data = {"-a", "ff.00.ff.ff", "-p", "3000",
-                                                "-a", "127.0.0.1",   "-a", "122.12.122.122",
-                                                "-p", "5000",        "-a", "127.127.127.127",
-                                                "-p", "2228",        "-a", "127.127.127.127",
-                                                "-p", "2229",        "-a", "127.127.127.127",
-                                                "-p", "2230",        "-a", "127.127.127.127",
-                                                "-p", "2231",        "-i", "12"};
+  std::vector<std::string_view> _parsed_data = {"-a", "ff.00.ff.ff",
+                                                "-p", "3000",
+                                                "i",  "12",
+                                                "-a", "127.0.0.1",
+                                                "-a", "122.12.122.122",
+                                                "-p", "5000",
+                                                "-a", "127.127.127.127",
+                                                "-p", "2228",
+                                                "-a", "127.127.127.127",
+                                                "-p", "2229",
+                                                "-a", "127.127.127.127",
+                                                "-p", "2230",
+                                                "-a", "127.127.127.127",
+                                                "-p", "2231"};
 };
 
 class ParsingFixture : public benchmark::Fixture {
@@ -147,7 +154,7 @@ BENCHMARK_F(ParsingFixture, FlagsParsing)(benchmark::State& st)
 BENCHMARK_F(ParsingFixture, FlagsParsingWrongFlag)(benchmark::State& st)
 {
   size_t i = 0;
-  _parsed_data.emplace_back("-M");
+  _parsed_data[_parsed_data.size() - 1] = "-M";
 
   for (auto _ : st) {
     while (i++ < kTestCount) {
@@ -160,7 +167,7 @@ BENCHMARK_F(ParsingFixture, FlagsParsingWrongFlag)(benchmark::State& st)
 BENCHMARK_F(ParsingFixture, FlagsParsingNotPairedFlag)(benchmark::State& st)
 {
   size_t i = 0;
-  _parsed_data.emplace_back("-L");
+  _parsed_data[_parsed_data.size() - 1] = "-M";
 
   for (auto _ : st) {
     while (i++ < kTestCount) {
@@ -173,8 +180,8 @@ BENCHMARK_F(ParsingFixture, FlagsParsingNotPairedFlag)(benchmark::State& st)
 
 BENCHMARK_F(ParsingFixture, WrongPortParsing)(benchmark::State& st)
 {
-  _parsed_data.emplace_back("-p");
-  _parsed_data.emplace_back("-30fds0");
+  _parsed_data[_parsed_data.size() - 2] = "-p";
+  _parsed_data[_parsed_data.size() - 1] = "-30fds0";
 
   size_t i = 0;
 
@@ -182,16 +189,14 @@ BENCHMARK_F(ParsingFixture, WrongPortParsing)(benchmark::State& st)
     while (i++ < kTestCount) {
       std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
           parsing::parseClArgs(_parsed_data);
-
-      auto ports = argv_split->getPorts();
     }
   }
 }
 
 BENCHMARK_F(ParsingFixture, WrongIndexParsing)(benchmark::State& st)
 {
-  _parsed_data.emplace_back("-i");
-  _parsed_data.emplace_back("-30fds0");
+  _parsed_data[_parsed_data.size() - 2] = "-i";
+  _parsed_data[_parsed_data.size() - 1] = "-30fds0";
 
   size_t i = 0;
 
@@ -205,8 +210,8 @@ BENCHMARK_F(ParsingFixture, WrongIndexParsing)(benchmark::State& st)
 
 BENCHMARK_F(ParsingFixture, WrongAddressParsing)(benchmark::State& st)
 {
-  _parsed_data.emplace_back("-a");
-  _parsed_data.emplace_back("127.0.0.test");
+  _parsed_data[_parsed_data.size() - 2] = "-a";
+  _parsed_data[_parsed_data.size() - 1] = "127.0.0.test";
 
   size_t i = 0;
 
@@ -215,8 +220,6 @@ BENCHMARK_F(ParsingFixture, WrongAddressParsing)(benchmark::State& st)
 
       std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
           parsing::parseClArgs(_parsed_data);
-
-      auto addresses = argv_split->getAddresses();
     }
   }
 }

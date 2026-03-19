@@ -14,8 +14,7 @@
 #include "logger.hpp"
 
 template <>
-struct std::formatter<std::span<std::string_view>>
-    : std::formatter<std::string> {
+struct std::formatter<std::span<std::string_view>> : std::formatter<std::string> {
   auto format(std::span<std::string_view> vec, std::format_context& ctx) const
   {
     std::string out = "[ ";
@@ -42,10 +41,7 @@ class ITest {
 
 class ResourceTest final : ITest {
  public:
-  explicit ResourceTest(std::span<std::string_view> resources)
-      : _resources(resources)
-  {
-  }
+  explicit ResourceTest(std::vector<std::string>& resources) : _resources(resources) {}
 
   ~ResourceTest() final = default;
   ResourceTest(const ResourceTest&) = default;
@@ -58,12 +54,11 @@ class ResourceTest final : ITest {
     bool value = true;
     auto bad_it{_resources.begin()};
 
-    if (_resources.size() != 0 &&
-        !std::ranges::all_of(_resources.begin(), _resources.end(),
-                             [&bad_it](std::string_view sv) {
-                               std::advance(bad_it, 1);
-                               return std::filesystem::exists(sv);
-                             })) {
+    if (_resources.size() != 0 && !std::ranges::all_of(_resources.begin(), _resources.end(),
+                                                       [&bad_it](std::string_view sv) {
+                                                         std::advance(bad_it, 1);
+                                                         return std::filesystem::exists(sv);
+                                                       })) {
 
       std::string output_str = std::format("{}", *(bad_it - 1));
       logging::logger_presets::acquiringResourceError<ResourceTest>(output_str);
@@ -75,7 +70,7 @@ class ResourceTest final : ITest {
   };
 
  private:
-  std::span<std::string_view> _resources;
+  std::span<std::string> _resources;
 };
 
 class ConnectionTest final : ITest {
@@ -85,10 +80,7 @@ class ConnectionTest final : ITest {
   ConnectionTest(ConnectionTest&&) = default;
   ConnectionTest& operator=(const ConnectionTest&) = default;
   ConnectionTest& operator=(ConnectionTest&&) = default;
-  ConnectionTest(std::span<network_addr::IpAddr> addresses)
-      : _resources(addresses)
-  {
-  }
+  ConnectionTest(std::span<network_addr::IpAddr> addresses) : _resources(addresses) {}
 
   bool operator()() override
   {
@@ -106,9 +98,8 @@ class ConnectionTest final : ITest {
                               .sin_addr{addr.addrToNetwork()},
                               .sin_zero{0}};
 
-      int res =
-          connect(client_socket, reinterpret_cast<sockaddr*>(&server_addr),
-                  sizeof(server_addr));
+      int res = connect(client_socket, reinterpret_cast<sockaddr*>(&server_addr),
+                        sizeof(server_addr));
       if (res != 0) {
         return false;
       }
@@ -119,13 +110,12 @@ class ConnectionTest final : ITest {
       return true;
     };
 
-    if (_invalid_state || (_resources.size() != 0 &&
-                           !std::ranges::all_of(_resources, test_resource))) {
+    if (_invalid_state ||
+        (_resources.size() != 0 && !std::ranges::all_of(_resources, test_resource))) {
 
       std::string output_str = std::format("{}", *bad_it);
 
-      logging::logger_presets::acquiringResourceError<ConnectionTest>(
-          output_str);
+      logging::logger_presets::acquiringResourceError<ConnectionTest>(output_str);
 
       value = false;
     }

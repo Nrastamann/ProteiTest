@@ -127,7 +127,7 @@ class ResourceFixture : public testing::Test {
   void TearDown() override {}
 };
 
-TEST_F(ArgvFixture, AddressPortParsingTest)
+TEST_F(ArgvFixture, AddressPortParsingTestPRT)
 {
   std::vector<std::string> wrapped_input =
       parsing::getInput(_argv.data(), static_cast<int>(_argv.size()));
@@ -140,7 +140,7 @@ TEST_F(ArgvFixture, AddressPortParsingTest)
   }
 }
 
-TEST_F(ParsingFixture, FlagsParsing)
+TEST_F(ParsingFixture, FlagsParsingTestPRT)
 {
   std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
       parsing::parseClArgs(_parsed_data);
@@ -163,7 +163,7 @@ TEST_F(ParsingFixture, FlagsParsing)
   EXPECT_EQ(*libs.begin(), kTestLib);
 }
 
-TEST_F(ParsingFixture, FlagsParsingWrongFlag)
+TEST_F(ParsingFixture, FlagsParsingWrongFlagTestPRT)
 {
   _parsed_data.emplace_back("-M");
 
@@ -175,7 +175,7 @@ TEST_F(ParsingFixture, FlagsParsingWrongFlag)
   ASSERT_EQ(argv_split.error(), parsing::ParseResult::WRONG_FLAG);
 }
 
-TEST_F(ParsingFixture, FlagsParsingNotPairedFlag)
+TEST_F(ParsingFixture, FlagsParsingNotPairedFlagTestPRT)
 {
   _parsed_data.emplace_back("-L");
 
@@ -187,7 +187,7 @@ TEST_F(ParsingFixture, FlagsParsingNotPairedFlag)
   ASSERT_EQ(argv_split.error(), parsing::ParseResult::NO_ARGUMENT);
 }
 
-TEST_F(ParsingFixture, WrongPortParsing)
+TEST_F(ParsingFixture, WrongPortParsingTestPRT)
 {
   _parsed_data.emplace_back("-p");
   _parsed_data.emplace_back("-30fds0");
@@ -202,7 +202,7 @@ TEST_F(ParsingFixture, WrongPortParsing)
   ASSERT_EQ(ports.size(), 0);
 }
 
-TEST_F(ParsingFixture, WrongIndexParsing)
+TEST_F(ParsingFixture, WrongIndexParsingTestPRT)
 {
   _parsed_data.emplace_back("-i");
   _parsed_data.emplace_back("-30fds0");
@@ -217,7 +217,7 @@ TEST_F(ParsingFixture, WrongIndexParsing)
   EXPECT_EQ(index, 0);
 }
 
-TEST_F(ParsingFixture, WrongAddressParsing)
+TEST_F(ParsingFixture, WrongAddressParsingTestPRT)
 {
   _parsed_data.emplace_back("-a");
   _parsed_data.emplace_back("127.0.0.test");
@@ -232,7 +232,7 @@ TEST_F(ParsingFixture, WrongAddressParsing)
   EXPECT_EQ(addresses.size(), 0);
 }
 
-TEST_F(InputFixture, OptionsPickTest)
+TEST_F(InputFixture, OptionsPickTestPRT)
 {
   std::vector<std::string_view> arr{"QUIT",  "EXIT",  "TyPe",     "Vector", "rolE",
                                     "PRINT", "EmpTY", "Settings", "Send",   "Clear"};
@@ -256,7 +256,7 @@ TEST_F(InputFixture, OptionsPickTest)
   }
 }
 
-TEST_F(InputFixture, QuitTest)
+TEST_F(InputFixture, QuitTestPRT)
 {
   EXPECT_FALSE(_command_line_options.cgetShouldClose());
 
@@ -266,7 +266,7 @@ TEST_F(InputFixture, QuitTest)
   EXPECT_TRUE(_command_line_options.cgetShouldClose());
 }
 
-TEST_F(InputFixture, ExitTest)
+TEST_F(InputFixture, ExitTestPRT)
 {
   EXPECT_FALSE(_command_line_options.cgetShouldClose());
 
@@ -276,7 +276,7 @@ TEST_F(InputFixture, ExitTest)
   EXPECT_TRUE(_command_line_options.cgetShouldClose());
 }
 
-TEST_F(InputFixture, TypeTest)
+TEST_F(InputFixture, TypeTestPRT)
 {
   std::vector<std::string_view> types{
       "int",     "float",   "double",  "char",    "string",   "bool",     "int8_t",
@@ -300,7 +300,7 @@ TEST_F(InputFixture, TypeTest)
             _command_line_options.cgetTypeHash());
 }
 
-TEST_F(InputFixture, RoleTest)
+TEST_F(InputFixture, RoleTestPRT)
 {
   std::vector<std::string_view> user_names{"User", "Admin", "testrole"};
 
@@ -312,7 +312,7 @@ TEST_F(InputFixture, RoleTest)
   }
 }
 
-TEST_F(InputFixture, VectorTest)
+TEST_F(InputFixture, VectorTestPRT)
 {
   std::array<int, 4> test_arr{1, 2, 3, 4};
   std::vector<std::string_view> vectors{
@@ -341,7 +341,7 @@ TEST_F(InputFixture, VectorTest)
   }
 }
 
-TEST_F(InputFixture, VectorTestMultiple)
+TEST_F(InputFixture, VectorTestMultipleTestPRT)
 {
 
   std::vector<std::array<custom_types::any_type, network_addr::kIpAddrOctetAmount>> arr{
@@ -386,7 +386,7 @@ TEST_F(InputFixture, VectorTestMultiple)
   }
 }
 
-TEST_F(InputFixture, EmptyVector)
+TEST_F(InputFixture, EmptyVectorTestPRT)
 {
   std::array<int8_t, 4> test_arr{1, 2, 3, 4};
   std::vector<std::string_view> vectors{
@@ -416,7 +416,7 @@ TEST_F(InputFixture, EmptyVector)
   EXPECT_EQ(result, _cout.str());
 }
 
-TEST_F(InputFixture, PrintSettings)
+TEST_F(InputFixture, PrintSettingsTestPRT)
 {
   _cin << "settings\n";
   _menu.menuTask(0, 0, _arguments);

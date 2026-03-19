@@ -69,7 +69,8 @@ struct ServerFunctions {
         result = value1 * value2;
         break;
       case CalculationType::Division:
-        result = value2 != 0 ? value1 / value2 : 0;
+        result =
+            value2 != static_cast<T>(0) ? static_cast<T>(value1 / value2) : static_cast<T>(0);
     }
     return result;
   }
@@ -125,8 +126,8 @@ static std::shared_ptr<int> serverSetup(uint16_t port)
   server_addr.sin_addr.s_addr = INADDR_ANY;
 
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
-  if (bind(*server_socket, reinterpret_cast<sockaddr*>(&server_addr),
-           sizeof(server_addr)) == -1) {
+  if (bind(*server_socket, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) ==
+      -1) {
     logging::logger_presets::defaultError("Couldn't init server socket\n");
     return nullptr;
   }
@@ -138,8 +139,7 @@ static std::shared_ptr<int> serverSetup(uint16_t port)
   return server_socket;
 }
 
-static void dataManipulation(std::string& result,
-                             custom_types::PolymorphicVectorQuad& vector)
+static void dataManipulation(std::string& result, custom_types::PolymorphicVectorQuad& vector)
 {
   logging::logger_presets::functionCall();
 
@@ -161,12 +161,10 @@ static void dataManipulation(std::string& result,
                   std::get<T>(*vector.begin()), val);
             },
             [&vector, &index_function_map, &bool_functions](bool& logic) {
-              logic = bool_functions.at(index_function_map++)(
-                  std::get<bool>(*vector.begin()), logic);
+              logic = bool_functions.at(index_function_map++)(std::get<bool>(*vector.begin()),
+                                                              logic);
             },
-            [](std::string& str) {
-              std::ranges::transform(str, str.begin(), ::toupper);
-            }},
+            [](std::string& str) { std::ranges::transform(str, str.begin(), ::toupper); }},
         element);
 
     std::visit(custom_types::Visitor{[&result](const auto& element) {
@@ -230,12 +228,10 @@ int main(int argc, char* argv[])
       return -1;
     }
 
-    auto symbols_read =
-        recv(*client_socket, str_buff.data(), str_buff.length(), 0);
+    auto symbols_read = recv(*client_socket, str_buff.data(), str_buff.length(), 0);
 
     if (symbols_read == 0) {
-      logging::Logger::writeToLog<config::LogVerbosity::Warning>(
-          "Client disconnected");
+      logging::Logger::writeToLog<config::LogVerbosity::Warning>("Client disconnected");
       close(*client_socket);
       continue;
     }
@@ -247,11 +243,9 @@ int main(int argc, char* argv[])
 
     jsn = nlohmann::json::parse(str_buff.begin(), str_buff.end());
 
-    logging::Logger::writeToLogNCl<config::LogVerbosity::Info>(
-        std::format("{}", jsn.dump(4)));
+    logging::Logger::writeToLogNCl<config::LogVerbosity::Info>(std::format("{}", jsn.dump(4)));
 
-    custom_types::PolymorphicVectorQuad vector =
-        parsing::parseStringVector(jsn);
+    custom_types::PolymorphicVectorQuad vector = parsing::parseStringVector(jsn);
 
     std::string result;
     dataManipulation(result, vector);
@@ -260,8 +254,7 @@ int main(int argc, char* argv[])
     result = jsn.dump();
 
     if (send(*client_socket, result.data(), result.length(), 0) == -1) {
-      logging::Logger::writeToLogNCl<config::LogVerbosity::Error>(
-          "Coudn't send answer back");
+      logging::Logger::writeToLogNCl<config::LogVerbosity::Error>("Coudn't send answer back");
       continue;
     }
   }
