@@ -5,15 +5,11 @@
 #include <vector>
 #include "custom_types.hpp"
 #include "ip_addr.hpp"
-#include "nlohmann/json_fwd.hpp"
+#include "logger.hpp"
+#include "nlohmann/json.hpp"
 
 namespace parsing {
-enum class ParseResult : uint8_t {
-  NO_ERR,
-  WRONG_FLAG,
-  NO_ARGUMENT,
-  SV_PARSING_ERR
-};
+enum class ParseResult : uint8_t { NO_ERR, WRONG_FLAG, NO_ARGUMENT, SV_PARSING_ERR };
 /**
  * struct CommandLineArgsHolder - Struct to hold strings for future parsing 
  *
@@ -28,8 +24,7 @@ struct CommandLineArgsHolder {
 
  public:
   std::vector<uint16_t> getPorts();
-  std::vector<std::array<uint8_t, network_addr::kIpAddrOctetAmount>>
-  getAddresses();
+  std::vector<std::array<uint8_t, network_addr::kIpAddrOctetAmount>> getAddresses();
   size_t getIndex();
   std::string_view getRole() { return _role; }
   array_type& getLibs() { return _lib_names; }
@@ -60,16 +55,14 @@ std::vector<std::string> getInput(char** argv, int argc);
     std::array<uint8_t, network_addr::kIpAddrOctetAmount>, ParseResult>
 parseAddr(std::string_view ip_addr);
 
-[[nodiscard(
-    "Discarding port parsing result")]] std::expected<uint16_t, ParseResult>
-parsePort(std::string_view port);
+[[nodiscard("Discarding port parsing result")]] std::expected<uint16_t, ParseResult> parsePort(
+    std::string_view port);
+
+[[nodiscard("Discarding index parsing result")]] std::expected<size_t, ParseResult> parseIndex(
+    std::string_view index);
 
 [[nodiscard(
-    "Discarding index parsing result")]] std::expected<size_t, ParseResult>
-parseIndex(std::string_view index);
-
-[[nodiscard("Discarding cl_args parse_result")]] std::expected<
-    CommandLineArgsHolder, ParseResult>
+    "Discarding cl_args parse_result")]] std::expected<CommandLineArgsHolder, ParseResult>
 parseClArgs(std::span<std::string> vec);
 
 custom_types::PolymorphicVectorQuad parseStringVector(nlohmann::json& json);

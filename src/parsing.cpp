@@ -1,6 +1,7 @@
 #include "parsing.hpp"
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cctype>
 #include <charconv>
 #include <expected>
@@ -194,15 +195,13 @@ bool CommandLineArgsHolder::setArgument(size_t hash, std::string_view value)
 {
   logging::logger_presets::functionCall();
 
-  static std::unordered_map<size_t, std::function<void(std::string_view)>>
-
-      cl_args = {
-          {hashed::kAddrHash, [*this](std::string_view sv) mutable { addAddress(sv); }},
-          {hashed::kPortHash, [*this](std::string_view sv) mutable { addPort(sv); }},
-          {hashed::kRoleHash, [*this](std::string_view sv) mutable { addRole(sv); }},
-          {hashed::kIndexHash, [*this](std::string_view sv) mutable { addIndex(sv); }},
-          {hashed::kLibHash, [*this](std::string_view sv) mutable { addLib(sv); }},
-      };
+  static std::unordered_map<size_t, std::function<void(std::string_view)>> cl_args = {
+      {hashed::kAddrHash, [this](std::string_view sv) { this->addAddress(sv); }},
+      {hashed::kPortHash, [this](std::string_view sv) { this->addPort(sv); }},
+      {hashed::kRoleHash, [this](std::string_view sv) { this->addRole(sv); }},
+      {hashed::kIndexHash, [this](std::string_view sv) { this->addIndex(sv); }},
+      {hashed::kLibHash, [this](std::string_view sv) { this->addLib(sv); }},
+  };
 
   auto it = cl_args.find(hash);
   bool return_value = it != cl_args.end();

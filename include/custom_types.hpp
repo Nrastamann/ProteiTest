@@ -54,8 +54,7 @@ enum class MenuOptions : uint8_t {
   EmptyFunction,
 };
 
-std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const&
-getHashToTypeInfo();
+std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const& getHashToTypeInfo();
 std::unordered_map<size_t, MenuOptions> const& getMenuOptions();
 
 template <typename... Callable>
@@ -65,9 +64,8 @@ struct Visitor : Callable... {
 
 static constexpr size_t kVectorDimensionsAmount{4};
 
-using any_type =
-    std::variant<float, double, char, std::string, bool, int8_t, int16_t,
-                 int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t>;
+using any_type = std::variant<float, double, char, std::string, bool, int8_t, int16_t, int32_t,
+                              int64_t, uint8_t, uint16_t, uint32_t, uint64_t>;
 
 template <size_t N>
 using PolymorphicVector = std::array<any_type, kVectorDimensionsAmount>;

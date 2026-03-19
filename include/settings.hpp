@@ -32,8 +32,7 @@ class AppSettings {
  public:
   AppSettings(
       std::vector<uint16_t> ports, std::vector<std::string_view> lib_names,
-      std::vector<std::array<unsigned char, network_addr::kIpAddrOctetAmount>>
-          addresses,
+      std::vector<std::array<unsigned char, network_addr::kIpAddrOctetAmount>> addresses,
       std::string_view role, size_t index, std::string&& userName = "UserName",
       size_t type_hash = hashed::kInt,
       custom_types::EnumTypes type_enum = custom_types::EnumTypes::Int)
@@ -59,19 +58,10 @@ class AppSettings {
     _should_close = !(resources_tests::ResourceTest{_lib_name}() &&
                       resources_tests::ConnectionTest{_addresses}());
   }
-  [[nodiscard]] std::vector<network_addr::IpAddr>& getAddr()
-  {
-    return _addresses;
-  }
-  [[nodiscard]] std::vector<std::string_view> const& cGetLibName() const
-  {
-    return _lib_name;
-  }
+  [[nodiscard]] std::vector<network_addr::IpAddr>& getAddr() { return _addresses; }
+  [[nodiscard]] std::vector<std::string_view> const& cGetLibName() const { return _lib_name; }
   [[nodiscard]] size_t cgetTypeHash() const { return _type_hash; }
-  [[nodiscard]] custom_types::EnumTypes cgetTypeEnum() const
-  {
-    return _type_enum;
-  }
+  [[nodiscard]] custom_types::EnumTypes cgetTypeEnum() const { return _type_enum; }
   [[nodiscard]] std::string_view cgetName() const { return _name; }
   [[nodiscard]] std::string_view cgetRole() const { return _role; }
   [[nodiscard]] size_t cgetIndex() const { return _index; }
