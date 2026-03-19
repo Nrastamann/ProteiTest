@@ -56,6 +56,7 @@ class Logger {
     if (LogLevel > verbosity && log_on) {
       return;
     }
+
     std::ofstream file(log_file, std::ios::app);
     if (!file.is_open()) {
       std::cout << "Couldn't open the log_file!\n";
