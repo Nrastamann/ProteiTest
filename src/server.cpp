@@ -1,4 +1,5 @@
 #include "server.hpp"
+#include <sys/socket.h>
 #include <algorithm>
 #include "logger.hpp"
 #include "parsing.hpp"
@@ -40,20 +41,24 @@ void dataManipulation(std::string& result, custom_types::PolymorphicVectorQuad& 
   }
   vector = std::move(vector_spare);
 }
-void serverTask(int client_socket, BufferPool<kThreadNum>& buffer_pool)
+void serverTask(int client, BufferPool<kThreadNum>& buffer_pool)
 {
   logging::logger_presets::functionCall();
+  SocketWrapper client_socket{};
+  client_socket._socket = client;
 
-  size_t buffer_id{};
-  BufferPool<kThreadNum>::BufferPair buffer = buffer_pool.getBuffer(buffer_id);
+  auto buffer_index = buffer_pool.getBuffer();
 
-  std::ranges::fill(buffer.first, 0);
+  std::array<char, kBufferSize>& string_buffer = buffer_pool._buffers[buffer_index];
+  nlohmann::json& json_buffer = buffer_pool._jsons[buffer_index];
 
-  auto symbols_read = recv(client_socket, buffer.first.data(), buffer.first.size(), 0);
+  std::ranges::fill(string_buffer, 0);
+
+  auto symbols_read =
+      recv(client_socket._socket, string_buffer.begin(), string_buffer.size(), 0);
 
   if (symbols_read == 0) {
     logging::Logger::writeToLog<config::LogVerbosity::Warning>("Client disconnected");
-    close(client_socket);
     return;
   }
 
@@ -62,20 +67,21 @@ void serverTask(int client_socket, BufferPool<kThreadNum>& buffer_pool)
     return;
   }
 
-  buffer.second = nlohmann::json::parse(buffer.first.begin(), buffer.first.end());
+  json_buffer =
+      nlohmann::json::parse(string_buffer.begin(), string_buffer.begin() + symbols_read);
 
   logging::Logger::writeToLogNCl<config::LogVerbosity::Info>(
-      std::format("{}", buffer.second.dump(4)));
+      std::format("{}", json_buffer.dump(4)));
 
-  custom_types::PolymorphicVectorQuad vector = parsing::parseStringVector(buffer.second);
+  custom_types::PolymorphicVectorQuad vector = parsing::parseStringVector(json_buffer);
 
   std::string result;
   dataManipulation(result, vector);
 
-  buffer.second["Vector"] = result;
-  result = buffer.second.dump();
+  json_buffer["Vector"] = result;
+  result = json_buffer.dump();
 
-  if (send(client_socket, result.data(), result.length(), 0) == -1) {
+  if (send(client_socket._socket, result.data(), result.length(), 0) == -1) {
     logging::Logger::writeToLogNCl<config::LogVerbosity::Error>("Coudn't send answer back");
   }
 }
@@ -133,8 +139,8 @@ int serverStart(int argc, char** argv)
   logging::Logger::loggerInit("LogsServer");
 
   logging::logger_presets::functionCall();
+  thread_pool::ThreadPool threads(kThreadNum);
 
-  thread_pool::ThreadPool<kThreadNum> threads{};
   server::BufferPool<kThreadNum> buffers{};
 
   auto span_argv = std::span(argv, static_cast<size_t>(argc));
@@ -162,17 +168,18 @@ int serverStart(int argc, char** argv)
     return -1;
   }
 
-  SocketWrapper client_socket{};
   std::atomic<bool>& running = getServerRunning();
   while (running) {
-    client_socket._socket = accept(server_socket._socket, nullptr, nullptr);
+    int client_socket{};
 
-    if (client_socket._socket == -1) {
+    client_socket = accept(server_socket._socket, nullptr, nullptr);
+
+    if (client_socket == -1) {
       logging::logger_presets::defaultError("Couldn't init client socket\n");
       return -1;
     }
 
-    threads.addTask(serverTask, client_socket._socket, std::ref(buffers));
+    threads.addTask(serverTask, client_socket, std::ref(buffers));
   }
 
   return 0;

@@ -6,7 +6,6 @@
 #include <thread>
 #include <unordered_set>
 namespace thread_pool {
-template <size_t ThreadNum>
 class ThreadPool {
  public:
   ~ThreadPool()
@@ -21,10 +20,11 @@ class ThreadPool {
   ThreadPool(ThreadPool&&) = delete;
   ThreadPool& operator=(const ThreadPool&) = delete;
   ThreadPool& operator=(ThreadPool&&) = delete;
-  explicit ThreadPool()
+  explicit ThreadPool(size_t ThreadNum)
   {
+    _threads.reserve(ThreadNum);
     for (size_t i = 0; i < ThreadNum; ++i) {
-      _threads[i] = std::thread{&ThreadPool::run, this};
+      _threads.emplace_back(&ThreadPool::run, this);
     }
   }
 
@@ -57,16 +57,12 @@ class ThreadPool {
         lock.unlock();
 
         element.first.get();
-        std::lock_guard<std::mutex> lock_done(_completed_task_id_mtx);
-        _completed_tasks.insert(element.second);
-
-        _completed_task_ids_cv.notify_all();
       }
     }
   }
 
   std::queue<std::pair<std::future<void>, int64_t>> _queue;
-  std::array<std::thread, ThreadNum> _threads;
+  std::vector<std::thread> _threads;
   std::unordered_set<int64_t> _completed_tasks;
   std::condition_variable _queue_cv;
   std::condition_variable _completed_task_ids_cv;

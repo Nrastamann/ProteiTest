@@ -364,11 +364,6 @@ void sendToServer([[maybe_unused]] data_storage::DataPool& datapool,
   }
 
   auto addresses = settings.cgetAddress();
-  if (!resources_tests::ConnectionTest{addresses}()) {
-    logging::logger_presets::acquiringResourceError<resources_tests::ConnectionTest>(
-        "Couldn't access some of address to send vector");
-    return;
-  }
 
   nlohmann::json json_to_send = getJson(datapool.front());
 

@@ -4,10 +4,12 @@
 #include <unistd.h>
 #include <array>
 #include <concepts>
+#include <condition_variable>
 #include <expected>
 #include <functional>
-#include <iterator>
+#include <mutex>
 #include <nlohmann/json.hpp>
+#include <queue>
 #include <string>
 #include <string_view>
 #include "custom_types.hpp"
@@ -101,37 +103,60 @@ inline std::atomic<bool>& getServerRunning()
   return server_running;
 }
 
-static constexpr size_t kThreadNum{8};
+static constexpr size_t kThreadNum{4};
 
 template <size_t N>
 class BufferPool {
   template <typename T>
-  using poolContainer = std::array<std::pair<std::atomic<bool>, T>, N>;
+  using poolContainer = std::array<T, N>;
+  struct BufferIndexWrapper {
+    BufferIndexWrapper(BufferPool<N>& queue, uint8_t index) : _queue_ref(queue), _index(index)
+    {
+    }
+    operator size_t() { return static_cast<size_t>(_index); }
+    operator uint8_t() { return _index; }
+    ~BufferIndexWrapper() { _queue_ref.pushBuffer(_index); }
+    BufferPool<N>& _queue_ref;
+    uint8_t _index;
+  };
 
  public:
-  using BufferPair = std::pair<std::span<char, kBufferSize>, nlohmann::json>;
-
-  BufferPair getBuffer(size_t& idx)
+  BufferPool()
   {
-    auto* it_jsons = _jsons.begin();
-    const auto* it_end = _jsons.end();
-
-    for (auto& buffers : _buffers) {
-      if (!buffers.first) {
-        buffers.first = true;
-        it_jsons->first = true;
-        return std::pair{std::span{buffers.second}, it_jsons->second};
-      }
-      std::advance(it_jsons, 1);
-      idx = static_cast<size_t>(it_end - it_jsons);
+    for (uint8_t i = 0; static_cast<size_t>(i) < N; ++i) {
+      _indexes_queue.push(i);
     }
-    return std::pair{std::span{_buffers.at(idx).second}, _buffers.at(idx).second};
+  }
+  BufferIndexWrapper getBuffer()
+  {
+    std::unique_lock<std::mutex> lock(_queue_mtx);
+    _cv.wait(lock, [this]() { return !_indexes_queue.empty() || _quit; });
+
+    if (!_indexes_queue.empty()) [[likely]] {
+      uint8_t index = _indexes_queue.front();
+      _indexes_queue.pop();
+
+      lock.unlock();
+      _cv.notify_all();
+      return BufferIndexWrapper{*this, index};
+    }
+    return BufferIndexWrapper{*this, 0};
+  }
+  void pushBuffer(uint8_t index)
+  {
+    std::lock_guard<std::mutex> lock(_queue_mtx);
+    _indexes_queue.push(index);
   }
   void resetBuffer(size_t idx) { _buffers[idx].first = false; }
 
- private:
   poolContainer<std::array<char, kBufferSize>> _buffers;
   poolContainer<nlohmann::json> _jsons;
+
+ private:
+  std::mutex _queue_mtx;
+  std::condition_variable _cv;
+  std::atomic<bool> _quit;
+  std::queue<uint8_t> _indexes_queue;
 };
 
 std::expected<uint16_t, bool> parsePortServer(std::string_view port);
