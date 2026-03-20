@@ -11,6 +11,7 @@
 #include "data_pool.hpp"
 #include "menu.hpp"
 #include "parsing.hpp"
+#include "server.hpp"
 #include "settings.hpp"
 
 class InputFixture : public testing::Test {
@@ -118,13 +119,6 @@ class ParsingFixture : public testing::Test {
   std::vector<std::array<uint8_t, 4>> _addresses = {kTestIPAddr, kTestIPAddr};
   std::vector<std::string> _libs = {kTestLib.begin()};
   std::vector<size_t> _ports = {kTestPort1, kTestPort2};
-};
-
-class ResourceFixture : public testing::Test {
- protected:
-  void SetUp() override {}
-
-  void TearDown() override {}
 };
 
 TEST_F(ArgvFixture, AddressPortParsingTestPRT)
@@ -429,6 +423,54 @@ TEST_F(InputFixture, PrintSettingsTestPRT)
 
   EXPECT_EQ(result, _cout.str());
 }
+
+class ClientServerFixture : public testing::Test {
+ protected:
+  std::vector<char*> _argv = {"-a", "127.0.0.1:5000"};
+
+  std::vector<std::string_view> _parsed_data = {"-a", "127.127.127.127", "-p", "2231"};
+  std::string_view _server_argv = "5000";
+};
+
+TEST_F(ClientServerFixture, TestServer)
+{
+  ASSERT_EQ(server::parsePortServer(_server_argv), 5000);
+
+  custom_types::PolymorphicVectorQuad vec{1, 2, 3, 4};
+  constexpr std::array<double, 4> kVecD{2., -1., 3., 0.25};
+  constexpr std::array<bool, 4> kVecBool{true, false, true, false};
+  constexpr std::array<std::string_view, 4> kVecStr{"TEST", "ANOTHER", "ONE", "TEST"};
+
+  std::string str;
+
+  server::dataManipulation(str, vec);
+
+  EXPECT_EQ(str, "2 -1 3 0 ");
+  vec = {1., 2., 3., 4.};
+
+  server::dataManipulation(str, vec);
+
+  for (size_t i = 0; i < vec.size(); ++i) {
+    EXPECT_DOUBLE_EQ(std::get<double>(vec.at(i)), kVecD.at(i));
+  }
+
+  vec = {true, false, false, true};
+
+  server::dataManipulation(str, vec);
+
+  for (size_t i = 0; i < vec.size(); ++i) {
+    EXPECT_DOUBLE_EQ(std::get<bool>(vec.at(i)), kVecBool.at(i));
+  }
+
+  vec = {"test", "another", "one", "test"};
+
+  server::dataManipulation(str, vec);
+
+  for (size_t i = 0; i < vec.size(); ++i) {
+    EXPECT_EQ(std::get<std::string>(vec.at(i)), kVecStr.at(i));
+  }
+}
+
 int main(int argc, char** argv)
 {
   logging::Logger::loggerInit();

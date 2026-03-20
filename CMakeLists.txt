@@ -48,6 +48,7 @@ set(SRCS
         src/display.cpp      
         src/menu_functions.cpp  
         src/settings.cpp
+        src/server.cpp
 )
 
 target_compile_options(proteip PRIVATE
@@ -71,14 +72,14 @@ target_sources(proteip
 )
 
 target_sources(proteip.server 
-        PRIVATE src/server.cpp ${SRCS}
+        PRIVATE src/server_impl.cpp ${SRCS}
         PRIVATE
                 FILE_SET HEADERS
                 BASE_DIRS include
 )
 
 target_sources(proteip.test
-    PRIVATE tests/test.cpp ${SRCS}
+    PRIVATE tests/test.cpp ${SRCS} 
     PRIVATE
         FILE_SET HEADERS
         BASE_DIRS
