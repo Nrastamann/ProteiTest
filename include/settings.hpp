@@ -45,7 +45,7 @@ class AppSettings {
         _index(index)
   {
     if (addresses.size() != ports.size()) {
-      logging::logger_presets::defaultError("Adresses number not equal ports");
+      logging::SingleThreadPresets::defaultError("Adresses number not equal ports");
       _should_close = true;
       return;
     }
@@ -53,8 +53,8 @@ class AppSettings {
       _addresses.push_back({addresses[i], ports[i]});
     }
 
-    logging::logger_presets::createObject<resources_tests::ResourceTest>();
-    logging::logger_presets::createObject<resources_tests::ConnectionTest>();
+    logging::SingleThreadPresets::createObject<resources_tests::ResourceTest>();
+    logging::SingleThreadPresets::createObject<resources_tests::ConnectionTest>();
 
     _should_close = !(resources_tests::ResourceTest{_lib_name}() &&
                       resources_tests::ConnectionTest{_addresses}());
@@ -89,15 +89,6 @@ class AppSettings {
   AppSettings& operator=(AppSettings const&) = default;
   AppSettings& operator=(AppSettings&&) = default;
 };
-
-namespace hashed {
-inline size_t const kAddrHash = {std::hash<std::string_view>{}("-a")};
-inline size_t const kAddrBigHash = {std::hash<std::string_view>{}("-A")};
-inline size_t const kPortHash = {std::hash<std::string_view>{}("-p")};
-inline size_t const kRoleHash = {std::hash<std::string_view>{}("-r")};
-inline size_t const kIndexHash = {std::hash<std::string_view>{}("-i")};
-inline size_t const kLibHash = {std::hash<std::string_view>{}("-l")};
-}  // namespace hashed
 
 namespace ui_protei {
 void printAppSettings(AppSettings const& settings);

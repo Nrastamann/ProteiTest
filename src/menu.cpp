@@ -19,8 +19,7 @@ std::unordered_map<size_t, MenuOptions> const& getMenuOptions()
       {hashed::kSend, MenuOptions::SendToServer},
       {hashed::kClear, MenuOptions::EmptyFunction}};
 
-  logging::logger_presets::createdStaticContainer(
-      "Hash - MenuOptions unordered_map");
+  logging::SingleThreadPresets::createdStaticContainer("Hash - MenuOptions unordered_map");
   return k_menu_options;
 }
 }  // namespace custom_types

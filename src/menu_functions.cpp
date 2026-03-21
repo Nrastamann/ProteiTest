@@ -39,7 +39,8 @@ const std::unordered_map<EnumTypes, any_type>& getDefaultValues()
 
   };
 
-  logging::logger_presets::createdStaticContainer("EnumTypes - default_value - unordered_map");
+  logging::SingleThreadPresets::createdStaticContainer(
+      "EnumTypes - default_value - unordered_map");
   return type_dispatch;
 }
 }  // namespace custom_types
@@ -51,7 +52,7 @@ template <isPartOf T>
 static inline std::from_chars_result convertAnyType(std::string_view string_input,
                                                     T& emplace_element)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   std::from_chars_result conv_result{};
 
@@ -66,7 +67,7 @@ template <>
 inline std::from_chars_result convertAnyType<std::string>(std::string_view string_input,
                                                           std::string& emplace_element)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   emplace_element = string_input.data();
   return {.ptr = string_input.end(), .ec = std::errc()};
@@ -77,7 +78,7 @@ static inline std::from_chars_result convertAnyTypeBool(std::string_view string_
                                                         bool& emplace_element,
                                                         size_t hashed_input)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   std::from_chars_result conv_result{.ptr = string_input.end(), .ec = std::errc()};
 
@@ -95,7 +96,7 @@ static inline std::from_chars_result convertAnyTypeBool(std::string_view string_
 
 static nlohmann::json getJson(data_storage::PolymorphicDimensionalVector& vector)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   nlohmann::json json_to_send;
 
@@ -120,11 +121,11 @@ static bool sendToSocket(const network_addr::IpAddr& ip_addr, std::string_view s
                          std::string& str_to_get, nlohmann::json& json_to_send,
                          data_storage::DataPool& datapool)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   int client_socket = socket(AF_INET, SOCK_STREAM, 0);
   if (client_socket == -1) {
-    logging::logger_presets::acquiringResourceError<resources_tests::ConnectionTest>(
+    logging::SingleThreadPresets::acquiringResourceError<resources_tests::ConnectionTest>(
         std::format("couldn't create socket to {}", ip_addr));
     return false;
   }
@@ -139,14 +140,14 @@ static bool sendToSocket(const network_addr::IpAddr& ip_addr, std::string_view s
 
   if (res != 0) {
     close(client_socket);
-    logging::logger_presets::acquiringResourceError<resources_tests::ConnectionTest>(
+    logging::SingleThreadPresets::acquiringResourceError<resources_tests::ConnectionTest>(
         std::format("couldn't connect to {}", ip_addr));
     return false;
   }
 
   if (send(client_socket, str_to_send.data(), str_to_send.length(), 0) == -1) {
     close(client_socket);
-    logging::logger_presets::defaultError(
+    logging::SingleThreadPresets::defaultError(
         std::format("Couldn't send data to socket {}", client_socket));
     return false;
   }
@@ -154,7 +155,7 @@ static bool sendToSocket(const network_addr::IpAddr& ip_addr, std::string_view s
   std::ranges::fill(str_to_get, 0);
 
   if (recv(client_socket, str_to_get.data(), str_to_get.length(), 0) == -1) {
-    logging::logger_presets::defaultError(
+    logging::SingleThreadPresets::defaultError(
         std::format("Couldn't get data from socket {}", client_socket));
   }
 
@@ -170,7 +171,7 @@ std::from_chars_result emplaceInVector(
     custom_types::any_type& emplace_element, std::string_view string_input,
     size_t hashed_input)  //with hashed_input to support 'true'/'false' insert
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   std::from_chars_result conv_result{};
 
@@ -189,7 +190,7 @@ std::from_chars_result emplaceInVector(
 
 void changeType(AppSettings& settings)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   display::clearScreen();
   std::string string_input;
@@ -203,13 +204,13 @@ void changeType(AppSettings& settings)
                  "int\n\t-char\nEnter new type: ";
 
     std::cin >> string_input;
-    logging::logger_presets::userInput(string_input);
+    logging::SingleThreadPresets::userInput(string_input);
 
     std::ranges::transform(string_input, string_input.begin(), ::tolower);
     size_t hashed_input = std::hash<std::string_view>{}(string_input);
 
     if (hashed_input == hashed::kQuit) {
-      logging::logger_presets::menuQuit();
+      logging::SingleThreadPresets::menuQuit();
       return;
     }
 
@@ -217,18 +218,18 @@ void changeType(AppSettings& settings)
       settings.setTypeHash(hashed_input);
       settings.setTypeEnum(custom_types::getHashToTypeInfo().at(hashed_input).first);
 
-      logging::logger_presets::menuQuit();
+      logging::SingleThreadPresets::menuQuit();
       return;
     }
 
-    logging::logger_presets::wrongInput();
+    logging::SingleThreadPresets::wrongInput();
     display::clearCinBuffer();
   }
 }
 
 void changeName(AppSettings& settings)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   display::clearScreen();
   std::string string_input;
@@ -237,29 +238,29 @@ void changeName(AppSettings& settings)
                  "enter 'quit' if you've changed your mind: ";
 
     std::cin >> string_input;
-    logging::logger_presets::userInput(string_input);
+    logging::SingleThreadPresets::userInput(string_input);
     std::string lowered_input;
     std::ranges::transform(string_input, lowered_input.begin(), ::tolower);
     if (std::hash<std::string_view>{}(lowered_input) == hashed::kQuit) {
-      logging::logger_presets::menuQuit();
+      logging::SingleThreadPresets::menuQuit();
       return;
     }
 
     if (std::cin.good()) {
       settings.setName(std::move(string_input));
-      logging::logger_presets::menuQuit();
+      logging::SingleThreadPresets::menuQuit();
       return;
     }
 
     display::clearCinBuffer();
-    logging::logger_presets::wrongInput();
+    logging::SingleThreadPresets::wrongInput();
   }
 }
 
 void enterVector(data_storage::DataPool& vector, AppSettings const& settings)
 {
   namespace rn = std::ranges;
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   custom_types::PolymorphicVectorQuad spare_vector;
   std::cout << "Enter " << custom_types::kVectorDimensionsAmount << "-dimensional vector of "
@@ -280,14 +281,14 @@ void enterVector(data_storage::DataPool& vector, AppSettings const& settings)
 
     for (auto& element : spare_vector) {
       std::cin >> string_input;
-      logging::logger_presets::userInput(string_input);
+      logging::SingleThreadPresets::userInput(string_input);
 
       std::string lowercase_input = string_input;
       std::ranges::transform(lowercase_input, lowercase_input.begin(), ::tolower);
       size_t hashed_input = std::hash<std::string_view>{}(lowercase_input);
 
       if (hashed_input == hashed::kQuit) {
-        logging::logger_presets::menuQuit();
+        logging::SingleThreadPresets::menuQuit();
         return;
       }
 
@@ -295,14 +296,14 @@ void enterVector(data_storage::DataPool& vector, AppSettings const& settings)
 
       if (ec != std::errc() || ptr != string_input.end().base()) {
         is_conversion_not_done = true;
-        logging::logger_presets::wrongInput();
+        logging::SingleThreadPresets::wrongInput();
         display::clearCinBuffer();
         break;
       }
     }
   }
 
-  logging::logger_presets::menuQuit();
+  logging::SingleThreadPresets::menuQuit();
   vector.push(
       data_storage::PolymorphicDimensionalVector{spare_vector, settings.cgetTypeHash()});
 }
@@ -310,7 +311,7 @@ void enterVector(data_storage::DataPool& vector, AppSettings const& settings)
 void emptyQueue(data_storage::DataPool& data_pool, NonConstTag)
 {
 
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   while (data_pool.size() > 0) {
     auto vec = data_pool.front()._vec;
@@ -328,17 +329,17 @@ void emptyQueue(data_storage::DataPool& data_pool, NonConstTag)
     data_pool.pop();
   }
 
-  logging::logger_presets::menuQuit();
+  logging::SingleThreadPresets::menuQuit();
   std::cout << "Queue is empty\n";
 }
 
 void printVector(data_storage::DataPool& arr, NonConstTag)
 {
-  logging::logger_presets::menuQuit();
+  logging::SingleThreadPresets::menuQuit();
 
   if (arr.size() == 0) {
     std::cout << "Empty queue\n";
-    logging::Logger::writeToLog<config::LogVerbosity::Warning>(
+    logging::SingleThreadLogger::writeToLog<config::LogVerbosity::Warning>(
         "Empty queue at printing, quiting procedure");
     return;
   }
@@ -351,15 +352,15 @@ void printVector(data_storage::DataPool& arr, NonConstTag)
         i);
   }
   std::cout << '\n';
-  logging::logger_presets::menuQuit();
+  logging::SingleThreadPresets::menuQuit();
 }
 void sendToServer([[maybe_unused]] data_storage::DataPool& datapool,
                   const AppSettings& settings)
 {
 
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
   if (datapool.size() == 0) {
-    logging::logger_presets::defaultError("Empty datapool, can't send anything");
+    logging::SingleThreadPresets::defaultError("Empty datapool, can't send anything");
     return;
   }
 
@@ -370,7 +371,7 @@ void sendToServer([[maybe_unused]] data_storage::DataPool& datapool,
   std::string str_to_send = json_to_send.dump();
   std::string str_to_get;
 
-  logging::logger_presets::userInput(str_to_send);
+  logging::SingleThreadPresets::userInput(str_to_send);
 
   str_to_get.resize(kMaxBuffer);
 

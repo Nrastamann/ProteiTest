@@ -18,14 +18,13 @@ struct IpAddr {
 
   [[nodiscard]] uint32_t addrToNetwork() const
   {
-    return static_cast<uint32_t>(_addr[3] << kFourthByteShift |
-                                 _addr[2] << kThirdByteShift |
+    return static_cast<uint32_t>(_addr[3] << kFourthByteShift | _addr[2] << kThirdByteShift |
                                  _addr[1] << kSecondByteShift | _addr[0]);
   }
   friend std::ostream& operator<<(std::ostream& stream, const IpAddr& addr)
   {
-    stream << std::format("{}.{}.{}.{}:{}", addr._addr[0], addr._addr[1],
-                          addr._addr[2], addr._addr[3], addr._port);
+    stream << std::format("{}.{}.{}.{}:{}", addr._addr[0], addr._addr[1], addr._addr[2],
+                          addr._addr[3], addr._port);
 
     return stream;
   }

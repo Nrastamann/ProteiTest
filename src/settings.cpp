@@ -8,7 +8,7 @@ namespace ui_protei {
 
 void printAppSettings(AppSettings const& settings)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   std::cout << "========================\n";
   std::cout << "Current settings:\n";
@@ -27,10 +27,8 @@ void printAppSettings(AppSettings const& settings)
     std::cout << '\t' << lib << '\n';
   }
 
-  std::cout
-      << "Current type:\t"
-      << custom_types::getHashToTypeInfo().at(settings.cgetTypeHash()).second
-      << '\n';
+  std::cout << "Current type:\t"
+            << custom_types::getHashToTypeInfo().at(settings.cgetTypeHash()).second << '\n';
   std::cout << "========================\n";
 }
 

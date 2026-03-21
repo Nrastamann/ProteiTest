@@ -28,10 +28,19 @@ class ThreadPool {
     }
   }
 
-  template <typename Func, typename... Args>
-  int64_t addTask(const Func& task_func, Args&&... args)
+  void waitAll()
   {
-    int64_t task_idx = _last_task++;
+    std::unique_lock<std::mutex> lock(_queue_mtx);
+
+    _completed_task_ids_cv.wait(lock, [this]() -> bool {
+      std::lock_guard<std::mutex> task_lock(_completed_task_id_mtx);
+      return _queue.empty() && _last_task == _completed_tasks.size();
+    });
+  }
+  template <typename Func, typename... Args>
+  uint64_t addTask(const Func& task_func, Args&&... args)
+  {
+    uint64_t task_idx = _last_task++;
 
     std::lock_guard<std::mutex> q_lock(_queue_mtx);
 
@@ -57,18 +66,21 @@ class ThreadPool {
         lock.unlock();
 
         element.first.get();
+        std::lock_guard<std::mutex> lock_g(_completed_task_id_mtx);
+        _completed_tasks.insert(element.second);
+        _completed_task_ids_cv.notify_all();
       }
     }
   }
 
-  std::queue<std::pair<std::future<void>, int64_t>> _queue;
+  std::queue<std::pair<std::future<void>, uint64_t>> _queue;
   std::vector<std::thread> _threads;
-  std::unordered_set<int64_t> _completed_tasks;
+  std::unordered_set<uint64_t> _completed_tasks;
   std::condition_variable _queue_cv;
   std::condition_variable _completed_task_ids_cv;
   std::mutex _queue_mtx;
   std::mutex _completed_task_id_mtx;
-  std::atomic<int64_t> _last_task{0};
+  std::atomic<uint64_t> _last_task{0};
   std::atomic<bool> _quit{false};
 };
 }  // namespace thread_pool

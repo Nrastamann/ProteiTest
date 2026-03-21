@@ -11,16 +11,13 @@ struct PolymorphicDimensionalVector {
   ~PolymorphicDimensionalVector() = default;
   PolymorphicDimensionalVector(const PolymorphicDimensionalVector&) = default;
   PolymorphicDimensionalVector(PolymorphicDimensionalVector&&) = default;
-  PolymorphicDimensionalVector& operator=(const PolymorphicDimensionalVector&) =
-      default;
-  PolymorphicDimensionalVector& operator=(PolymorphicDimensionalVector&&) =
-      default;
+  PolymorphicDimensionalVector& operator=(const PolymorphicDimensionalVector&) = default;
+  PolymorphicDimensionalVector& operator=(PolymorphicDimensionalVector&&) = default;
 
-  PolymorphicDimensionalVector(custom_types::PolymorphicVectorQuad vec,
-                               size_t type_hash)
+  PolymorphicDimensionalVector(custom_types::PolymorphicVectorQuad vec, size_t type_hash)
       : _vec(std::move(vec)), _type_hash(type_hash)
   {
-    logging::logger_presets::createObject<PolymorphicDimensionalVector>();
+    logging::SingleThreadPresets::createObject<PolymorphicDimensionalVector>();
   }
 
   custom_types::PolymorphicVectorQuad _vec;
@@ -58,22 +55,19 @@ class DataPool {
   [[nodiscard]] size_t size() const { return _queue.size(); }
   return_reference_type back() { return _queue.back(); }
 
-  void push(PolymorphicDimensionalVector&& vec)
+  template <typename T>
+  void push(T&& vec)
   {
-    logging::logger_presets::containerPush<DataPool>(std::format("{}", vec));
-    _queue.push(std::move(vec));
+    logging::SingleThreadPresets::containerPush<DataPool>(std::format("{}", vec));
+    _queue.push(std::forward<T>(vec));
   }
 
   return_reference_type front() { return _queue.front(); }
-  [[nodiscard]] const_return_reference_type front() const
-  {
-    return _queue.front();
-  }
+  [[nodiscard]] const_return_reference_type front() const { return _queue.front(); }
 
   void pop()
   {
-    logging::logger_presets::containerRemove<DataPool>(
-        std::format("{}", _queue.front()));
+    logging::SingleThreadPresets::containerRemove<DataPool>(std::format("{}", _queue.front()));
     _queue.pop();
   }
 

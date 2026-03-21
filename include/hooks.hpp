@@ -9,10 +9,8 @@ namespace menu_hooks {
 using menu_hook = std::variant<std::function<void()>>;
 inline void callHook(const menu_hook& hook)
 {
-  logging::logger_presets::functionCall();
-  std::visit(
-      custom_types::Visitor{[](const std::function<void()>& fn) { fn(); }},
-      hook);
+  logging::SingleThreadPresets::functionCall();
+  std::visit(custom_types::Visitor{[](const std::function<void()>& fn) { fn(); }}, hook);
 }
 
 inline void defaultEmpty() {}
@@ -20,7 +18,7 @@ inline void defaultEmpty() {}
 namespace pre_hooks_protei {
 inline void defaultClear()
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
   display::clearCinBuffer();
   display::clearScreen();
 }
@@ -29,7 +27,7 @@ inline void defaultClear()
 namespace post_hooks_protei {
 inline void defaultClear()
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
   display::clearCinBuffer();
   display::clearScreen();
   display::displayMenu();
@@ -37,7 +35,7 @@ inline void defaultClear()
 
 inline void clearBuffer()
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
   display::clearCinBuffer();
 }
 }  // namespace post_hooks_protei

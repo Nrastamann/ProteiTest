@@ -41,7 +41,6 @@ if(TEST_COVERAGE)
 endif()
 
 set(SRCS
-        src/logger.cpp  
         src/menu.cpp            
         src/parsing.cpp   
         src/custom_types.cpp

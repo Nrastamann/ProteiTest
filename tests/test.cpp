@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <unistd.h>
+#include <algorithm>
 #include <array>
 #include <format>
 #include <iterator>
@@ -9,7 +10,9 @@
 #include <vector>
 #include "custom_types.hpp"
 #include "data_pool.hpp"
+#include "ip_addr.hpp"
 #include "menu.hpp"
+#include "menu_functions.hpp"
 #include "parsing.hpp"
 #include "server.hpp"
 #include "settings.hpp"
@@ -471,9 +474,12 @@ TEST_F(ClientServerFixture, TestServer)
   }
 }
 
+TEST_F(ClientServerFixture, TestServerThreads)
+{
+  EXPECT_EQ(1, 1);
+}
 int main(int argc, char** argv)
 {
-  logging::Logger::loggerInit();
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

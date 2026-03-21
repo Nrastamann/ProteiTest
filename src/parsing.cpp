@@ -23,7 +23,7 @@ std::expected<std::array<uint8_t, network_addr::kIpAddrOctetAmount>, ParseResult
 {
 
   bool has_hex = ip_addr.find_first_of("abcdef") != std::string::npos;
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
   std::array<uint8_t, network_addr::kIpAddrOctetAmount> addr{0};
 
   for (auto& octet : addr) {
@@ -35,7 +35,7 @@ std::expected<std::array<uint8_t, network_addr::kIpAddrOctetAmount>, ParseResult
                 : std::from_chars(substr_octet.begin(), substr_octet.end(), octet);
 
     if (err_res.ec != std::errc() || err_res.ptr != substr_octet.end()) {
-      logging::logger_presets::userInputError(substr_octet, *err_res.ptr);
+      logging::SingleThreadPresets::userInputError(substr_octet, *err_res.ptr);
       return std::unexpected(ParseResult::SV_PARSING_ERR);
     }
 
@@ -47,13 +47,13 @@ std::expected<std::array<uint8_t, network_addr::kIpAddrOctetAmount>, ParseResult
 
 std::expected<uint16_t, ParseResult> parsePort(std::string_view port)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   uint16_t port_number{};
   auto [ptr, ec] = std::from_chars(port.begin(), port.end(), port_number);
 
   if (ec != std::errc() || ptr != port.end()) {
-    logging::logger_presets::userInputError(port, *ptr);
+    logging::SingleThreadPresets::userInputError(port, *ptr);
 
     return std::unexpected(ParseResult::SV_PARSING_ERR);
   }
@@ -63,12 +63,12 @@ std::expected<uint16_t, ParseResult> parsePort(std::string_view port)
 
 std::expected<size_t, ParseResult> parseIndex(std::string_view index)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   size_t index_number{};
   auto [ptr, ec] = std::from_chars(index.begin(), index.end(), index_number);
   if (ec != std::errc() || ptr != index.end()) {
-    logging::logger_presets::userInputError(index, *ptr);
+    logging::SingleThreadPresets::userInputError(index, *ptr);
     return std::unexpected(ParseResult::SV_PARSING_ERR);
   }
 
@@ -77,7 +77,7 @@ std::expected<size_t, ParseResult> parseIndex(std::string_view index)
 
 std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(std::span<std::string> vec)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   CommandLineArgsHolder argument_holder{};
   bool is_next_arg = false;
@@ -85,10 +85,13 @@ std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(std::span<std::str
   size_t hash = 0;
   for (auto& argument : vec) {
     if (is_next_arg) {
+      if (hash == hashed::kHelp) {
+        return std::unexpected(ParseResult::HELP);
+      }
       bool is_valid_argument = argument_holder.setArgument(hash, argument);
 
       if (!is_valid_argument) {
-        logging::logger_presets::parsingInputError(argument, *argument.begin());
+        logging::SingleThreadPresets::parsingInputError(argument, *argument.begin());
         return std::unexpected(ParseResult::WRONG_FLAG);
       }
 
@@ -106,7 +109,8 @@ std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(std::span<std::str
     if (!is_valid_argument) {
       return std::unexpected(ParseResult::WRONG_FLAG);
     }
-    logging::logger_presets::defaultError(std::format("Last unpaired flag - {}", vec.last(1)));
+    logging::SingleThreadPresets::defaultError(
+        std::format("Last unpaired flag - {}", vec.last(1)));
 
     return std::unexpected(ParseResult::NO_ARGUMENT);
   }
@@ -116,7 +120,7 @@ std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(std::span<std::str
 
 static void joinAddr(std::vector<std::string>& result_vector, std::string_view ip_addr)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
   std::string_view digits = "0123456789abcdef";
   std::string res_str;
 
@@ -152,7 +156,7 @@ static void joinAddr(std::vector<std::string>& result_vector, std::string_view i
 
 std::vector<std::string> getInput(char** argv, int argc)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
   std::vector<std::string> returning_vector;
   auto span_args = std::span(argv, static_cast<size_t>(argc));
   span_args = span_args.subspan(1);
@@ -193,7 +197,7 @@ std::vector<std::string> getInput(char** argv, int argc)
 
 bool CommandLineArgsHolder::setArgument(size_t hash, std::string_view value)
 {
-  logging::logger_presets::functionCall();
+  logging::SingleThreadPresets::functionCall();
 
   static std::unordered_map<size_t, std::function<void(std::string_view)>> cl_args = {
       {hashed::kAddrHash, [this](std::string_view sv) { this->addAddress(sv); }},
@@ -262,7 +266,7 @@ size_t CommandLineArgsHolder::getIndex()
   std::expected<size_t, ParseResult> index = parseIndex(_index);
 
   if (!index.has_value()) {
-    logging::logger_presets::defaultError("Couldn't parse the index");
+    logging::SingleThreadPresets::defaultError("Couldn't parse the index");
     _error_parsing = true;
     return 0;
   }

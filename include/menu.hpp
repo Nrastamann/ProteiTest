@@ -81,7 +81,7 @@ class Menu {
   void callFunction(custom_types::MenuOptions option, [[maybe_unused]] U&& pre_hook_arg,
                     [[maybe_unused]] V&& post_hook_arg, FunctionArgs& arguments) const
   {
-    logging::logger_presets::functionCall();
+    logging::SingleThreadPresets::functionCall();
     const MenuItem& menu_item = _items.at(option);
 
     menu_hooks::callHook(menu_item._pre_hook);
@@ -93,15 +93,15 @@ class Menu {
   void menuTask([[maybe_unused]] U&& pre_hook_arg, [[maybe_unused]] V&& post_hook_arg,
                 FunctionArgs& arguments) const
   {
-    logging::logger_presets::functionCall();
+    logging::SingleThreadPresets::functionCall();
 
     std::string text_option;
 
     std::cout << "Your command: \n";
-    logging::Logger::writeToLog<config::LogVerbosity::Info>("Your command: ");
+    logging::SingleThreadLogger::writeToLog<config::LogVerbosity::Info>("Your command: ");
 
     std::cin >> text_option;
-    logging::Logger::writeToLog<config::LogVerbosity::Debug>(text_option);
+    logging::SingleThreadLogger::writeToLog<config::LogVerbosity::Debug>(text_option);
     std::ranges::transform(text_option, text_option.begin(), ::tolower);
 
     size_t input_hash = std::hash<std::string_view>{}(text_option);
@@ -119,7 +119,7 @@ class Menu {
   static void callFunctionVariant(const polymorphic_function& function,
                                   const FunctionArgs& arguments)
   {
-    logging::logger_presets::functionCall();
+    logging::SingleThreadPresets::functionCall();
 
     std::visit(
         custom_types::Visitor{
@@ -182,7 +182,8 @@ class Menu {
          MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::defaultClear}},
     };
-    logging::logger_presets::createdStaticContainer("MenuOptions - MenuItem unordered_map");
+    logging::SingleThreadPresets::createdStaticContainer(
+        "MenuOptions - MenuItem unordered_map");
 
     return functions;
   }

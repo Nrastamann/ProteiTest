@@ -10,8 +10,18 @@
 #include "ip_addr.hpp"
 #include "nlohmann/json_fwd.hpp"
 
+namespace hashed {
+inline size_t const kAddrHash = {std::hash<std::string_view>{}("-a")};
+inline size_t const kAddrBigHash = {std::hash<std::string_view>{}("-A")};
+inline size_t const kPortHash = {std::hash<std::string_view>{}("-p")};
+inline size_t const kRoleHash = {std::hash<std::string_view>{}("-r")};
+inline size_t const kIndexHash = {std::hash<std::string_view>{}("-i")};
+inline size_t const kLibHash = {std::hash<std::string_view>{}("-l")};
+inline size_t const kHelp = {std::hash<std::string_view>{}("-h")};
+}  // namespace hashed
+
 namespace parsing {
-enum class ParseResult : uint8_t { NO_ERR, WRONG_FLAG, NO_ARGUMENT, SV_PARSING_ERR };
+enum class ParseResult : uint8_t { NO_ERR, WRONG_FLAG, NO_ARGUMENT, HELP, SV_PARSING_ERR };
 /**
  * struct CommandLineArgsHolder - Struct to hold strings for future parsing 
  *

@@ -12,6 +12,7 @@
 #include <queue>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include "custom_types.hpp"
 #include "logger.hpp"
 
@@ -43,7 +44,7 @@ struct ServerFunctions {
   template <std::floating_point T>
   static T fpCalculation(CalculationType type, T value1, T value2)
   {
-    logging::logger_presets::functionCall();
+    logging::MultithreadPresets::functionCall();
     T result{};
     switch (type) {
       case CalculationType::Plus:
@@ -64,7 +65,7 @@ struct ServerFunctions {
   template <std::integral T>
   static T integerCalc(CalculationType type, T value1, T value2)
   {
-    logging::logger_presets::functionCall();
+    logging::MultithreadPresets::functionCall();
     T result{};
     switch (type) {
       case CalculationType::Plus:
@@ -85,7 +86,7 @@ struct ServerFunctions {
 
   static std::array<bool_functions, 4>& getBoolFunc()
   {
-    logging::logger_presets::functionCall();
+    logging::MultithreadPresets::functionCall();
     static std::array<bool_functions, 4> functions{
         [](bool a1, bool a2) { return a1 || a2; },
         [](bool a1, bool a2) { return a1 && a2; },
@@ -97,13 +98,22 @@ struct ServerFunctions {
   }
 };
 
-inline std::atomic<bool>& getServerRunning()
+class CloseTag {};
+class SetTag {};
+
+template <typename Tag>
+inline int setGetServerSocket(Tag, int socket = 0)
 {
-  static std::atomic<bool> server_running{true};
-  return server_running;
+  static int global_server_socket;
+  if constexpr (std::is_same_v<Tag, SetTag>) {
+    global_server_socket = socket;
+    return 0;
+  }
+
+  return global_server_socket;
 }
 
-static constexpr size_t kThreadNum{4};
+inline constexpr size_t kThreadNum{4};
 
 template <size_t N>
 class BufferPool {
@@ -129,6 +139,7 @@ class BufferPool {
   }
   BufferIndexWrapper getBuffer()
   {
+    logging::MultithreadPresets::functionCall();
     std::unique_lock<std::mutex> lock(_queue_mtx);
     _cv.wait(lock, [this]() { return !_indexes_queue.empty() || _quit; });
 
@@ -137,7 +148,7 @@ class BufferPool {
       _indexes_queue.pop();
 
       lock.unlock();
-      _cv.notify_all();
+      _cv.notify_one();
       return BufferIndexWrapper{*this, index};
     }
     return BufferIndexWrapper{*this, 0};

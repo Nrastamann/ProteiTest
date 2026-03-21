@@ -61,7 +61,7 @@ class ResourceTest final : ITest {
                                                        })) {
 
       std::string output_str = std::format("{}", *(bad_it - 1));
-      logging::logger_presets::acquiringResourceError<ResourceTest>(output_str);
+      logging::SingleThreadPresets::acquiringResourceError<ResourceTest>(output_str);
 
       value = false;
     }
@@ -115,7 +115,7 @@ class ConnectionTest final : ITest {
 
       std::string output_str = std::format("{}", *bad_it);
 
-      logging::logger_presets::acquiringResourceError<ConnectionTest>(output_str);
+      logging::SingleThreadPresets::acquiringResourceError<ConnectionTest>(output_str);
 
       value = false;
     }

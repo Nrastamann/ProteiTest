@@ -2,11 +2,9 @@
 #include "logger.hpp"
 
 namespace custom_types {
-std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const&
-getHashToTypeInfo()
+std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const& getHashToTypeInfo()
 {
-  static std::unordered_map<size_t,
-                            std::pair<EnumTypes, std::string_view>> const
+  static std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const
       enum_types_converter{
           {hashed::kInt, {EnumTypes::Int, "int"}},
           {hashed::kFloat, {EnumTypes::Float, "float"}},
@@ -26,7 +24,7 @@ getHashToTypeInfo()
           {hashed::kUInt64, {EnumTypes::UInt64, "uint64_t"}},
       };
 
-  logging::logger_presets::createdStaticContainer(
+  logging::SingleThreadPresets::createdStaticContainer(
       "Hashed type - pair <EnumType, TypeName> - unordered_map");
   return enum_types_converter;
 }
