@@ -4,64 +4,55 @@
 #include <cassert>
 #include <cctype>
 #include <charconv>
+#include <cstring>
 #include <expected>
 #include <format>
 #include <functional>
 #include <iterator>
 #include <nlohmann/json.hpp>
-#include <ranges>
 #include <span>
 
+#include "ip_addr.hpp"
 #include "logger.hpp"
 #include "menu_functions.hpp"
 #include "settings.hpp"
 static constexpr size_t kHexBase{16};
 
 namespace parsing {
-std::expected<std::array<uint8_t, network_addr::kIpAddrOctetAmount>, ParseResult> parseAddr(
-    std::string_view ip_addr)
+static std::expected<network_addr::IpAddr, ParseResult> parseAddr(
+    std::array<std::string_view, network_addr::kIpAddrOctetAmount + 1> ip_addr, bool has_hex)
 {
-
-  bool has_hex = ip_addr.find_first_of("abcdef") != std::string::npos;
   logging::SingleThreadPresets::functionCall();
-  std::array<uint8_t, network_addr::kIpAddrOctetAmount> addr{0};
 
-  for (auto& octet : addr) {
-    const size_t delimeter_pos = ip_addr.find('.');
-    std::string_view substr_octet = ip_addr.substr(0, delimeter_pos);
+  std::array<uint8_t, network_addr::kIpAddrOctetAmount + 1> addr_with_port{0};
+  const auto* it = std::prev(ip_addr.begin(), 1);
 
-    std::from_chars_result err_res =
-        has_hex ? std::from_chars(substr_octet.begin(), substr_octet.end(), octet, kHexBase)
-                : std::from_chars(substr_octet.begin(), substr_octet.end(), octet);
-
-    if (err_res.ec != std::errc() || err_res.ptr != substr_octet.end()) {
-      logging::SingleThreadPresets::userInputError(substr_octet, *err_res.ptr);
+  for (auto& octet : addr_with_port) {
+    std::advance(it, 1);
+    if (it->size() == 0) {
+      logging::SingleThreadPresets::defaultError(
+          std::format("Couldn't parse octet {}", static_cast<size_t>(ip_addr.begin() - it)));
       return std::unexpected(ParseResult::SV_PARSING_ERR);
     }
+    std::from_chars_result err_res =
+        has_hex ? std::from_chars(it->begin(), it->end(), octet, kHexBase)
+                : std::from_chars(it->begin(), it->end(), octet);
 
-    ip_addr.remove_prefix(delimeter_pos + 1);
+    if (err_res.ec != std::errc() || err_res.ptr != it->end()) {
+      logging::SingleThreadPresets::userInputError(*it, *err_res.ptr);
+      return std::unexpected(ParseResult::SV_PARSING_ERR);
+    }
   }
 
-  return addr;
+  network_addr::IpAddr result_addr{};
+
+  std::ranges::copy(result_addr._addr, addr_with_port.begin());
+
+  result_addr._port = addr_with_port[network_addr::kIpAddrOctetAmount];
+  return result_addr;
 }
 
-std::expected<uint16_t, ParseResult> parsePort(std::string_view port)
-{
-  logging::SingleThreadPresets::functionCall();
-
-  uint16_t port_number{};
-  auto [ptr, ec] = std::from_chars(port.begin(), port.end(), port_number);
-
-  if (ec != std::errc() || ptr != port.end()) {
-    logging::SingleThreadPresets::userInputError(port, *ptr);
-
-    return std::unexpected(ParseResult::SV_PARSING_ERR);
-  }
-
-  return port_number;
-}
-
-std::expected<size_t, ParseResult> parseIndex(std::string_view index)
+static std::expected<size_t, ParseResult> parseIndex(std::string_view index)
 {
   logging::SingleThreadPresets::functionCall();
 
@@ -75,206 +66,32 @@ std::expected<size_t, ParseResult> parseIndex(std::string_view index)
   return index_number;
 }
 
-std::expected<CommandLineArgsHolder, ParseResult> parseClArgs(std::span<std::string> vec)
+static bool composeAddr(
+    std::array<std::string_view, network_addr::kIpAddrOctetAmount + 1>& result_vector,
+    std::string_view ip_addr)
 {
   logging::SingleThreadPresets::functionCall();
 
-  CommandLineArgsHolder argument_holder{};
-  bool is_next_arg = false;
-
-  size_t hash = 0;
-  for (auto& argument : vec) {
-    if (is_next_arg) {
-      if (hash == hashed::kHelp) {
-        return std::unexpected(ParseResult::HELP);
-      }
-      bool is_valid_argument = argument_holder.setArgument(hash, argument);
-
-      if (!is_valid_argument) {
-        logging::SingleThreadPresets::parsingInputError(argument, *argument.begin());
-        return std::unexpected(ParseResult::WRONG_FLAG);
-      }
-
-      is_next_arg = !is_next_arg;
-      continue;
-    }
-
-    std::ranges::transform(argument, argument.begin(), ::tolower);
-    hash = std::hash<std::string_view>{}(argument);
-    is_next_arg = !is_next_arg;
-  }
-
-  if (is_next_arg) {
-    bool is_valid_argument = argument_holder.setArgument(hash, "");
-    if (!is_valid_argument) {
-      return std::unexpected(ParseResult::WRONG_FLAG);
-    }
-    logging::SingleThreadPresets::defaultError(
-        std::format("Last unpaired flag - {}", vec.last(1)));
-
-    return std::unexpected(ParseResult::NO_ARGUMENT);
-  }
-
-  return argument_holder;
-}
-
-static void joinAddr(std::vector<std::string>& result_vector, std::string_view ip_addr)
-{
-  logging::SingleThreadPresets::functionCall();
-  std::string_view digits = "0123456789abcdef";
-  std::string res_str;
+  bool has_hex = ip_addr.find_first_of("abcdef") != std::string::npos;
+  std::string_view digits = has_hex ? "0123456789abcdef" : "0123456789";
 
   size_t substr_begin = 0;
 
-  for (size_t i = 0; i < 4; ++i) {
+  for (auto& str : result_vector) {
     size_t end = ip_addr.find_first_not_of(digits, substr_begin);
-    bool is_last_octet = i == 3;
-    if (end == std::string::npos && !is_last_octet) {
-      break;
-    }
 
-    res_str += ip_addr.substr(substr_begin, end - substr_begin);
+    str = ip_addr.substr(substr_begin, end - substr_begin);
 
     ip_addr.remove_prefix(ip_addr.size() < end ? ip_addr.size() - 1 : end);
     substr_begin = ip_addr.find_first_of(digits);
-
-    if (substr_begin == std::string::npos || is_last_octet) {
-      break;
-    }
-    res_str += '.';
-  }
-  result_vector.push_back(std::move(res_str));
-
-  if (ip_addr.size() != 1) {
-    result_vector.emplace_back("-p");
-
-    size_t end = ip_addr.find_first_not_of(digits, substr_begin);
-
-    result_vector.emplace_back(ip_addr.substr(substr_begin, end - substr_begin));
-  }
-}
-
-std::vector<std::string> getInput(char** argv, int argc)
-{
-  logging::SingleThreadPresets::functionCall();
-  std::vector<std::string> returning_vector;
-  auto span_args = std::span(argv, static_cast<size_t>(argc));
-  span_args = span_args.subspan(1);
-
-  bool parsing_addr = false;
-
-  std::string ip_addr;
-  argc -= 1;
-
-  for (auto& sv : span_args) {
-    argc--;
-    if (parsing_addr && ('-' != *sv || argc == 0)) {
-      ip_addr += std::format("{} ", sv);
-
-      if (argc != 0) {
-        continue;
-      }
-    }
-
-    parsing_addr = false;
-    if (ip_addr.length() != 0) {
-      joinAddr(returning_vector, ip_addr);
-      ip_addr = "";
-      if (argc == 0)
-        break;
-    }
-
-    size_t text_hash = std::hash<std::string_view>{}(sv);
-
-    if (hashed::kAddrHash == text_hash || hashed::kAddrBigHash == text_hash) {
-      parsing_addr = true;
-    }
-
-    returning_vector.emplace_back(sv);
-  }
-  return returning_vector;
-}
-
-bool CommandLineArgsHolder::setArgument(size_t hash, std::string_view value)
-{
-  logging::SingleThreadPresets::functionCall();
-
-  static std::unordered_map<size_t, std::function<void(std::string_view)>> cl_args = {
-      {hashed::kAddrHash, [this](std::string_view sv) { this->addAddress(sv); }},
-      {hashed::kPortHash, [this](std::string_view sv) { this->addPort(sv); }},
-      {hashed::kRoleHash, [this](std::string_view sv) { this->addRole(sv); }},
-      {hashed::kIndexHash, [this](std::string_view sv) { this->addIndex(sv); }},
-      {hashed::kLibHash, [this](std::string_view sv) { this->addLib(sv); }},
-  };
-
-  auto it = cl_args.find(hash);
-  bool return_value = it != cl_args.end();
-
-  return_value ? (it->second)(value) : void();
-
-  return return_value;
-}
-std::vector<uint16_t> CommandLineArgsHolder::getPorts()
-{
-  using port_parse_result = std::expected<uint16_t, ParseResult>;
-  namespace rn = std::ranges;
-  namespace rv = std::ranges::views;
-
-  auto ports_view = _ports | rv::transform(&parsePort) |
-                    rv::take_while(&port_parse_result::has_value) |
-                    rv::transform([](const auto& a) { return a.value(); });
-
-  std::vector<uint16_t> ports_arr(static_cast<size_t>(rn::distance(ports_view)));
-
-  rn::copy(ports_view, ports_arr.begin());
-
-  if (ports_arr.size() != _ports.size()) {
-    _error_parsing = true;
-    return {};
   }
 
-  return ports_arr;
-}
-
-std::vector<std::array<uint8_t, network_addr::kIpAddrOctetAmount>>
-CommandLineArgsHolder::getAddresses()
-{
-  namespace rn = std::ranges;
-  namespace rv = std::ranges::views;
-  using addr_parse_result =
-      std::expected<std::array<uint8_t, network_addr::kIpAddrOctetAmount>, ParseResult>;
-
-  auto addresses_view = _addresses | rv::transform(&parseAddr) |
-                        rv::take_while(&addr_parse_result::has_value) |
-                        rv::transform([](const auto& a) { return a.value(); });
-
-  std::vector<std::array<uint8_t, network_addr::kIpAddrOctetAmount>> ip_arr(
-      static_cast<size_t>(rn::distance(addresses_view)));
-
-  rn::copy(addresses_view, ip_arr.begin());
-
-  if (ip_arr.size() != _addresses.size()) {
-    _error_parsing = true;
-    return {};
-  }
-
-  return ip_arr;
-}
-
-size_t CommandLineArgsHolder::getIndex()
-{
-  std::expected<size_t, ParseResult> index = parseIndex(_index);
-
-  if (!index.has_value()) {
-    logging::SingleThreadPresets::defaultError("Couldn't parse the index");
-    _error_parsing = true;
-    return 0;
-  }
-  return index.value();
+  return has_hex;
 }
 
 custom_types::PolymorphicVectorQuad parseStringVector(nlohmann::json& json)
 {
+  logging::SingleThreadPresets::functionCall();
   size_t hash = json["TypeHash"];
   std::string vector_unparsed = json["Vector"];
 
@@ -297,5 +114,135 @@ custom_types::PolymorphicVectorQuad parseStringVector(nlohmann::json& json)
   }
   return vector;
 }
+
+static std::string_view flagInside(std::string& args, std::string_view str_to_break, size_t pos)
+{
+  logging::SingleThreadPresets::functionCall();
+  args += str_to_break.substr(0, pos);
+  return str_to_break.substr(pos + 2);
+}
+
+bool ArgHolder::pushAddr(std::string&& token)
+{
+  logging::SingleThreadPresets::functionCall();
+  std::array<std::string_view, network_addr::kIpAddrOctetAmount + 1> ip_addr_to_parse;
+  auto parsed_addr =
+      parseAddr(ip_addr_to_parse, composeAddr(ip_addr_to_parse, std::move(token)));
+  if (!parsed_addr.has_value()) {
+    return false;
+  }
+
+  _addresses.push_back(parsed_addr.value());
+  return true;
+}
+
+std::expected<ArgHolder, ParseResult> parseArguments(int argc, char** argv)
+{
+  logging::SingleThreadPresets::functionCall();
+  auto argv_wrapped = std::span(argv, argc);
+
+  ArgHolder argument_holder{};
+
+  std::string token{};
+  size_t hash = 0;
+  std::string_view suffix_value;
+
+  auto to_span = [](char* element) {
+    return std::span(element, strlen(element));
+  };
+
+  bool is_next_arg = false;
+  std::span<char> argument_span;
+
+  for (auto* argument : argv_wrapped) {
+    if (hash == hashed::kHelp) {
+      return std::unexpected(ParseResult::HELP);
+    }
+
+    if (is_next_arg) {
+      std::string_view argument_wrapped = {argument};
+
+      size_t pos = argument_wrapped.find('-');
+      is_next_arg = pos == std::string_view::npos;
+
+      if (is_next_arg) {
+        token += argument_wrapped;
+        continue;
+      }
+
+      argument_span = std::span(argument, pos + 2);
+      argument_span = argument_span.subspan(pos);
+
+      flagInside(token, argument_wrapped, pos);
+    }
+    else {
+      argument_span = to_span(argument);
+    }
+
+    argument_holder.setArgument(hash, token);
+    token.resize(0);
+
+    if (suffix_value.size() != 0) {
+      token += suffix_value;
+      suffix_value.remove_suffix(suffix_value.size());
+    }
+
+    std::ranges::transform(argument_span, argument_span.begin(), ::tolower);
+
+    hash = std::hash<std::string_view>{}(argument);
+    is_next_arg = true;
+  }
+
+  bool is_valid_argument = argument_holder.setArgument(hash, token);
+
+  if (!is_valid_argument) {
+    return std::unexpected(ParseResult::WRONG_FLAG);
+  }
+
+  if (std::hash<std::string_view>{}(token) == hash) {
+    logging::SingleThreadPresets::defaultError(
+        std::format("Last unpaired flag - {}", argv_wrapped.last(1)));
+
+    return std::unexpected(ParseResult::NO_ARGUMENT);
+  }
+
+  return argument_holder;
+}
+
+std::expected<AppSettings, bool> createSettings(std::vector<std::string> wrapped_input,
+                                                std::string_view helpText)
+{
+  using log_pr = logging::SingleThreadPresets;
+  log_pr::functionCall();
+
+  auto argv_split{1};  // = parsing::(wrapped_input);
+/*
+  switch (argv_split.error_or(parsing::ParseResult::NO_ERR)) {
+    case parsing::ParseResult::WRONG_FLAG:
+      log_pr::defaultError("Wrong flag passed");
+      return std::unexpected(false);
+
+    case parsing::ParseResult::NO_ARGUMENT:
+      log_pr::defaultError("Flag with argument passed without one");
+      return std::unexpected(false);
+    case parsing::ParseResult::HELP:
+      std::cout << helpText;
+      return std::unexpected(true);
+    default:
+      break;
+  }
+
+  log_pr::createObject<AppSettings>();
+  AppSettings command_line_options{argv_split->getPorts(), argv_split->getLibs(),
+                                   argv_split->getAddresses(), argv_split->getRole(),
+                                   argv_split->getIndex()};
+
+  if (command_line_options.cgetShouldClose() || argv_split->parsingStatus()) {
+    log_pr::defaultError("Couldn't get resource or parse cl args");
+    return std::unexpected(false);
+  }
+
+  return command_line_options;
+*/}
 
 };  // namespace parsing

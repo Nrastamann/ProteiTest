@@ -1,14 +1,16 @@
 #pragma once
-#include <algorithm>
 #include <cstdint>
 #include <expected>
-#include <span>
+#include <functional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 #include "custom_types.hpp"
 #include "ip_addr.hpp"
 #include "nlohmann/json_fwd.hpp"
+#include "settings.hpp"
 
 namespace hashed {
 inline size_t const kAddrHash = {std::hash<std::string_view>{}("-a")};
@@ -22,67 +24,69 @@ inline size_t const kHelp = {std::hash<std::string_view>{}("-h")};
 
 namespace parsing {
 enum class ParseResult : uint8_t { NO_ERR, WRONG_FLAG, NO_ARGUMENT, HELP, SV_PARSING_ERR };
-/**
- * struct CommandLineArgsHolder - Struct to hold strings for future parsing 
- *
- * If error occures during parsing of ports/addr/index - _error_parsing is set to true,
- * so program ends
- *
- * If there's no error during parsing - _error_parsing sets to false
- */
-struct CommandLineArgsHolder {
- private:
-  using array_type = std::vector<std::string_view>;
+class ArgHolder {
+  template <typename T>
+  using container = std::vector<T>;
 
  public:
-  std::vector<uint16_t> getPorts();
-  std::vector<std::array<uint8_t, network_addr::kIpAddrOctetAmount>> getAddresses();
-  size_t getIndex();
-  std::string_view getRole() { return _role; }
-  std::vector<std::string> getLibs()
+  using parseToken = std::string;
+  using argument_type = parseToken;
+
+  bool pushAddr(std::string&& token);
+
+  bool setArgument(std::size_t hash, std::string& value)
   {
-    std::vector<std::string> temp_vec;
-    temp_vec.resize(_lib_names.size());
-    std::ranges::transform(_lib_names, temp_vec.begin(),
-                           [](std::string_view str) { return std::string{str}; });
-    return temp_vec;
-  }
+    logging::SingleThreadPresets::functionCall();
 
-  [[nodiscard]] bool parsingStatus() const { return _error_parsing; }
+    auto& map = getArgSetter();
 
-  [[nodiscard]] bool setArgument(size_t hash, std::string_view value);
+    auto it = map.find(hash);
+    bool return_value = it != map.end();
+
+    return_value = return_value ? it->second(value) : false;
+
+    return return_value;
+  }  // namespace parsing
+
+  container<network_addr::IpAddr>&& getAddr() { return std::move(_addresses); }
+  container<std::string> getLibs() { return std::move(_libs); }
+  std::string getRole() { return std::move(_role); }
+  [[nodiscard]] size_t getIndex() const { return _index; }
 
  private:
-  void addLib(std::string_view sv) { _lib_names.push_back(sv); }
-  void addRole(std::string_view sv) { _role = sv; }
-  void addPort(std::string_view sv) { _ports.push_back(sv); }
-  void addIndex(std::string_view sv) { _index = sv; }
-  void addAddress(std::string_view sv) { _addresses.push_back(sv); }
+  std::unordered_map<size_t, std::function<bool(std::string&)>>& getArgSetter()
+  {
+    static std::unordered_map<size_t, std::function<bool(std::string&)>> map = {
+        {hashed::kAddrHash,
+         [this](std::string& value) { return this->pushAddr(std::move(value)); }},
+        {hashed::kAddrBigHash,
+         [this](std::string& value) { return this->pushAddr(std::move(value)); }},
+        {hashed::kIndexHash,
+         [this](std::string& value) { return this->parseIndex(std::move(value)); }},
+        {hashed::kRoleHash,
+         [this](std::string& value) {
+           _role = std::move(value);
+           return true;
+         }},
+        {hashed::kLibHash, [this](std::string& value) {
+           _libs.emplace_back(std::move(value));
+           return true;
+         }}};
+    return map;
+  }
 
-  array_type _addresses;
-  array_type _lib_names;
-  array_type _resource_names;
-  array_type _ports;
-  bool _error_parsing = false;
-  std::string_view _role = "User";
-  std::string_view _index = "0";
+  bool parseIndex(std::string_view index);
+
+  container<network_addr::IpAddr> _addresses;
+  container<std::string> _libs;
+  std::string _role = "User";
+  size_t _index{};
 };
 
-std::vector<std::string> getInput(char** argv, int argc);
-
-[[nodiscard("Discarding address parsing result")]] std::expected<
-    std::array<uint8_t, network_addr::kIpAddrOctetAmount>, ParseResult>
-parseAddr(std::string_view ip_addr);
-
-[[nodiscard("Discarding port parsing result")]] std::expected<uint16_t, ParseResult> parsePort(
-    std::string_view port);
-
-[[nodiscard("Discarding index parsing result")]] std::expected<size_t, ParseResult> parseIndex(
-    std::string_view index);
-
-[[nodiscard(
-    "Discarding cl_args parse_result")]] std::expected<CommandLineArgsHolder, ParseResult>
-parseClArgs(std::span<std::string> vec);
+std::expected<ArgHolder, ParseResult> parseArguments(int argc, char** argv);
 
 custom_types::PolymorphicVectorQuad parseStringVector(nlohmann::json& json);
+
+[[nodiscard]] std::expected<AppSettings, bool> createSettings(
+    std::vector<std::string> wrapped_input, std::string_view help_text);
 };  // namespace parsing

@@ -32,50 +32,14 @@ static constexpr std::string_view kHelpText =
 В меню пользователи Доделать хелпу и добавить в сервере, ридми, отключение/включение логов по флагу, перепривязать \
     парсинг аргументов в сервере такой же как и в клиенте ";
 
-static std::expected<AppSettings, bool> parsingArguments(std::vector<std::string> wrapped_input)
-{
-  using log_pr = logging::SingleThreadPresets;
-  log_pr::functionCall();
-
-  auto argv_split = parsing::parseClArgs(wrapped_input);
-
-  switch (argv_split.error_or(parsing::ParseResult::NO_ERR)) {
-    case parsing::ParseResult::WRONG_FLAG:
-      log_pr::defaultError("Wrong flag passed");
-      return std::unexpected(false);
-
-    case parsing::ParseResult::NO_ARGUMENT:
-      log_pr::defaultError("Flag with argument passed without one");
-      return std::unexpected(false);
-    case parsing::ParseResult::HELP:
-      std::cout << kHelpText;
-      return std::unexpected(true);
-    default:
-      break;
-  }
-
-  log_pr::createObject<AppSettings>();
-  AppSettings command_line_options{argv_split->getPorts(), argv_split->getLibs(),
-                                   argv_split->getAddresses(), argv_split->getRole(),
-                                   argv_split->getIndex()};
-
-  if (command_line_options.cgetShouldClose() || argv_split->parsingStatus()) {
-    log_pr::defaultError("Couldn't get resource or parse cl args");
-    return std::unexpected(false);
-  }
-
-  return command_line_options;
-}
-
 int main(int argc, char* argv[])
 {
   using log_pr = logging::SingleThreadPresets;
 
   logging::SingleThreadLogger::loggerInit();
-  auto command_line_options = parsingArguments(parsing::getInput(argv, argc));
+  auto command_line_options = parsing::createSettings(parsing::getInput(argv, argc), kHelpText);
 
   if (!command_line_options.has_value()) {
-    logging::SingleThreadLogger::writeToLog<config::LogVerbosity::Error>("why");
     return 1;
   }
 

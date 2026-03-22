@@ -16,6 +16,7 @@
 #include "parsing.hpp"
 #include "server.hpp"
 #include "settings.hpp"
+#include "thread_pool.hpp"
 
 class InputFixture : public testing::Test {
   static constexpr size_t kIndexTest{42};
@@ -122,6 +123,14 @@ class ParsingFixture : public testing::Test {
   std::vector<std::array<uint8_t, 4>> _addresses = {kTestIPAddr, kTestIPAddr};
   std::vector<std::string> _libs = {kTestLib.begin()};
   std::vector<size_t> _ports = {kTestPort1, kTestPort2};
+};
+
+class ClientServerFixture : public testing::Test {
+ protected:
+  std::vector<char*> _argv = {"-a", "127.0.0.1:5000"};
+
+  std::vector<std::string_view> _parsed_data = {"-a", "127.127.127.127", "-p", "2231"};
+  std::string_view _server_argv = "5000";
 };
 
 TEST_F(ArgvFixture, AddressPortParsingTestPRT)
@@ -427,14 +436,6 @@ TEST_F(InputFixture, PrintSettingsTestPRT)
   EXPECT_EQ(result, _cout.str());
 }
 
-class ClientServerFixture : public testing::Test {
- protected:
-  std::vector<char*> _argv = {"-a", "127.0.0.1:5000"};
-
-  std::vector<std::string_view> _parsed_data = {"-a", "127.127.127.127", "-p", "2231"};
-  std::string_view _server_argv = "5000";
-};
-
 TEST_F(ClientServerFixture, TestServer)
 {
   ASSERT_EQ(server::parsePortServer(_server_argv), 5000);
@@ -476,8 +477,57 @@ TEST_F(ClientServerFixture, TestServer)
 
 TEST_F(ClientServerFixture, TestServerThreads)
 {
-  EXPECT_EQ(1, 1);
+  custom_types::PolymorphicVectorQuad result{32, 9, 3072, 0};
+
+  constexpr size_t kTransformationNumber{5};
+  constexpr size_t kNumberClient{15};
+
+  std::stringstream cin{};
+  std::stringstream cout{};
+  std::streambuf* cin_buf{};
+  std::streambuf* cout_buf{};
+
+  cin_buf = std::cin.rdbuf();
+  cout_buf = std::cout.rdbuf();
+  std::cin.rdbuf(cin.rdbuf());
+  std::cout.rdbuf(cout.rdbuf());
+
+  std::cin.rdbuf(cin_buf);
+  std::cout.rdbuf(cout_buf);
+
+  thread_pool::ThreadPool threads{kNumberClient};
+  AppSettings settings({5000}, {}, {{127, 0, 0, 1}}, "", 0);
+
+  //  std::thread server_worker(server::serverStart);
+
+  auto task = [&cin, &cout](AppSettings& settings,
+                            const custom_types::PolymorphicVectorQuad& result) {
+    Menu menu;
+    data_storage::DataPool data_pool;
+    FunctionArgs arguments(settings, data_pool);
+    cin << "Vector\n";
+    menu.menuTask(0, 0, arguments);
+
+    for (size_t j = 0; j < kTransformationNumber; ++j) {
+      cin << "Send\n";
+      menu.menuTask(0, 0, arguments);
+    }
+
+    EXPECT_EQ(data_pool.size(), 1);
+    const auto* it = std::prev(result.begin());
+    EXPECT_TRUE(std::ranges::all_of(data_pool.front()._vec, [it](const auto& element) {
+      return std::get<int>(*std::next(it)) == std::get<int>(element);
+    }));
+  };
+
+  for (size_t i = 0; i < kNumberClient; ++i) {
+    threads.addTask(task, std::ref(settings), std::cref(result));
+  }
+
+  threads.waitAll();
+  //kill server
 }
+
 int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);

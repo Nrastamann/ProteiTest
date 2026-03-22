@@ -81,13 +81,6 @@ class AppSettings {
 
   void setTypeHash(size_t hash) { _type_hash = hash; }
   void setTypeEnum(custom_types::EnumTypes type) { _type_enum = type; }
-
-  ~AppSettings() = default;
-  AppSettings() = delete;
-  AppSettings(AppSettings const&) = default;
-  AppSettings(AppSettings&&) = default;
-  AppSettings& operator=(AppSettings const&) = default;
-  AppSettings& operator=(AppSettings&&) = default;
 };
 
 namespace ui_protei {
