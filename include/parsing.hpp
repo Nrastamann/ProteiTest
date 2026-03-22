@@ -9,13 +9,11 @@
 #include <vector>
 #include "custom_types.hpp"
 #include "ip_addr.hpp"
+#include "logger.hpp"
 #include "nlohmann/json_fwd.hpp"
-#include "settings.hpp"
 
 namespace hashed {
 inline size_t const kAddrHash = {std::hash<std::string_view>{}("-a")};
-inline size_t const kAddrBigHash = {std::hash<std::string_view>{}("-A")};
-inline size_t const kPortHash = {std::hash<std::string_view>{}("-p")};
 inline size_t const kRoleHash = {std::hash<std::string_view>{}("-r")};
 inline size_t const kIndexHash = {std::hash<std::string_view>{}("-i")};
 inline size_t const kLibHash = {std::hash<std::string_view>{}("-l")};
@@ -29,24 +27,36 @@ class ArgHolder {
   using container = std::vector<T>;
 
  public:
+  using argsMap = std::unordered_map<size_t, std::function<bool(std::string&, ArgHolder&)>>;
   using parseToken = std::string;
   using argument_type = parseToken;
 
-  bool pushAddr(std::string&& token);
-
-  bool setArgument(std::size_t hash, std::string& value)
+  bool setArgument(std::size_t hash, std::string& value, ArgHolder::argsMap& map)
   {
     logging::SingleThreadPresets::functionCall();
-
-    auto& map = getArgSetter();
 
     auto it = map.find(hash);
     bool return_value = it != map.end();
 
-    return_value = return_value ? it->second(value) : false;
+    return_value = return_value ? it->second(value, *this) : false;
 
     return return_value;
   }  // namespace parsing
+
+  bool pushIndex(std::string token);
+  bool pushAddr(std::string token);
+  //move into
+  bool pushRole(std::string token)
+  {
+    _role = token;
+    return true;
+  }
+  //move into
+  bool pushLib(std::string token)
+  {
+    _libs.emplace_back(token);
+    return true;
+  }
 
   container<network_addr::IpAddr>&& getAddr() { return std::move(_addresses); }
   container<std::string> getLibs() { return std::move(_libs); }
@@ -54,39 +64,45 @@ class ArgHolder {
   [[nodiscard]] size_t getIndex() const { return _index; }
 
  private:
-  std::unordered_map<size_t, std::function<bool(std::string&)>>& getArgSetter()
-  {
-    static std::unordered_map<size_t, std::function<bool(std::string&)>> map = {
-        {hashed::kAddrHash,
-         [this](std::string& value) { return this->pushAddr(std::move(value)); }},
-        {hashed::kAddrBigHash,
-         [this](std::string& value) { return this->pushAddr(std::move(value)); }},
-        {hashed::kIndexHash,
-         [this](std::string& value) { return this->parseIndex(std::move(value)); }},
-        {hashed::kRoleHash,
-         [this](std::string& value) {
-           _role = std::move(value);
-           return true;
-         }},
-        {hashed::kLibHash, [this](std::string& value) {
-           _libs.emplace_back(std::move(value));
-           return true;
-         }}};
-    return map;
-  }
-
-  bool parseIndex(std::string_view index);
-
   container<network_addr::IpAddr> _addresses;
   container<std::string> _libs;
   std::string _role = "User";
   size_t _index{};
 };
 
-std::expected<ArgHolder, ParseResult> parseArguments(int argc, char** argv);
+inline bool isNumericFlag(size_t hash)
+{
+  return hash == hashed::kAddrHash || hash == hashed::kIndexHash;
+}
+
+std::expected<ArgHolder, ParseResult> parseArguments(int argc, char** argv,
+                                                     ArgHolder::argsMap& flags);
 
 custom_types::PolymorphicVectorQuad parseStringVector(nlohmann::json& json);
 
-[[nodiscard]] std::expected<AppSettings, bool> createSettings(
-    std::vector<std::string> wrapped_input, std::string_view help_text);
+inline static parsing::ArgHolder::argsMap& getArgSetterMain()
+{
+  static parsing::ArgHolder::argsMap map = {
+      {hashed::kAddrHash,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.pushAddr(std::move(value));
+       }},
+      {hashed::kIndexHash,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.pushIndex(std::move(value));
+       }},
+      {hashed::kRoleHash,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.pushRole(std::move(value));
+       }},
+      {hashed::kLibHash,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.pushLib(std::move(value));
+       }},
+      {hashed::kHelp, [](std::string&, parsing::ArgHolder&) { return true; }},
+
+  };
+
+  return map;
+}
 };  // namespace parsing

@@ -354,8 +354,7 @@ void printVector(data_storage::DataPool& arr, NonConstTag)
   std::cout << '\n';
   logging::SingleThreadPresets::menuQuit();
 }
-void sendToServer([[maybe_unused]] data_storage::DataPool& datapool,
-                  const AppSettings& settings)
+void sendToServer(data_storage::DataPool& datapool, const AppSettings& settings)
 {
 
   logging::SingleThreadPresets::functionCall();

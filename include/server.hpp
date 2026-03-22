@@ -175,4 +175,20 @@ SocketWrapper serverSetup(uint16_t port);
 void dataManipulation(std::string& result, custom_types::PolymorphicVectorQuad& vector);
 void serverTask(int client_socket, BufferPool<kThreadNum>& buffer_pool);
 int serverStart(int argc, char** argv);
+
+struct WriteSocketN {};
+struct GetSocketN {};
+
+template <typename T>
+inline int getSetServerSocket(T, int socket = 0)
+{
+  static int socket_server;
+  if constexpr (std::is_same_v<T, WriteSocketN>) {
+    socket_server = socket;
+    return 0;
+  }
+  else {
+    return socket_server;
+  }
+}
 }  // namespace server

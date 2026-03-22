@@ -116,6 +116,8 @@ SocketWrapper serverSetup(uint16_t port)
     return server_socket;
   }
 
+  getSetServerSocket(WriteSocketN{}, server_socket._socket);
+
   sockaddr_in server_addr{
       .sin_family = AF_INET, .sin_port = htons(port), .sin_addr{}, .sin_zero{}};
 

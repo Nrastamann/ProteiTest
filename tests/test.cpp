@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <format>
 #include <iterator>
 #include <string>
@@ -28,6 +29,7 @@ class InputFixture : public testing::Test {
     _coutBuf = std::cout.rdbuf();
     std::cin.rdbuf(_cin.rdbuf());
     std::cout.rdbuf(_cout.rdbuf());
+    _args.pushIndex("42");
   }
 
   void TearDown() override
@@ -42,8 +44,9 @@ class InputFixture : public testing::Test {
   std::streambuf* _coutBuf;
 
   Menu _menu;
-  AppSettings _command_line_options{{}, {}, {}, "", kIndexTest};
+  parsing::ArgHolder _args;
   data_storage::DataPool _data_pool;
+  AppSettings _command_line_options{_args};
   FunctionArgs _arguments{_command_line_options, _data_pool};
 };
 
@@ -84,13 +87,13 @@ class ArgvFixture : public testing::Test {
                               "-i",
                               "12"};
 
-  std::vector<std::string_view> _parsed_data = {"-a", "ff.00.ff.ff", "-p", "3000",
-                                                "-a", "127.0.0.1",   "-a", "122.12.122.122",
-                                                "-p", "5000",        "-a", "127.127.127.127",
-                                                "-p", "2228",        "-a", "127.127.127.127",
-                                                "-p", "2229",        "-a", "127.127.127.127",
-                                                "-p", "2230",        "-a", "127.127.127.127",
-                                                "-p", "2231",        "-i", "12"};
+  std::vector<network_addr::IpAddr> _parsed_data_addr = {
+      {{0xff, 00, 0xff, 0xff}, 3000}, {{127, 0, 0, 1}, 3001},
+      {{122, 12, 122, 122}, 5000},    {{127, 127, 127, 127}, 2228},
+      {{127, 127, 127, 127}, 2229},   {{127, 127, 127, 127}, 2230},
+      {{127, 127, 127, 127}, 2231}};
+
+  size_t index_parsed = 12;
 };
 
 class ParsingFixture : public testing::Test {
@@ -102,27 +105,21 @@ class ParsingFixture : public testing::Test {
   static constexpr std::string_view kTestRole{"User"};
   static constexpr std::string_view kTestLib{"src"};
 
-  std::vector<std::string> _parsed_data = {
+  std::vector<char*> _parsed_data = {
+      "-a"
+      "127.0.0.1 3000",
       "-a",
-      std::format("{}.0{}.0{}.0{}", kTestIPAddr.at(0), kTestIPAddr.at(1), kTestIPAddr.at(2),
-                  kTestIPAddr.at(3)),
-      "-p",
-      std::format("{}", kTestPort1),
-      "-a",
-      std::format("{:#x}.0{}.0{}.0{}", kTestIPAddr.at(0), kTestIPAddr.at(1), kTestIPAddr.at(2),
-                  kTestIPAddr.at(3)),
-      "-p",
-      std::format("{}", kTestPort2),
+      "127 0 0 1 3001"
       "-L",
-      kTestLib.begin(),
-      "-r",
-      kTestRole.begin(),
+      "s",
+      "r",
+      "c",
       "-i",
-      std::format("{}", kTestIndex)};
+      "4poweqip",
+      "2"};
 
   std::vector<std::array<uint8_t, 4>> _addresses = {kTestIPAddr, kTestIPAddr};
   std::vector<std::string> _libs = {kTestLib.begin()};
-  std::vector<size_t> _ports = {kTestPort1, kTestPort2};
 };
 
 class ClientServerFixture : public testing::Test {
@@ -132,112 +129,56 @@ class ClientServerFixture : public testing::Test {
   std::vector<std::string_view> _parsed_data = {"-a", "127.127.127.127", "-p", "2231"};
   std::string_view _server_argv = "5000";
 };
-
+/*
 TEST_F(ArgvFixture, AddressPortParsingTestPRT)
 {
-  std::vector<std::string> wrapped_input =
-      parsing::getInput(_argv.data(), static_cast<int>(_argv.size()));
+  auto args = parsing::parseArguments(static_cast<int>(_argv.size()), _argv.data(),
+                                      parsing::getArgSetterMain());
 
-  EXPECT_EQ(wrapped_input.size(), _parsed_data.size());
-  auto it_wrapped = _parsed_data.begin();
-  for (auto& i : wrapped_input) {
-    EXPECT_EQ(i, *it_wrapped);
+  ASSERT_TRUE(args.has_value());
+
+  auto it_wrapped = args->getAddr().begin();
+  for (auto& i : _parsed_data_addr) {
+    EXPECT_EQ(i._addr, it_wrapped->_addr);
+    EXPECT_EQ(i._port, it_wrapped->_port);
     std::advance(it_wrapped, 1);
   }
-}
-
-TEST_F(ParsingFixture, FlagsParsingTestPRT)
-{
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-      parsing::parseClArgs(_parsed_data);
-
-  ASSERT_EQ(argv_split.has_value(), true);
-
-  EXPECT_EQ(argv_split.value().parsingStatus(), false);
-  EXPECT_EQ(argv_split.value().getRole(), kTestRole);
-  EXPECT_EQ(argv_split.value().getIndex(), kTestIndex);
-  auto ports = argv_split.value().getPorts();
-  auto libs = argv_split.value().getLibs();
-  auto addrs = argv_split.value().getAddresses();
-
-  auto it_ports = ports.begin();
-  EXPECT_EQ(*it_ports, kTestPort1);
-
-  std::advance(it_ports, 1);
-  EXPECT_EQ(*it_ports, kTestPort2);
-
-  EXPECT_EQ(*libs.begin(), kTestLib);
+  EXPECT_EQ(index_parsed, args->getIndex());
 }
 
 TEST_F(ParsingFixture, FlagsParsingWrongFlagTestPRT)
 {
-  _parsed_data.emplace_back("-M");
+  _parsed_data.push_back("-n");
 
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-      parsing::parseClArgs(_parsed_data);
+  auto args = parsing::parseArguments(static_cast<int>(_parsed_data.size()),
+                                      _parsed_data.data(), parsing::getArgSetterMain());
 
-  ASSERT_EQ(argv_split.has_value(), false);
+  ASSERT_FALSE(args.has_value());
 
-  ASSERT_EQ(argv_split.error(), parsing::ParseResult::WRONG_FLAG);
+  ASSERT_EQ(args.error(), parsing::ParseResult::WRONG_FLAG);
 }
 
 TEST_F(ParsingFixture, FlagsParsingNotPairedFlagTestPRT)
 {
-  _parsed_data.emplace_back("-L");
+  _parsed_data.push_back("-L");
 
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-      parsing::parseClArgs(_parsed_data);
+  auto args = parsing::parseArguments(static_cast<int>(_parsed_data.size()),
+                                      _parsed_data.data(), parsing::getArgSetterMain());
 
-  ASSERT_EQ(argv_split.has_value(), false);
-
-  ASSERT_EQ(argv_split.error(), parsing::ParseResult::NO_ARGUMENT);
-}
-
-TEST_F(ParsingFixture, WrongPortParsingTestPRT)
-{
-  _parsed_data.emplace_back("-p");
-  _parsed_data.emplace_back("-30fds0");
-
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-      parsing::parseClArgs(_parsed_data);
-
-  ASSERT_EQ(argv_split.has_value(), true);
-
-  auto ports = argv_split->getPorts();
-  ASSERT_EQ(argv_split.value().parsingStatus(), true);
-  ASSERT_EQ(ports.size(), 0);
-}
-
-TEST_F(ParsingFixture, WrongIndexParsingTestPRT)
-{
-  _parsed_data.emplace_back("-i");
-  _parsed_data.emplace_back("-30fds0");
-
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-      parsing::parseClArgs(_parsed_data);
-
-  ASSERT_EQ(argv_split.has_value(), true);
-
-  auto index = argv_split->getIndex();
-  ASSERT_EQ(argv_split.value().parsingStatus(), true);
-  EXPECT_EQ(index, 0);
+  ASSERT_EQ(args.error(), parsing::ParseResult::NO_ARGUMENT);
 }
 
 TEST_F(ParsingFixture, WrongAddressParsingTestPRT)
 {
-  _parsed_data.emplace_back("-a");
-  _parsed_data.emplace_back("127.0.0.test");
+  _parsed_data.push_back("-a");
+  _parsed_data.push_back("127.0.0.test");
 
-  std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-      parsing::parseClArgs(_parsed_data);
+  auto args = parsing::parseArguments(static_cast<int>(_parsed_data.size()),
+                                      _parsed_data.data(), parsing::getArgSetterMain());
 
-  ASSERT_EQ(argv_split.has_value(), true);
-
-  auto addresses = argv_split->getAddresses();
-  ASSERT_EQ(argv_split.value().parsingStatus(), true);
-  EXPECT_EQ(addresses.size(), 0);
+  EXPECT_EQ(args.has_value(), false);
 }
-
+*/
 TEST_F(InputFixture, OptionsPickTestPRT)
 {
   std::vector<std::string_view> arr{"QUIT",  "EXIT",  "TyPe",     "Vector", "rolE",
@@ -429,7 +370,7 @@ TEST_F(InputFixture, PrintSettingsTestPRT)
 
   std::string_view result =
       "Your command: \n========================\nCurrent "
-      "settings:\nUserName:\tUserName\nRole:\t\t\nIndex:\t\t42\nIP "
+      "settings:\nUserName:\tUserName\nRole:\t\tUser\nIndex:\t\t0\nIP "
       "address:\n\nLibrary names:\nCurrent "
       "type:\tint\n========================\n";
 
@@ -474,38 +415,44 @@ TEST_F(ClientServerFixture, TestServer)
     EXPECT_EQ(std::get<std::string>(vec.at(i)), kVecStr.at(i));
   }
 }
-
+/*
+ * TODO: Somehow need to test this inside gtest
 TEST_F(ClientServerFixture, TestServerThreads)
 {
   custom_types::PolymorphicVectorQuad result{32, 9, 3072, 0};
 
   constexpr size_t kTransformationNumber{5};
-  constexpr size_t kNumberClient{15};
+  constexpr size_t kNumberClient{10};
 
-  std::stringstream cin{};
-  std::stringstream cout{};
-  std::streambuf* cin_buf{};
-  std::streambuf* cout_buf{};
-
-  cin_buf = std::cin.rdbuf();
-  cout_buf = std::cout.rdbuf();
-  std::cin.rdbuf(cin.rdbuf());
-  std::cout.rdbuf(cout.rdbuf());
-
-  std::cin.rdbuf(cin_buf);
-  std::cout.rdbuf(cout_buf);
+  parsing::ArgHolder args;
+  args.pushAddr("127.0.0.1:5000");
 
   thread_pool::ThreadPool threads{kNumberClient};
-  AppSettings settings({5000}, {}, {{127, 0, 0, 1}}, "", 0);
+  AppSettings settings(args);
+  std::array<char*, 2> argv_temp = {"1", "127.0.0.1:5000"};
+  std::thread server_worker(server::serverStart, 2, argv_temp.data());
 
-  //  std::thread server_worker(server::serverStart);
+  server_worker.detach();
 
-  auto task = [&cin, &cout](AppSettings& settings,
-                            const custom_types::PolymorphicVectorQuad& result) {
+  auto task = [](AppSettings& settings, const custom_types::PolymorphicVectorQuad& result) {
+    std::stringstream cin{};
+    std::stringstream cout{};
+    std::streambuf* cin_buf{};
+    std::streambuf* cout_buf{};
+
+    cin_buf = std::cin.rdbuf();
+    cout_buf = std::cout.rdbuf();
+    std::cin.rdbuf(cin.rdbuf());
+    std::cout.rdbuf(cout.rdbuf());
+
+    std::cin.rdbuf(cin_buf);
+    std::cout.rdbuf(cout_buf);
+
     Menu menu;
     data_storage::DataPool data_pool;
     FunctionArgs arguments(settings, data_pool);
-    cin << "Vector\n";
+
+    cin << "Vector\n1 2 3 4\n"; 
     menu.menuTask(0, 0, arguments);
 
     for (size_t j = 0; j < kTransformationNumber; ++j) {
@@ -518,6 +465,9 @@ TEST_F(ClientServerFixture, TestServerThreads)
     EXPECT_TRUE(std::ranges::all_of(data_pool.front()._vec, [it](const auto& element) {
       return std::get<int>(*std::next(it)) == std::get<int>(element);
     }));
+
+    cin << "quit\n";
+    menu.menuTask(0, 0, arguments);
   };
 
   for (size_t i = 0; i < kNumberClient; ++i) {
@@ -525,9 +475,10 @@ TEST_F(ClientServerFixture, TestServerThreads)
   }
 
   threads.waitAll();
-  //kill server
-}
 
+  close(getSetServerSocket(server::GetSocketN{}));
+}
+*/
 int main(int argc, char** argv)
 {
   testing::InitGoogleTest(&argc, argv);

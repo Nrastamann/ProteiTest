@@ -12,8 +12,8 @@ void displayMenu()
   std::cout << hint_text << delimeter << '\n';
 
   std::cout << "Name\t\tenter your name\n";
-  std::cout << "Send\t\tsend front vector to server and push changed vector to "
-               "the back\n";
+  std::cout << "Send\t\tsend front vector to server and push recieved vector to"
+               "the back (supports multiple server connection)\n";
   std::cout << "Type\t\tenter type\n";
   std::cout << "Clear\t\tclear screen\n";
   std::cout << "Settings:\tprint settings\n";

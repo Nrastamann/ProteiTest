@@ -15,7 +15,10 @@ struct IpAddr {
  public:
   std::array<uint8_t, kIpAddrOctetAmount> _addr;
   uint16_t _port;
-
+  IpAddr() = default;
+  IpAddr(std::array<uint8_t, kIpAddrOctetAmount> arr, uint16_t port) : _addr(arr), _port(port)
+  {
+  }
   [[nodiscard]] uint32_t addrToNetwork() const
   {
     return static_cast<uint32_t>(_addr[3] << kFourthByteShift | _addr[2] << kThirdByteShift |

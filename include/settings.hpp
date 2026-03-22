@@ -1,5 +1,4 @@
 #pragma once
-#include <array>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -7,6 +6,7 @@
 #include "custom_types.hpp"
 #include "ip_addr.hpp"
 #include "logger.hpp"
+#include "parsing.hpp"
 #include "resources_test.hpp"
 
 /**
@@ -18,41 +18,13 @@
  * If there's no error during getting resources - _should_close sets to false
  */
 class AppSettings {
-
-  std::vector<std::string> _lib_name;
-  std::vector<network_addr::IpAddr> _addresses;
-
-  std::string _role{};
-  std::string _name{};
-  size_t _type_hash{};
-  custom_types::EnumTypes _type_enum{};
-
-  size_t _index{};
-  bool _should_close = false;
-
  public:
-  AppSettings(
-      std::vector<uint16_t> ports, std::vector<std::string> lib_names,
-      std::vector<std::array<unsigned char, network_addr::kIpAddrOctetAmount>> addresses,
-      std::string_view role, size_t index, std::string&& userName = "UserName",
-      size_t type_hash = hashed::kInt,
-      custom_types::EnumTypes type_enum = custom_types::EnumTypes::Int)
-      : _lib_name(std::move(lib_names)),
-        _role(role),
-        _name(std::move(userName)),
-        _type_hash(type_hash),
-        _type_enum(type_enum),
-        _index(index)
+  explicit AppSettings(parsing::ArgHolder& arguments)
+      : _lib_name(arguments.getLibs()),
+        _addresses(arguments.getAddr()),
+        _role(arguments.getRole()),
+        _index(arguments.getIndex())
   {
-    if (addresses.size() != ports.size()) {
-      logging::SingleThreadPresets::defaultError("Adresses number not equal ports");
-      _should_close = true;
-      return;
-    }
-    for (size_t i = 0; i < addresses.size(); ++i) {
-      _addresses.push_back({addresses[i], ports[i]});
-    }
-
     logging::SingleThreadPresets::createObject<resources_tests::ResourceTest>();
     logging::SingleThreadPresets::createObject<resources_tests::ConnectionTest>();
 
@@ -81,6 +53,19 @@ class AppSettings {
 
   void setTypeHash(size_t hash) { _type_hash = hash; }
   void setTypeEnum(custom_types::EnumTypes type) { _type_enum = type; }
+
+ private:
+  std::vector<std::string> _lib_name;
+  std::vector<network_addr::IpAddr> _addresses;
+
+  std::string _role;
+  std::string _name{"UserName"};
+
+  size_t _type_hash{hashed::kInt};
+  size_t _index;
+
+  custom_types::EnumTypes _type_enum{custom_types::EnumTypes::Int};
+  bool _should_close{false};
 };
 
 namespace ui_protei {
