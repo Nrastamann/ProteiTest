@@ -7,11 +7,12 @@
 #include "thread_pool.hpp"
 
 static constexpr std::string_view kHelpText =
-    "Usage: proteip.server -p port [-h help]\n\
+    "Usage: proteip.server -p port [-h help] [-v verbosity]\n\
 \n\
 \
 -p - порт на котором запущен сервер\n\
 -h - справка\n\
+-v - уровень логгирования (Error, Warning, Info, Debug, Trace)\n\
 \n\
 Пример использования:\n\
 ./proteip.server -p 4444\n\
@@ -45,7 +46,10 @@ inline static parsing::ArgHolder::argsMap& getArgSetterServer()
          return holder.pushIndex(std::move(value));
        }},
       {hashed::kHelp, [](std::string&, parsing::ArgHolder&) { return true; }},
-
+      {hashed::kVerbosity,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.setLog(std::move(value), logging::MultithreadingPolicy{});
+       }},
   };
 
   return map;

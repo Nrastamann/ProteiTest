@@ -11,7 +11,7 @@
 #include "settings.hpp"
 
 static constexpr std::string_view kHelpText =
-    "Usage: proteip: [-a server_address port] [-i index] [-r role] [-l - lib_name] [-h help]\n\
+    "Usage: proteip: [-a server_address port] [-i index] [-r role] [-l - lib_name] [-h help] [-v verbosity]\n\
 \n\
 \
 -a - IP Адрес сервера в следующих форматах:\n\
@@ -26,6 +26,7 @@ static constexpr std::string_view kHelpText =
 -r - Роль пользователя, выводится через опцию settings(Не используется)\n\
 -l - Путь к файлу, используется в ResourceTest, проверяет на существование(Не используется)\n\
 -h - справка\n\
+-v - уровень логгирования (Error, Warning, Info, Debug, Trace)\n\
 \n\
 Пример использования:\n\
 ./proteip -a 127.0.0.1 som_txt_to_tst_tht_works_8888 -a 7f.0.0.1 5000 -a 127.0.0.1:4222 -r R o l e N a m e -i 1 1 -l s r c/\n\

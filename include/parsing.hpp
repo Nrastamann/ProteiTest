@@ -1,4 +1,6 @@
 #pragma once
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <expected>
 #include <functional>
@@ -7,6 +9,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#include "config.hpp"
 #include "custom_types.hpp"
 #include "ip_addr.hpp"
 #include "logger.hpp"
@@ -19,6 +22,7 @@ inline size_t const kIndexHash = {std::hash<std::string_view>{}("-i")};
 inline size_t const kLibHash = {std::hash<std::string_view>{}("-l")};
 inline size_t const kHelp = {std::hash<std::string_view>{}("-h")};
 inline size_t const kPort = {std::hash<std::string_view>{}("-p")};
+inline size_t const kVerbosity = {std::hash<std::string_view>{}("-v")};
 }  // namespace hashed
 
 namespace parsing {
@@ -46,6 +50,24 @@ class ArgHolder {
 
   bool pushIndex(std::string token);
   bool pushAddr(std::string token);
+  template <logging::LoggerPolicy T>
+  bool setLog(std::string token, T)
+  {
+    std::ranges::transform(token, token.begin(), ::tolower);
+
+    config::LogVerbosity log_level = config::fromStr(token);
+
+    switch (log_level) {
+      case config::LogVerbosity::WRONG_FLAG:
+        return false;
+      default:
+        _log_level = log_level;
+        logging::SingleThreadLogger::verbosity_logger = {_log_level};
+        logging::MultithreadLogger::verbosity_logger = {_log_level};
+    }
+    return true;
+  }
+
   //move into
   bool pushRole(std::string token)
   {
@@ -69,6 +91,7 @@ class ArgHolder {
   container<std::string> _libs;
   std::string _role = "User";
   size_t _index{};
+  config::LogVerbosity _log_level{config::LogVerbosity::Info};
 };
 
 inline bool isNumericFlag(size_t hash)
@@ -101,6 +124,10 @@ inline static parsing::ArgHolder::argsMap& getArgSetterMain()
          return holder.pushLib(std::move(value));
        }},
       {hashed::kHelp, [](std::string&, parsing::ArgHolder&) { return true; }},
+      {hashed::kVerbosity,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.setLog(std::move(value), logging::SingleThreadPolicy{});
+       }},
 
   };
 

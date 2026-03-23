@@ -253,11 +253,11 @@ std::expected<ArgHolder, ParseResult> parseArguments(int argc, char** argv,
   argc--;
   storage._argc_initial = argc;
   ArgHolder argument_holder{};
-
+  std::string_view argument_wrapped{};  //for error printing
   std::string token{};
 
   for (auto* argument : argv_wrapped) {
-    std::string_view argument_wrapped{argument};
+    argument_wrapped = {argument};
 
     std::pair<std::span<char>, std::string_view> possible_flag =
         checkForFlag(token, storage._delimeter, argument);
@@ -295,9 +295,9 @@ std::expected<ArgHolder, ParseResult> parseArguments(int argc, char** argv,
 
   if (token.size() != 0) {
     if (!argument_holder.setArgument(storage._hash, token, flags_map)) {
-      logging::SingleThreadPresets::defaultError(
-          std::format("Couldn't parse token {} with flag {}", token, storage._hash));
-      return std::unexpected(ParseResult::WRONG_FLAG);
+      logging::SingleThreadPresets::defaultError(std::format(
+          "Couldn't parse token \"{}\" with flag {}", argument_wrapped, storage._hash));
+      return std::unexpected(ParseResult::SV_PARSING_ERR);
     }
     //fix to parse -a127.0.0.1:5000
     storage._argc_initial++;

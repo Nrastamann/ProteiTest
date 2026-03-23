@@ -71,11 +71,12 @@ class Logger {
   }
 
  public:
+  inline static config::LogVerbosity verbosity_logger;
   template <config::LogVerbosity LogLevel>
   static void writeToLog(std::string_view str,
                          std::source_location loc = std::source_location::current())
   {
-    if (!log_on || LogLevel > verbosity) {
+    if (!log_on || LogLevel > verbosity_logger) {
       return;
     }
     writeImpl<LogLevel>(str, loc, Policy{});
@@ -85,7 +86,7 @@ class Logger {
   static void writeToLogNCl(std::string_view str,
                             std::source_location loc = std::source_location::current())
   {
-    if (verbosity <= LogLevel) {
+    if (verbosity_logger < LogLevel) {
       return;
     }
     std::cout << str << '\n';
@@ -180,8 +181,7 @@ class Logger {
   static void loggerInit(const std::string& path = "logs",
                          config::LogVerbosity log_level = config::LogVerbosity::Info)
   {
-
-    verbosity = log_level;
+    verbosity_logger = log_level;
     log_file = path;
     log_on = true;
 
@@ -208,7 +208,6 @@ class Logger {
       file.close();
     }
   }
-
   Logger() = default;
   ~Logger() = default;
   Logger(const Logger&) = delete;
@@ -218,7 +217,6 @@ class Logger {
 
  private:
   inline static std::string log_file;
-  inline static config::LogVerbosity verbosity;
   inline static std::mutex log_access;
   inline static bool log_on{false};
 };
