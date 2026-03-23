@@ -45,26 +45,6 @@ class InputFixture : public benchmark::Fixture {
   FunctionArgs _arguments{_command_line_options, _data_pool};
 };
 
-BENCHMARK_F(InputFixture, OptionsPickTest)(benchmark::State& st)
-{
-  std::vector<std::string_view> arr{"QUIT",  "EXIT",  "TyPe",     "Vector", "rolE",
-                                    "PRINT", "EmpTY", "Settings", "Send",   "Clear"};
-  const auto& menu_options = custom_types::getMenuOptions();
-  size_t i = 0;
-
-  for (auto _ : st) {
-    while (i++ < kTestCount) {
-      std::string str;
-      for (const auto& input_str : arr) {
-        _cin << input_str;
-        _cin >> str;
-        std::ranges::transform(str, str.begin(), ::tolower);
-        menu_options.contains(std::hash<std::string_view>{}(str));
-      }
-    }
-  }
-}
-
 BENCHMARK_F(InputFixture, TypeTest)(benchmark::State& st)
 {
   std::vector<std::string_view> types{

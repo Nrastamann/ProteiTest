@@ -28,7 +28,10 @@ void printAppSettings(AppSettings const& settings)
   }
 
   std::cout << "Current type:\t"
-            << custom_types::getHashToTypeInfo().at(settings.cgetTypeHash()).second << '\n';
+            << custom_types::getTypename(
+                   custom_types::getDefaultValues().at(settings.cgetTypeHash()))
+            << '\n';
+
   std::cout << "========================\n";
 }
 

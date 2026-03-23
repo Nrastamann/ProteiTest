@@ -18,33 +18,6 @@
 #include "menu_functions.hpp"
 #include "resources_test.hpp"
 
-namespace custom_types {
-const std::unordered_map<EnumTypes, any_type>& getDefaultValues()
-{
-  static std::unordered_map<EnumTypes, any_type> type_dispatch{
-      {EnumTypes::Bool, false},
-      {EnumTypes::Char, char{}},
-      {EnumTypes::Double, 0.},
-      {EnumTypes::Float, 0.F},
-      {EnumTypes::Int, 0},
-      {EnumTypes::Int16, static_cast<int16_t>(0)},
-      {EnumTypes::Int32, static_cast<int32_t>(0)},
-      {EnumTypes::Int64, static_cast<int64_t>(0)},
-      {EnumTypes::Int8, static_cast<int8_t>(0)},
-      {EnumTypes::UInt16, static_cast<uint16_t>(0)},
-      {EnumTypes::UInt32, static_cast<uint32_t>(0)},
-      {EnumTypes::UInt64, static_cast<uint64_t>(0)},
-      {EnumTypes::UInt8, static_cast<uint8_t>(0)},
-      {EnumTypes::String, ""},
-
-  };
-
-  logging::SingleThreadPresets::createdStaticContainer(
-      "EnumTypes - default_value - unordered_map");
-  return type_dispatch;
-}
-}  // namespace custom_types
-
 namespace menu_functions {
 static constexpr size_t kMaxBuffer{4096};
 
@@ -56,10 +29,8 @@ static inline std::from_chars_result convertAnyType(std::string_view string_inpu
 
   std::from_chars_result conv_result{};
 
-  T result{};
-  conv_result = std::from_chars(string_input.begin(), string_input.end(), result);
+  conv_result = std::from_chars(string_input.begin(), string_input.end(), emplace_element);
 
-  emplace_element = result;
   return conv_result;
 }
 
@@ -82,15 +53,14 @@ static inline std::from_chars_result convertAnyTypeBool(std::string_view string_
 
   std::from_chars_result conv_result{.ptr = string_input.end(), .ec = std::errc()};
 
-  bool result = hashed_input == hashed::kTrueSymbolic;
+  emplace_element = hashed_input == hashed::kTrueSymbolic;
 
-  if (!result && hashed_input != hashed::kFalseSymbolic) {
+  if (!emplace_element && hashed_input != hashed::kFalseSymbolic) {
     size_t input{};
     conv_result = std::from_chars(string_input.begin(), string_input.end(), input);
-    result = input == 1;
+    emplace_element = input == 1;
   }
 
-  emplace_element = result;
   return conv_result;
 }
 
@@ -111,7 +81,7 @@ static nlohmann::json getJson(data_storage::PolymorphicDimensionalVector& vector
         i);
   }
 
-  json_to_send["TypeHash"] = vector._type_hash;
+  json_to_send["TypeHash"] = vector.getHash();
   json_to_send["Vector"] = std::move(vector_str);
 
   return json_to_send;
@@ -160,8 +130,12 @@ static bool sendToSocket(const network_addr::IpAddr& ip_addr, std::string_view s
   }
 
   json_to_send = nlohmann::json::parse(str_to_get);
-  datapool.push(data_storage::PolymorphicDimensionalVector{
-      parsing::parseStringVector(json_to_send), json_to_send["TypeHash"]});
+  auto parse_result = parsing::parseStringVector(json_to_send);
+  if (!parse_result.has_value()) {
+    return false;
+  }
+
+  datapool.push(data_storage::PolymorphicDimensionalVector{std::move(parse_result.value())});
 
   close(client_socket);
   return true;
@@ -194,7 +168,8 @@ void changeType(AppSettings& settings)
 
   display::clearScreen();
   std::string string_input;
-  const auto& implemented_types_reference = custom_types::getHashToTypeInfo();
+
+  const auto& type_dispatch = custom_types::getDefaultValues();
 
   while (true) {
     std::cout << "Enter new type (name must correspond with c++ types) or "
@@ -214,9 +189,8 @@ void changeType(AppSettings& settings)
       return;
     }
 
-    if (std::cin.good() && implemented_types_reference.contains(hashed_input)) {
+    if (std::cin.good() && type_dispatch.contains(hashed_input)) {
       settings.setTypeHash(hashed_input);
-      settings.setTypeEnum(custom_types::getHashToTypeInfo().at(hashed_input).first);
 
       logging::SingleThreadPresets::menuQuit();
       return;
@@ -261,10 +235,10 @@ void enterVector(data_storage::DataPool& vector, AppSettings const& settings)
 {
   namespace rn = std::ranges;
   logging::SingleThreadPresets::functionCall();
-
+  auto& default_values = custom_types::getDefaultValues().at(settings.cgetTypeHash());
   custom_types::PolymorphicVectorQuad spare_vector;
   std::cout << "Enter " << custom_types::kVectorDimensionsAmount << "-dimensional vector of "
-            << custom_types::getHashToTypeInfo().at(settings.cgetTypeHash()).second
+            << custom_types::getTypename(default_values)
             << " or "
                "enter 'quit' if you've changed your "
                "mind.\nFormat is "
@@ -272,7 +246,7 @@ void enterVector(data_storage::DataPool& vector, AppSettings const& settings)
 
   bool is_conversion_not_done = true;
   std::string string_input;
-  const auto& default_value = custom_types::getDefaultValues().at(settings.cgetTypeEnum());
+  const auto& default_value = custom_types::getDefaultValues().at(settings.cgetTypeHash());
 
   rn::fill(spare_vector, default_value);
 
@@ -304,8 +278,7 @@ void enterVector(data_storage::DataPool& vector, AppSettings const& settings)
   }
 
   logging::SingleThreadPresets::menuQuit();
-  vector.push(
-      data_storage::PolymorphicDimensionalVector{spare_vector, settings.cgetTypeHash()});
+  vector.push(data_storage::PolymorphicDimensionalVector{spare_vector});
 }
 
 void emptyQueue(data_storage::DataPool& data_pool, NonConstTag)
@@ -314,17 +287,15 @@ void emptyQueue(data_storage::DataPool& data_pool, NonConstTag)
   logging::SingleThreadPresets::functionCall();
 
   while (data_pool.size() > 0) {
-    auto vec = data_pool.front()._vec;
-    for (const auto& i : vec) {
+    auto vec = data_pool.front();
+    for (const auto& i : vec._vec) {
       std::visit(custom_types::Visitor{
                      [](auto const& variant_val) { std::cout << variant_val << ' '; },
                      [](int8_t value) { std::cout << +value << ' '; },
                      [](uint8_t value) { std::cout << +value << ' '; }},
                  i);
     }
-    std::cout << " - "
-              << custom_types::getHashToTypeInfo().at(data_pool.front()._type_hash).second
-              << '\n';
+    std::cout << " - " << vec.getTypename() << '\n';
 
     data_pool.pop();
   }
@@ -354,6 +325,7 @@ void printVector(data_storage::DataPool& arr, NonConstTag)
   std::cout << '\n';
   logging::SingleThreadPresets::menuQuit();
 }
+
 void sendToServer(data_storage::DataPool& datapool, const AppSettings& settings)
 {
 
@@ -375,7 +347,10 @@ void sendToServer(data_storage::DataPool& datapool, const AppSettings& settings)
   str_to_get.resize(kMaxBuffer);
 
   for (const auto& ip_addr : addresses) {
-    sendToSocket(ip_addr, str_to_send, str_to_get, json_to_send, datapool);
+    if (!sendToSocket(ip_addr, str_to_send, str_to_get, json_to_send, datapool)) {
+      logging::SingleThreadPresets::defaultError(
+          std::format("Couldn't send/process/recieve data at {}", ip_addr));
+    }
   }
   datapool.pop();
 }

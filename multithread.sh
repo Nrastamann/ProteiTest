@@ -58,6 +58,14 @@ while getopts "a:p:n:t:N:B:c:" flag; do
                         exit 0;;
         esac
 done
+
+if [ ! -f "$COMMAND_FILE" ]; then
+        echo "NO FILE WITH COMMANDS"
+        exit 1
+fi
+
+
+
 if [ "${BUILD_DIRECTORY}" == "" ]; then
         printf "$HELP_TEXT" $0
         exit 1

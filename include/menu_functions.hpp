@@ -1,6 +1,5 @@
 #pragma once
 #include <iostream>
-#include <unordered_map>
 #include "data_pool.hpp"
 
 #include "custom_types.hpp"
@@ -11,10 +10,6 @@ struct NonConstTag {};
 namespace hashed {
 inline size_t const kQuit = std::hash<std::string_view>{}("quit");
 }  // namespace hashed
-
-namespace custom_types {
-const std::unordered_map<EnumTypes, any_type>& getDefaultValues();
-}  // namespace custom_types
 
 namespace hashed {
 inline size_t const kTrueSymbolic = std::hash<std::string_view>{}("true");

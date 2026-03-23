@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <variant>
@@ -24,39 +25,6 @@ inline size_t const kUInt64 = std::hash<std::string_view>{}("uint64_t");
 }  // namespace hashed
 
 namespace custom_types {
-enum class EnumTypes : uint8_t {
-  Int,
-  Float,
-  Double,
-  Char,
-  String,
-  Bool,
-  Int8,
-  Int16,
-  Int32,
-  Int64,
-  UInt8,
-  UInt16,
-  UInt32,
-  UInt64,
-};
-
-enum class MenuOptions : uint8_t {
-  ChangeRole,
-  ChangeType,
-  PrintSettings,
-  EnterVector,
-  PrintCurrentVector,
-  QuitProgram,
-  WrongOption,
-  EmptyQueue,
-  SendToServer,
-  EmptyFunction,
-};
-
-std::unordered_map<size_t, std::pair<EnumTypes, std::string_view>> const& getHashToTypeInfo();
-std::unordered_map<size_t, MenuOptions> const& getMenuOptions();
-
 template <typename... Callable>
 struct Visitor : Callable... {
   using Callable::operator()...;
@@ -66,6 +34,10 @@ static constexpr size_t kVectorDimensionsAmount{4};
 
 using any_type = std::variant<float, double, char, std::string, bool, int8_t, int16_t, int32_t,
                               int64_t, uint8_t, uint16_t, uint32_t, uint64_t>;
+
+std::string_view getTypename(const any_type& value);
+size_t getHash(const any_type& value);
+std::unordered_map<size_t, any_type>& getDefaultValues();
 
 template <size_t N>
 using PolymorphicVector = std::array<any_type, kVectorDimensionsAmount>;

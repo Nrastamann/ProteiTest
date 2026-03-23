@@ -123,10 +123,13 @@ void serverTask(int client, BufferPool<kThreadNum>& buffer_pool)
   logging::MultithreadLogger::writeToLogNCl<config::LogVerbosity::Info>(
       std::format("{}", json_buffer.dump(4)));
 
-  custom_types::PolymorphicVectorQuad vector = parsing::parseStringVector(json_buffer);
+  auto vector = parsing::parseStringVector(json_buffer);
+  if (!vector.has_value()) {
+    return;
+  }
 
   std::string result;
-  dataManipulation(result, vector);
+  dataManipulation(result, vector.value());
 
   json_buffer["Vector"] = result;
   result = json_buffer.dump();

@@ -102,7 +102,8 @@ inline bool isNumericFlag(size_t hash)
 std::expected<ArgHolder, ParseResult> parseArguments(int argc, char** argv,
                                                      ArgHolder::argsMap& flags);
 
-custom_types::PolymorphicVectorQuad parseStringVector(nlohmann::json& json);
+std::expected<custom_types::PolymorphicVectorQuad, ParseResult> parseStringVector(
+    nlohmann::json& json);
 
 inline static parsing::ArgHolder::argsMap& getArgSetterMain()
 {

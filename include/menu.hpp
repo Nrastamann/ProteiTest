@@ -13,6 +13,7 @@ inline size_t const kPrint = std::hash<std::string_view>{}("print");
 inline size_t const kEmptyQueue = std::hash<std::string_view>{}("empty");
 inline size_t const kSettingsMenu = std::hash<std::string_view>{}("settings");
 inline size_t const kExit = std::hash<std::string_view>{}("exit");
+inline size_t const kWrongInput = std::hash<std::string_view>{}("wrong input");
 inline size_t const kClear = std::hash<std::string_view>{}("clear");
 inline size_t const kSend = std::hash<std::string_view>{}("send");
 }  // namespace hashed
@@ -64,7 +65,7 @@ struct MenuItem {
 };
 
 class Menu {
-  using function_container = std::unordered_map<custom_types::MenuOptions, MenuItem>;
+  using function_container = std::unordered_map<size_t, MenuItem>;
 
   using ref_function_container = function_container&;
   using cref_function_container = const function_container&;
@@ -78,11 +79,14 @@ class Menu {
   Menu& operator=(Menu&&) = delete;
 
   template <typename U, typename V>
-  void callFunction(custom_types::MenuOptions option, [[maybe_unused]] U&& pre_hook_arg,
+  void callFunction(size_t hash, [[maybe_unused]] U&& pre_hook_arg,
                     [[maybe_unused]] V&& post_hook_arg, FunctionArgs& arguments) const
   {
     logging::SingleThreadPresets::functionCall();
-    const MenuItem& menu_item = _items.at(option);
+    auto it = _items.find(hash);
+
+    const MenuItem& menu_item =
+        it == _items.end() ? _items.at(hashed::kWrongInput) : it->second;
 
     menu_hooks::callHook(menu_item._pre_hook);
     callFunctionVariant(menu_item._fn, arguments);
@@ -106,13 +110,7 @@ class Menu {
 
     size_t input_hash = std::hash<std::string_view>{}(text_option);
 
-    bool is_correct_option = _menu_options.contains(input_hash);
-
-    custom_types::MenuOptions picked_option = is_correct_option
-                                                  ? _menu_options.at(input_hash)
-                                                  : custom_types::MenuOptions::WrongOption;
-
-    callFunction(picked_option, 0, 0, arguments);
+    callFunction(input_hash, 0, 0, arguments);
   }
 
  private:
@@ -142,46 +140,43 @@ class Menu {
 
   static cref_function_container getContainer()
   {
-    using custom_types::MenuOptions;
     static function_container functions{
-        {MenuOptions::ChangeType,
+        {hashed::kTypeMenu,
          MenuItem{menu_functions::changeType, menu_hooks::pre_hooks_protei::defaultClear,
                   menu_hooks::post_hooks_protei::defaultClear}},
 
-        {MenuOptions::EmptyQueue, MenuItem{menu_functions::emptyQueue, menu_hooks::defaultEmpty,
-                                           menu_hooks::post_hooks_protei::clearBuffer}},
-
-        {MenuOptions::ChangeRole,
+        {hashed::kEmptyQueue, MenuItem{menu_functions::emptyQueue, menu_hooks::defaultEmpty,
+                                       menu_hooks::post_hooks_protei::clearBuffer}},
+        {hashed::kNameMenu,
          MenuItem{menu_functions::changeName, menu_hooks::pre_hooks_protei::defaultClear,
                   menu_hooks::post_hooks_protei::defaultClear}},
 
-        {MenuOptions::EnterVector,
+        {hashed::kVectorMenu,
          MenuItem{menu_functions::enterVector, menu_hooks::pre_hooks_protei::defaultClear,
                   menu_hooks::post_hooks_protei::defaultClear}},
 
-        {MenuOptions::PrintCurrentVector,
-         MenuItem{menu_functions::printVector, menu_hooks::defaultEmpty,
-                  menu_hooks::post_hooks_protei::clearBuffer}},
+        {hashed::kPrint, MenuItem{menu_functions::printVector, menu_hooks::defaultEmpty,
+                                  menu_hooks::post_hooks_protei::clearBuffer}},
 
-        {MenuOptions::PrintSettings,
+        {hashed::kSettingsMenu,
          MenuItem{menu_functions::printCurrentAppSettings, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
 
-        {MenuOptions::WrongOption,
-         MenuItem{menu_functions::wrongOption, menu_hooks::defaultEmpty,
-                  menu_hooks::post_hooks_protei::clearBuffer}},
+        {hashed::kWrongInput, MenuItem{menu_functions::wrongOption, menu_hooks::defaultEmpty,
+                                       menu_hooks::post_hooks_protei::clearBuffer}},
 
-        {MenuOptions::QuitProgram, MenuItem{menu_functions::quit, menu_hooks::defaultEmpty,
-                                            menu_hooks::post_hooks_protei::clearBuffer}},
+        {hashed::kQuit, MenuItem{menu_functions::quit, menu_hooks::defaultEmpty,
+                                 menu_hooks::post_hooks_protei::clearBuffer}},
+        {hashed::kExit, MenuItem{menu_functions::quit, menu_hooks::defaultEmpty,
+                                 menu_hooks::post_hooks_protei::clearBuffer}},
 
-        {MenuOptions::SendToServer,
-         MenuItem{menu_functions::sendToServer, menu_hooks::defaultEmpty,
-                  menu_hooks::post_hooks_protei::clearBuffer}},
+        {hashed::kSend, MenuItem{menu_functions::sendToServer, menu_hooks::defaultEmpty,
+                                 menu_hooks::post_hooks_protei::clearBuffer}},
 
-        {MenuOptions::EmptyFunction,
-         MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
-                  menu_hooks::post_hooks_protei::defaultClear}},
+        {hashed::kClear, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
+                                  menu_hooks::post_hooks_protei::defaultClear}},
     };
+
     logging::SingleThreadPresets::createdStaticContainer(
         "MenuOptions - MenuItem unordered_map");
 
@@ -189,6 +184,4 @@ class Menu {
   }
 
   cref_function_container _items = getContainer();
-  const std::unordered_map<size_t, custom_types::MenuOptions>& _menu_options =
-      custom_types::getMenuOptions();
 };

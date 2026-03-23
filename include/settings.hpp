@@ -34,7 +34,6 @@ class AppSettings {
   [[nodiscard]] std::vector<network_addr::IpAddr>& getAddr() { return _addresses; }
   [[nodiscard]] std::vector<std::string> const& cGetLibName() const { return _lib_name; }
   [[nodiscard]] size_t cgetTypeHash() const { return _type_hash; }
-  [[nodiscard]] custom_types::EnumTypes cgetTypeEnum() const { return _type_enum; }
   [[nodiscard]] std::string_view cgetName() const { return _name; }
   [[nodiscard]] std::string_view cgetRole() const { return _role; }
   [[nodiscard]] size_t cgetIndex() const { return _index; }
@@ -52,7 +51,6 @@ class AppSettings {
   }
 
   void setTypeHash(size_t hash) { _type_hash = hash; }
-  void setTypeEnum(custom_types::EnumTypes type) { _type_enum = type; }
 
  private:
   std::vector<std::string> _lib_name;
@@ -64,7 +62,6 @@ class AppSettings {
   size_t _type_hash{hashed::kInt};
   size_t _index;
 
-  custom_types::EnumTypes _type_enum{custom_types::EnumTypes::Int};
   bool _should_close{false};
 };
 

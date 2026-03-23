@@ -14,14 +14,17 @@ struct PolymorphicDimensionalVector {
   PolymorphicDimensionalVector& operator=(const PolymorphicDimensionalVector&) = default;
   PolymorphicDimensionalVector& operator=(PolymorphicDimensionalVector&&) = default;
 
-  PolymorphicDimensionalVector(custom_types::PolymorphicVectorQuad vec, size_t type_hash)
-      : _vec(std::move(vec)), _type_hash(type_hash)
+  PolymorphicDimensionalVector(custom_types::PolymorphicVectorQuad vec) : _vec(std::move(vec))
   {
     logging::SingleThreadPresets::createObject<PolymorphicDimensionalVector>();
   }
 
+  [[nodiscard]] std::string_view getTypename() const
+  {
+    return custom_types::getTypename(*_vec.begin());
+  }
+  [[nodiscard]] size_t getHash() const { return custom_types::getHash(*_vec.begin()); }
   custom_types::PolymorphicVectorQuad _vec;
-  size_t _type_hash;
 };
 }  // namespace data_storage
 
@@ -32,14 +35,16 @@ struct std::formatter<data_storage::PolymorphicDimensionalVector>
               std::format_context& ctx) const
   {
     std::string out;
-    size_t type = vec._type_hash;
     for (const auto& i : vec._vec) {
       std::visit(custom_types::Visitor{[&out](auto const& variant_val) {
                    out += std::format("{} ", variant_val);
                  }},
                  i);
     }
-    out += std::format("{}", type);
+
+    //type
+    // out += std::format("{}", type);
+    out += vec.getTypename();
     return std::formatter<std::string>::format(out, ctx);
   }
 };

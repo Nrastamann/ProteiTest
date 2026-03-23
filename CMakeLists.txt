@@ -43,8 +43,7 @@ if(TEST_COVERAGE)
         target_compile_options(proteip.test PRIVATE "${COVERAGE_FLAGS}")
 endif()
 
-set(SRCS
-        src/menu.cpp            
+set(SRCS         
         src/parsing.cpp   
         src/custom_types.cpp
         src/display.cpp      

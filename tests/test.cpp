@@ -17,7 +17,6 @@
 #include "parsing.hpp"
 #include "server.hpp"
 #include "settings.hpp"
-#include "thread_pool.hpp"
 
 class InputFixture : public testing::Test {
   static constexpr size_t kIndexTest{42};
@@ -52,45 +51,62 @@ class InputFixture : public testing::Test {
 
 class ArgvFixture : public testing::Test {
  protected:
-  std::vector<char*> _argv = {"./build/Debug/proteip",
-                              "-a",
-                              "ff",
-                              "00",
-                              "ff",
-                              "ff:3000",
-                              "-a",
-                              "127",
-                              "0",
-                              "0",
-                              "1",
-                              "-a",
-                              "122.12.122.122:5000",
-                              "-a",
-                              "127",
-                              "127",
-                              "127",
-                              "127:2228",
-                              "-a",
-                              "127",
-                              "127",
-                              "127",
-                              "127",
-                              "2229",
-                              "-a",
-                              "127.127.127",
-                              "127:2230",
-                              "-a",
-                              "127",
-                              ".127",
-                              "127",
-                              ".127:2231",
-                              "-i",
-                              "12"};
+  std::vector<std::string_view> _argv_temp = {"./build/Debug/proteip",
+                                              "-a",
+                                              "ff",
+                                              "00",
+                                              "ff",
+                                              "ff:3000",
+                                              "-a",
+                                              "127",
+                                              "0",
+                                              "0",
+                                              "1:3001",
+                                              "-a",
+                                              "127iuuuy0uijk0l1k_tsts5000",
+                                              "-a",
+                                              "127",
+                                              "127",
+                                              "127",
+                                              "127:2228",
+                                              "-a",
+                                              "127",
+                                              "127",
+                                              "127",
+                                              "127",
+                                              "2229",
+                                              "-a",
+                                              "127.127.127",
+                                              "127:2230",
+                                              "-a",
+                                              "127",
+                                              ".127",
+                                              "127",
+                                              ".127:2231",
+                                              "-i",
+                                              "12"};
+  void SetUp() override
+  {
+    [this](std::string& str) {
+      for (auto& str_sv : _argv_temp) {
+        str += str_sv;
+        str += '\0';
+      }
+    }(_result);
+    auto it = _result.begin();
 
+    for (auto& str : _argv_temp) {
+      _argv.push_back(&*it);
+      std::advance(it, str.size() + 1);
+    }
+  }
+
+  std::string _result;
+  std::vector<char*> _argv;
   std::vector<network_addr::IpAddr> _parsed_data_addr = {
-      {{0xff, 00, 0xff, 0xff}, 3000}, {{127, 0, 0, 1}, 3001},
-      {{122, 12, 122, 122}, 5000},    {{127, 127, 127, 127}, 2228},
-      {{127, 127, 127, 127}, 2229},   {{127, 127, 127, 127}, 2230},
+      {{0xff, 00, 0xff, 0xff}, 0x3000}, {{127, 0, 0, 1}, 3001},
+      {{127, 0, 0, 1}, 5000},           {{127, 127, 127, 127}, 2228},
+      {{127, 127, 127, 127}, 2229},     {{127, 127, 127, 127}, 2230},
       {{127, 127, 127, 127}, 2231}};
 
   size_t index_parsed = 12;
@@ -106,17 +122,8 @@ class ParsingFixture : public testing::Test {
   static constexpr std::string_view kTestLib{"src"};
 
   std::vector<char*> _parsed_data = {
-      "-a"
-      "127.0.0.1 3000",
-      "-a",
-      "127 0 0 1 3001"
-      "-L",
-      "s",
-      "r",
-      "c",
-      "-i",
-      "4poweqip",
-      "2"};
+      "-a", "127.0.0.1 3000", "-a", "127 0 0 1 3001", "-L", "s", "r", "c",
+      "-i", "4poweqip",       "2"};
 
   std::vector<std::array<uint8_t, 4>> _addresses = {kTestIPAddr, kTestIPAddr};
   std::vector<std::string> _libs = {kTestLib.begin()};
@@ -129,15 +136,16 @@ class ClientServerFixture : public testing::Test {
   std::vector<std::string_view> _parsed_data = {"-a", "127.127.127.127", "-p", "2231"};
   std::string_view _server_argv = "5000";
 };
-/*
+
 TEST_F(ArgvFixture, AddressPortParsingTestPRT)
 {
-  auto args = parsing::parseArguments(static_cast<int>(_argv.size()), _argv.data(),
+  auto args = parsing::parseArguments(static_cast<int>(_argv.size()), &*_argv.begin(),
                                       parsing::getArgSetterMain());
 
   ASSERT_TRUE(args.has_value());
 
-  auto it_wrapped = args->getAddr().begin();
+  auto addresses = args->getAddr();
+  auto it_wrapped = addresses.begin();
   for (auto& i : _parsed_data_addr) {
     EXPECT_EQ(i._addr, it_wrapped->_addr);
     EXPECT_EQ(i._port, it_wrapped->_port);
@@ -145,10 +153,10 @@ TEST_F(ArgvFixture, AddressPortParsingTestPRT)
   }
   EXPECT_EQ(index_parsed, args->getIndex());
 }
-
+/*
 TEST_F(ParsingFixture, FlagsParsingWrongFlagTestPRT)
 {
-  _parsed_data.push_back("-n");
+  _parsed_data[_parsed_data.size() - 2] = "-n";
 
   auto args = parsing::parseArguments(static_cast<int>(_parsed_data.size()),
                                       _parsed_data.data(), parsing::getArgSetterMain());
@@ -183,23 +191,17 @@ TEST_F(InputFixture, OptionsPickTestPRT)
 {
   std::vector<std::string_view> arr{"QUIT",  "EXIT",  "TyPe",     "Vector", "rolE",
                                     "PRINT", "EmpTY", "Settings", "Send",   "Clear"};
-  const auto& menu_options = custom_types::getMenuOptions();
-
-  EXPECT_EQ(arr.size(), menu_options.size());
 
   std::string str;
   for (const auto& input_str : arr) {
     _cin << input_str;
 
     _cin >> str;
+    _cin << "quit";
     std::ranges::transform(str, str.begin(), ::tolower);
+    _menu.callFunction(std::hash<std::string_view>{}(str), 0, 0, _arguments);
 
-    if (arr.begin() + static_cast<int64_t>(arr.size() - 1) == arr.end()) {
-      EXPECT_FALSE(menu_options.contains(std::hash<std::string_view>{}(str)));
-      break;
-    }
-
-    EXPECT_TRUE(menu_options.contains(std::hash<std::string_view>{}(str)));
+    EXPECT_FALSE(_cout.str().contains("Wrong input"));
   }
 }
 
@@ -229,7 +231,6 @@ TEST_F(InputFixture, TypeTestPRT)
       "int",     "float",   "double",  "char",    "string",   "bool",     "int8_t",
       "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
   };
-  EXPECT_EQ(types.size(), custom_types::getHashToTypeInfo().size());
 
   for (auto& type : types) {
     _cin << std::format("Type\n{}\n", type);
@@ -372,7 +373,7 @@ TEST_F(InputFixture, PrintSettingsTestPRT)
       "Your command: \n========================\nCurrent "
       "settings:\nUserName:\tUserName\nRole:\t\tUser\nIndex:\t\t0\nIP "
       "address:\n\nLibrary names:\nCurrent "
-      "type:\tint\n========================\n";
+      "type:\tint32_t\n========================\n";
 
   EXPECT_EQ(result, _cout.str());
 }
