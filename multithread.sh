@@ -42,7 +42,7 @@ send
 empty
 quit
 
-ДЛЯ РАБОТЫ СКРИПТА НЕОБХОДИМО ЗАПУСТИТЬ СЕРВЕР (proteip.server)
+ДЛЯ РАБОТЫ СКРИПТА НЕОБХОДИМО ЗАПУСТИТЬ СЕРВЕР (proteip.server) И ПЕРЕДАТЬ ДИРЕКТОРИЮ С БИНАРНИКОМ. 
 "
 
 while getopts "a:p:n:t:N:B:c:" flag; do

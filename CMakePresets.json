@@ -62,6 +62,7 @@
                      "name": "gcc-toolset",
                      "hidden": true,
                      "cacheVariables": {
+                            "SILENCE_WARNING": "-Wno-maybe-uninitialized",
                             "CMAKE_CXX_COMPILER": "g++",
                             "CMAKE_C_COMPILER": "gcc"
                      }

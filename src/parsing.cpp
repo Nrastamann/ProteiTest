@@ -86,10 +86,10 @@ static std::expected<bool, ParseResult> composeAddr(
       return std::unexpected(ParseResult::SV_PARSING_ERR);
     }
 
-    str = ip_addr.substr(
-        substr_begin, end != std::string_view::npos ? end - substr_begin : ip_addr.size() - 1);
+    str = ip_addr.substr(substr_begin,
+                         end != std::string_view::npos ? end - substr_begin : ip_addr.size());
 
-    ip_addr.remove_prefix(ip_addr.size() < end ? ip_addr.size() - 1 : end);
+    ip_addr.remove_prefix(ip_addr.size() < end ? ip_addr.size() : end);
     substr_begin = ip_addr.find_first_of(digits);
   }
 
@@ -107,9 +107,8 @@ static std::string composeIndex(std::string_view index_str)
   for (; substr_begin != std::string_view::npos;) {
     size_t end = index_str.find_first_not_of(digits, substr_begin);
 
-    result +=
-        index_str.substr(substr_begin, end != std::string_view::npos ? end - substr_begin
-                                                                     : index_str.size() - 1);
+    result += index_str.substr(
+        substr_begin, end != std::string_view::npos ? end - substr_begin : index_str.size());
 
     index_str.remove_prefix(index_str.size() < end ? index_str.size() : end);
     substr_begin = index_str.find_first_of(digits);
@@ -296,9 +295,9 @@ std::expected<ArgHolder, ParseResult> parseArguments(int argc, char** argv,
 
   if (token.size() != 0) {
     if (!argument_holder.setArgument(storage._hash, token, flags_map)) {
-      logging::SingleThreadPresets::defaultError(std::format(
-          "Couldn't parse token {} with flag {}", token, flags_map.find(storage._hash)->first));
-      return std::unexpected(ParseResult::SV_PARSING_ERR);
+      logging::SingleThreadPresets::defaultError(
+          std::format("Couldn't parse token {} with flag {}", token, storage._hash));
+      return std::unexpected(ParseResult::WRONG_FLAG);
     }
     //fix to parse -a127.0.0.1:5000
     storage._argc_initial++;

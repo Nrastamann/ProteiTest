@@ -208,6 +208,7 @@ int serverStart(int argc, char** argv)
     std::cout << kHelpText;
     return 1;
   }
+
   SocketWrapper server_socket = serverSetup(port);
   if (server_socket._socket == -1) {
     logging::MultithreadPresets::defaultError("Couldn't create socket");

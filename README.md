@@ -6,13 +6,14 @@
 - [x] Задача №4
 - [x] Задача №5
 - [x] Задача №6
+- [x] Задача №7
 ## Описание
 Программа для выполнения практики. Минимальный стандарт - C++23, минимальные 
 версии компиляторов - gcc 13.1 и clang 17.0.1
 
 ### Вызов программ
 ```sh
-proteip [-a address port] [-L DLL] [-r role_name] [-i index] [-h] - клиент
+proteip [-a address port] [-L folder] [-r role_name] [-i index] [-h] - клиент
 proteip.server [-p port] [-h] - Сервер
 proteip.benchmark - гугл бенчмарки
 ctest --<preset_name> - клиент
@@ -128,10 +129,10 @@ TODO: добавить уровень логирования как флаг
 -  "debug-clang"     - Debug-clang
 -  "release-gcc"     - Release-gcc
 -  "release-clang"   - Release-clang
--  "full-gcc"        - Full-project-gcc (будет собираться в папке release-gcc)
--  "full-clang"      - Full-project-clang (будет собираться в папке release-clang)
+-  "full-gcc"        - Full-project-gcc (будет собираться в папке release-gcc, конфигурационный пресет release-gcc)
+-  "full-clang"      - Full-project-clang (будет собираться в папке release-clang, конфигурационный пресет release-clang)
 
-## Сборка
+### Сборка
 Чтобы собрать проект, можно использовать следующий набор команд:
 ```sh
 cd protei
@@ -145,9 +146,11 @@ cmake --build --preset <PresetName>
 - Сборка release со всеми таргетами (full build-preset) с компилятором clang:
 ```sh
 cd protei
-cmake --preset full-clang
+cmake --preset release-clang
 cmake --build --preset full-clang
 ```
+Используется **Конфигурационный** пресет **release-clang**, собирается **full-clang**
+
 - Сборка debug-san с компилятором gcc:
 ```sh
 cd protei
@@ -168,23 +171,28 @@ cmake --build --preset debug-san-gcc
 но также им можно воспользоваться напрямую:
 ![StatAnalyzer](screens/cppcheck.png "CPPCheck")
 
+## Дебаггинг
+
+Для дебагга используется lldb - clang-овский вариант дебаггера с расширенными 
+возможностями относительно gdb:
+![LLDBDebug](screens/lldb.png "LLDB usage")
+
 ## Тесты
-Проект при каждом пресете собирает тесты, которые покрывают значительную часть
-проекта, для запуска можно воспользоваться командой:
+Проект имеет тесты, которые покрывают часть проекта, для запуска можно воспользоваться командой:
 
 ```sh
 ctest --preset \<Current-preset\>
 ```
 
-При необходимости получить уровень покрытия, можно воспользоваться следующим набором команд:
-```sh
-cmake --build --preset \<Current-preset\>
+Тесты есть в следующих пресетах:
+- "debug-san-gcc"   - DebugSan-gcc 
+-  "debug-san-clang" - DebugSan-clang
+-  "debug-gcc"       - Debug-gcc
+-  "debug-clang"     - Debug-clang
+-  "full-gcc"        - Full-project-gcc (будет собираться в папке release-gcc, конфигурационный пресет release-gcc)
+-  "full-clang"      - Full-project-clang (будет собираться в папке release-clang, конфигурационный пресет release-clang)
 
-ctest --preset \<Current-preset\>
-
-gcovr --gcov-executable "llvm-cov gcov" --filter src/ --filter include/ --html-details coverage/gcovr.html
-```
-Пример результатов работы gcovr:
+Результаты покрытия тестами на одном из билдов:
 
 ![gcovr](screens/gcovr.png "gcover coverage")
 

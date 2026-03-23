@@ -27,13 +27,16 @@ if(SANITIZERS)
   add_compile_options(${SANITIZER_FLAGS})
 endif()
 
+add_compile_options(${SILENCE_WARNING})
+add_link_options(${SILENCE_WARNING})
+
 add_executable(proteip src/main.cpp)
 add_executable(proteip.server src/server.cpp)
 add_executable(proteip.test)
 
 if(TEST_COVERAGE)
-        set(CMAKE_C_FLAGS_COVERAGE "${CMAKE_C_FLAGS} --coverage")
-        set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS} --coverage")
+        set(CMAKE_C_FLAGS_COVERAGE "${CMAKE_C_FLAGS} --coverage -fprofile-arcs -ftest-coverage -fprofile-instr-generate -fcoverage-mapping")
+        set(CMAKE_CXX_FLAGS_COVERAGE "${CMAKE_CXX_FLAGS} --coverage -fprofile-arcs -ftest-coverage -fprofile-instr-generate -fcoverage-mapping")
 
         add_link_options(${CMAKE_C_FLAGS_COVERAGE})
         add_link_options(${CMAKE_CXX_FLAGS_COVERAGE})
@@ -101,9 +104,6 @@ FetchContent_Declare(
         URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
 )
 FetchContent_MakeAvailable(json)
-
-
-
 
 if(BENCHMARK)
 add_executable(proteip.benchmark)
