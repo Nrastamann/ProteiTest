@@ -170,7 +170,6 @@ class BufferPool {
   std::queue<uint8_t> _indexes_queue;
 };
 
-std::expected<uint16_t, bool> parsePortServer(std::string_view port);
 SocketWrapper serverSetup(uint16_t port);
 void dataManipulation(std::string& result, custom_types::PolymorphicVectorQuad& vector);
 void serverTask(int client_socket, BufferPool<kThreadNum>& buffer_pool);

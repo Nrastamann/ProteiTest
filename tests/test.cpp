@@ -379,8 +379,6 @@ TEST_F(InputFixture, PrintSettingsTestPRT)
 
 TEST_F(ClientServerFixture, TestServer)
 {
-  ASSERT_EQ(server::parsePortServer(_server_argv), 5000);
-
   custom_types::PolymorphicVectorQuad vec{1, 2, 3, 4};
   constexpr std::array<double, 4> kVecD{2., -1., 3., 0.25};
   constexpr std::array<bool, 4> kVecBool{true, false, true, false};

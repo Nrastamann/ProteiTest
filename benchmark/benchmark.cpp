@@ -10,6 +10,7 @@
 #include "logger.hpp"
 #include "menu.hpp"
 #include "parsing.hpp"
+#include "server.hpp"
 #include "settings.hpp"
 
 static constexpr size_t kTestCount{100};
@@ -38,191 +39,11 @@ class InputFixture : public benchmark::Fixture {
   std::streambuf* _coutBuf{};
 
   Menu _menu;
-  AppSettings _command_line_options{{}, {}, {}, "", kIndexTest};
+  parsing::ArgHolder _args;
+  AppSettings _command_line_options{_args};
   data_storage::DataPool _data_pool;
   FunctionArgs _arguments{_command_line_options, _data_pool};
 };
-
-class ArgvFixture : public benchmark::Fixture {
- protected:
-  std::vector<const char*> _argv = {"./build/Debug/proteip",
-                                    "-a",
-                                    "ff",
-                                    "00",
-                                    "ff",
-                                    "ff:3000",
-                                    "-a",
-                                    "127",
-                                    "0",
-                                    "0",
-                                    "1",
-                                    "-a",
-                                    "122.12.122.122:5000",
-                                    "-a",
-                                    "127",
-                                    "127",
-                                    "127",
-                                    "127:2228",
-                                    "-a",
-                                    "127",
-                                    "127",
-                                    "127",
-                                    "127",
-                                    "2229",
-                                    "-a",
-                                    "127.127.127",
-                                    "127:2230",
-                                    "-a",
-                                    "127",
-                                    ".127",
-                                    "127",
-                                    ".127:2231",
-                                    "-i",
-                                    "12"};
-
-  std::vector<std::string_view> _parsed_data = {"-a", "ff.00.ff.ff",
-                                                "-p", "3000",
-                                                "i",  "12",
-                                                "-a", "127.0.0.1",
-                                                "-a", "122.12.122.122",
-                                                "-p", "5000",
-                                                "-a", "127.127.127.127",
-                                                "-p", "2228",
-                                                "-a", "127.127.127.127",
-                                                "-p", "2229",
-                                                "-a", "127.127.127.127",
-                                                "-p", "2230",
-                                                "-a", "127.127.127.127",
-                                                "-p", "2231"};
-};
-
-class ParsingFixture : public benchmark::Fixture {
- protected:
-  static constexpr std::array<uint8_t, 4> kTestIPAddr{127, 0, 0, 1};
-  static constexpr size_t kTestPort1{3000};
-  static constexpr size_t kTestPort2{3001};
-  static constexpr size_t kTestIndex{42};
-  static constexpr std::string_view kTestRole{"User"};
-  static constexpr std::string_view kTestLib{"src"};
-
-  std::vector<std::string> _parsed_data = {
-      "-a",
-      std::format("{}.0{}.0{}.0{}", kTestIPAddr.at(0), kTestIPAddr.at(1), kTestIPAddr.at(2),
-                  kTestIPAddr.at(3)),
-      "-p",
-      std::format("{}", kTestPort1),
-      "-a",
-      std::format("{:#x}.0{}.0{}.0{}", kTestIPAddr.at(0), kTestIPAddr.at(1), kTestIPAddr.at(2),
-                  kTestIPAddr.at(3)),
-      "-p",
-      std::format("{}", kTestPort2),
-      "-L",
-      kTestLib.begin(),
-      "-r",
-      kTestRole.begin(),
-      "-i",
-      std::format("{}", kTestIndex)};
-
-  std::vector<std::array<uint8_t, 4>> _addresses = {kTestIPAddr, kTestIPAddr};
-  std::vector<std::string> _libs = {kTestLib.begin()};
-  std::vector<size_t> _ports = {kTestPort1, kTestPort2};
-};
-
-BENCHMARK_F(ArgvFixture, AddressPortParsingTest)(benchmark::State& st)
-{
-  size_t i = 0;
-  for (auto _ : st) {
-    while (i++ < kTestCount) {
-      std::vector<std::string> wrapped_input =
-          //NOLINTNEXTLINE
-          parsing::getInput(const_cast<char**>(_argv.data()), static_cast<int>(_argv.size()));
-    }
-  }
-}
-
-BENCHMARK_F(ParsingFixture, FlagsParsing)(benchmark::State& st)
-{
-  size_t i = 0;
-  for (auto _ : st) {
-    while (i++ < kTestCount) {
-      std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-          parsing::parseClArgs(_parsed_data);
-    }
-  }
-}
-
-BENCHMARK_F(ParsingFixture, FlagsParsingWrongFlag)(benchmark::State& st)
-{
-  size_t i = 0;
-  _parsed_data[_parsed_data.size() - 1] = "-M";
-
-  for (auto _ : st) {
-    while (i++ < kTestCount) {
-      std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-          parsing::parseClArgs(_parsed_data);
-    }
-  }
-}
-
-BENCHMARK_F(ParsingFixture, FlagsParsingNotPairedFlag)(benchmark::State& st)
-{
-  size_t i = 0;
-  _parsed_data[_parsed_data.size() - 1] = "-M";
-
-  for (auto _ : st) {
-    while (i++ < kTestCount) {
-
-      std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-          parsing::parseClArgs(_parsed_data);
-    }
-  }
-}
-
-BENCHMARK_F(ParsingFixture, WrongPortParsing)(benchmark::State& st)
-{
-  _parsed_data[_parsed_data.size() - 2] = "-p";
-  _parsed_data[_parsed_data.size() - 1] = "-30fds0";
-
-  size_t i = 0;
-
-  for (auto _ : st) {
-    while (i++ < kTestCount) {
-      std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-          parsing::parseClArgs(_parsed_data);
-    }
-  }
-}
-
-BENCHMARK_F(ParsingFixture, WrongIndexParsing)(benchmark::State& st)
-{
-  _parsed_data[_parsed_data.size() - 2] = "-i";
-  _parsed_data[_parsed_data.size() - 1] = "-30fds0";
-
-  size_t i = 0;
-
-  for (auto _ : st) {
-    while (i++ < kTestCount) {
-      std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-          parsing::parseClArgs(_parsed_data);
-    }
-  }
-}
-
-BENCHMARK_F(ParsingFixture, WrongAddressParsing)(benchmark::State& st)
-{
-  _parsed_data[_parsed_data.size() - 2] = "-a";
-  _parsed_data[_parsed_data.size() - 1] = "127.0.0.test";
-
-  size_t i = 0;
-
-  for (auto _ : st) {
-    while (i++ < kTestCount) {
-
-      std::expected<parsing::CommandLineArgsHolder, parsing::ParseResult> argv_split =
-          parsing::parseClArgs(_parsed_data);
-    }
-  }
-}
 
 BENCHMARK_F(InputFixture, OptionsPickTest)(benchmark::State& st)
 {
@@ -300,9 +121,26 @@ BENCHMARK_F(InputFixture, VectorTest)(benchmark::State& st)
   }
 }
 
+BENCHMARK_F(InputFixture, ComputeTest)(benchmark::State& st)
+{
+  size_t i = 0;
+  std::array<custom_types::PolymorphicVectorQuad, 4> vecs{{{1, 2, 3, 4},
+                                                           {"test1", "test2", "test3", "test4"},
+                                                           {false, true, true, false},
+                                                           {1., 2., 3., 4.}}};
+  std::string result;
+  result.reserve(4096);
+  for (auto _ : st) {
+    while (i++ < kTestCount) {
+      for (auto& vector : vecs) {
+        server::dataManipulation(result, vector);
+      }
+    }
+  }
+}
+
 int main(int argc, char* argv[])
 {
-  logging::Logger::loggerInit("logs", config::LogVerbosity::NOLOG);
   ::benchmark::Initialize(&argc, argv);
   ::benchmark::RunSpecifiedBenchmarks();
   ::benchmark::Shutdown();

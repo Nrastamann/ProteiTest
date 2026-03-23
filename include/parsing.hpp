@@ -18,6 +18,7 @@ inline size_t const kRoleHash = {std::hash<std::string_view>{}("-r")};
 inline size_t const kIndexHash = {std::hash<std::string_view>{}("-i")};
 inline size_t const kLibHash = {std::hash<std::string_view>{}("-l")};
 inline size_t const kHelp = {std::hash<std::string_view>{}("-h")};
+inline size_t const kPort = {std::hash<std::string_view>{}("-p")};
 }  // namespace hashed
 
 namespace parsing {
