@@ -17,10 +17,6 @@ inline size_t const kFalseSymbolic = std::hash<std::string_view>{}("false");
 }  // namespace hashed
 
 namespace menu_functions {
-
-template <typename T>
-concept isPartOf = std::is_assignable_v<custom_types::any_type, T>;
-
 void changeType(AppSettings& settings);
 void changeName(AppSettings& settings);
 

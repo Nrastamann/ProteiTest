@@ -20,6 +20,10 @@
 
 namespace menu_functions {
 static constexpr size_t kMaxBuffer{4096};
+namespace {
+template <typename T>
+concept isPartOf = std::is_assignable_v<custom_types::any_type, T>;
+}  // namespace
 
 template <isPartOf T>
 static inline std::from_chars_result convertAnyType(std::string_view string_input,
