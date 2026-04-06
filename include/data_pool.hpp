@@ -3,55 +3,12 @@
 #include <format>
 #include <queue>
 
-#include "custom_types.hpp"
 #include "logger.hpp"
 
 namespace data_storage {
-struct PolymorphicDimensionalVector {
-  ~PolymorphicDimensionalVector() = default;
-  PolymorphicDimensionalVector(const PolymorphicDimensionalVector&) = default;
-  PolymorphicDimensionalVector(PolymorphicDimensionalVector&&) = default;
-  PolymorphicDimensionalVector& operator=(const PolymorphicDimensionalVector&) = default;
-  PolymorphicDimensionalVector& operator=(PolymorphicDimensionalVector&&) = default;
-
-  PolymorphicDimensionalVector(custom_types::PolymorphicVectorQuad vec) : _vec(std::move(vec))
-  {
-    logging::SingleThreadPresets::createObject<PolymorphicDimensionalVector>();
-  }
-
-  [[nodiscard]] std::string_view getTypename() const
-  {
-    return custom_types::getTypename(*_vec.begin());
-  }
-  [[nodiscard]] size_t getHash() const { return custom_types::getHash(*_vec.begin()); }
-  custom_types::PolymorphicVectorQuad _vec;
-};
-}  // namespace data_storage
-
-template <>
-struct std::formatter<data_storage::PolymorphicDimensionalVector>
-    : std::formatter<std::string> {
-  auto format(const data_storage::PolymorphicDimensionalVector& vec,
-              std::format_context& ctx) const
-  {
-    std::string out;
-    for (const auto& i : vec._vec) {
-      std::visit(custom_types::Visitor{[&out](auto const& variant_val) {
-                   out += std::format("{} ", variant_val);
-                 }},
-                 i);
-    }
-
-    //type
-    // out += std::format("{}", type);
-    out += vec.getTypename();
-    return std::formatter<std::string>::format(out, ctx);
-  }
-};
-
-namespace data_storage {
 class DataPool {
-  using return_type = PolymorphicDimensionalVector;
+  using value_type = std::string;
+  using return_type = std::string;
   using return_reference_type = return_type&;
 
   using const_return_reference_type = const return_type&;
@@ -77,6 +34,6 @@ class DataPool {
   }
 
  private:
-  std::queue<PolymorphicDimensionalVector> _queue;
+  std::vector<value_type> _queue;
 };
 }  // namespace data_storage

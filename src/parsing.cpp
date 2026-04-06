@@ -13,10 +13,8 @@
 #include <span>
 #include <string_view>
 
-#include "custom_types.hpp"
 #include "ip_addr.hpp"
 #include "logger.hpp"
-#include "menu_functions.hpp"
 
 static constexpr size_t kHexBase{16};
 
@@ -55,20 +53,6 @@ static std::expected<network_addr::IpAddr, ParseResult> parseAddr(
   return result_addr;
 }
 
-static std::expected<size_t, ParseResult> parseIndex(std::string_view index)
-{
-  logging::SingleThreadPresets::functionCall();
-
-  size_t index_number{};
-  auto [ptr, ec] = std::from_chars(index.begin(), index.end(), index_number);
-  if (ec != std::errc() || ptr != index.end() || index.size() == 0) {
-    logging::SingleThreadPresets::userInputError(index, *ptr);
-    return std::unexpected(ParseResult::SV_PARSING_ERR);
-  }
-
-  return index_number;
-}
-
 static std::expected<bool, ParseResult> composeAddr(
     std::array<std::string_view, network_addr::kIpAddrOctetAmount + 1>& result_vector,
     std::string_view ip_addr)
@@ -97,7 +81,7 @@ static std::expected<bool, ParseResult> composeAddr(
   return has_hex;
 }
 
-static std::string composeIndex(std::string_view index_str)
+std::string composeNumber(std::string_view index_str)
 {
   logging::SingleThreadPresets::functionCall();
 
@@ -116,53 +100,6 @@ static std::string composeIndex(std::string_view index_str)
   }
 
   return result;
-}
-
-std::expected<custom_types::PolymorphicVectorQuad, ParseResult> parseStringVector(
-    nlohmann::json& json)
-{
-  logging::SingleThreadPresets::functionCall();
-  auto it = json.find("TypeHash");
-
-  if (it == json.end()) {
-    logging::SingleThreadPresets::defaultError(
-        std::format("Didn't get type from json {}", json.dump()));
-    return std::unexpected(ParseResult::SV_PARSING_ERR);
-  }
-  size_t hash = *it;
-
-  it = json.find("Vector");
-  if (it == json.end()) {
-    logging::SingleThreadPresets::defaultError(
-        std::format("Didn't get vector from json {}", json.dump()));
-    return std::unexpected(ParseResult::SV_PARSING_ERR);
-  }
-
-  std::string vector_unparsed = *it;
-
-  custom_types::PolymorphicVectorQuad vector;
-
-  const auto& default_value = custom_types::getDefaultValues().at(hash);
-
-  std::ranges::fill(vector, default_value);
-
-  //NOLINTNEXTLINE
-  std::stringstream streambuf(vector_unparsed.data());
-
-  std::string input_string;
-
-  for (auto& element : vector) {
-    streambuf >> input_string;
-    auto result = menu_functions::emplaceInVector(element, input_string,
-                                                  std::hash<std::string_view>{}(input_string));
-
-    if (result.ec != std::errc()) {
-      logging::SingleThreadPresets::defaultError(
-          std::format("Couldn't parse element {} of json {}", input_string, json.dump()));
-      return std::unexpected(ParseResult::SV_PARSING_ERR);
-    }
-  }
-  return vector;
 }
 
 bool ArgHolder::pushAddr(std::string token)
@@ -188,22 +125,6 @@ bool ArgHolder::pushAddr(std::string token)
   }
 
   _addresses.push_back(parsed_addr.value());
-  return true;
-}
-
-bool ArgHolder::pushIndex(std::string token)
-{
-  logging::SingleThreadPresets::functionCall();
-
-  auto parsed_addr = parseIndex(composeIndex(std::move(token)));
-
-  if (!parsed_addr.has_value()) {
-    logging::SingleThreadPresets::defaultError(
-        std::format("Couldn't collect index - {}", token));
-    return false;
-  }
-
-  _index = parsed_addr.value();
   return true;
 }
 

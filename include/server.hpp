@@ -159,7 +159,6 @@ class BufferPool {
     _indexes_queue.push(index);
   }
   void resetBuffer(size_t idx) { _buffers[idx].first = false; }
-
   poolContainer<std::array<char, kBufferSize>> _buffers;
   poolContainer<nlohmann::json> _jsons;
 

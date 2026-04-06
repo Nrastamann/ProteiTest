@@ -6,16 +6,13 @@
 #include "settings.hpp"
 
 namespace hashed {
-inline size_t const kNameMenu = std::hash<std::string_view>{}("name");
-inline size_t const kTypeMenu = std::hash<std::string_view>{}("type");
-inline size_t const kVectorMenu = std::hash<std::string_view>{}("vector");
-inline size_t const kPrint = std::hash<std::string_view>{}("print");
-inline size_t const kEmptyQueue = std::hash<std::string_view>{}("empty");
-inline size_t const kSettingsMenu = std::hash<std::string_view>{}("settings");
 inline size_t const kExit = std::hash<std::string_view>{}("exit");
-inline size_t const kWrongInput = std::hash<std::string_view>{}("wrong input");
+inline size_t const kActivate = std::hash<std::string_view>{}("activate");
+inline size_t const kMove = std::hash<std::string_view>{}("move");
+inline size_t const kSMS = std::hash<std::string_view>{}("sms");
+inline size_t const kStatus = std::hash<std::string_view>{}("status");
+inline size_t const kWrongInput = std::hash<std::string_view>{}("wrong");
 inline size_t const kClear = std::hash<std::string_view>{}("clear");
-inline size_t const kSend = std::hash<std::string_view>{}("send");
 }  // namespace hashed
 
 using polymorphic_function =
@@ -141,38 +138,13 @@ class Menu {
   static cref_function_container getContainer()
   {
     static function_container functions{
-        {hashed::kTypeMenu,
-         MenuItem{menu_functions::changeType, menu_hooks::pre_hooks_protei::defaultClear,
-                  menu_hooks::post_hooks_protei::defaultClear}},
-
-        {hashed::kEmptyQueue, MenuItem{menu_functions::emptyQueue, menu_hooks::defaultEmpty,
-                                       menu_hooks::post_hooks_protei::clearBuffer}},
-        {hashed::kNameMenu,
-         MenuItem{menu_functions::changeName, menu_hooks::pre_hooks_protei::defaultClear,
-                  menu_hooks::post_hooks_protei::defaultClear}},
-
-        {hashed::kVectorMenu,
-         MenuItem{menu_functions::enterVector, menu_hooks::pre_hooks_protei::defaultClear,
-                  menu_hooks::post_hooks_protei::defaultClear}},
-
-        {hashed::kPrint, MenuItem{menu_functions::printVector, menu_hooks::defaultEmpty,
-                                  menu_hooks::post_hooks_protei::clearBuffer}},
-
-        {hashed::kSettingsMenu,
-         MenuItem{menu_functions::printCurrentAppSettings, menu_hooks::defaultEmpty,
-                  menu_hooks::post_hooks_protei::clearBuffer}},
 
         {hashed::kWrongInput, MenuItem{menu_functions::wrongOption, menu_hooks::defaultEmpty,
                                        menu_hooks::post_hooks_protei::clearBuffer}},
-
         {hashed::kQuit, MenuItem{menu_functions::quit, menu_hooks::defaultEmpty,
                                  menu_hooks::post_hooks_protei::clearBuffer}},
         {hashed::kExit, MenuItem{menu_functions::quit, menu_hooks::defaultEmpty,
                                  menu_hooks::post_hooks_protei::clearBuffer}},
-
-        {hashed::kSend, MenuItem{menu_functions::sendToServer, menu_hooks::defaultEmpty,
-                                 menu_hooks::post_hooks_protei::clearBuffer}},
-
         {hashed::kClear, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
                                   menu_hooks::post_hooks_protei::defaultClear}},
     };

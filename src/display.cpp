@@ -12,7 +12,7 @@ void displayMenu()
   std::cout << hint_text << delimeter << '\n';
 
   std::cout << "Name\t\tenter your name\n";
-  std::cout << "Send\t\tsend front vector to server and push recieved vector to"
+  std::cout << "Send\t\tsend front vector to server and push recieved vector to\n"
                "the back (supports multiple server connection)\n";
   std::cout << "Type\t\tenter type\n";
   std::cout << "Clear\t\tclear screen\n";

@@ -10,22 +10,26 @@
 #include <utility>
 #include <vector>
 #include "config.hpp"
-#include "custom_types.hpp"
 #include "ip_addr.hpp"
 #include "logger.hpp"
-#include "nlohmann/json_fwd.hpp"
 
 namespace hashed {
-inline size_t const kAddrHash = {std::hash<std::string_view>{}("-a")};
-inline size_t const kRoleHash = {std::hash<std::string_view>{}("-r")};
-inline size_t const kIndexHash = {std::hash<std::string_view>{}("-i")};
-inline size_t const kLibHash = {std::hash<std::string_view>{}("-l")};
-inline size_t const kHelp = {std::hash<std::string_view>{}("-h")};
+inline size_t const kAddr = {std::hash<std::string_view>{}("-a")};
 inline size_t const kPort = {std::hash<std::string_view>{}("-p")};
+inline size_t const kIMSI = {std::hash<std::string_view>{}("-i")};
+inline size_t const kIMEI = {std::hash<std::string_view>{}("-e")};
+inline size_t const kMSISDN = {std::hash<std::string_view>{}("-m")};
+inline size_t const kHelp = {std::hash<std::string_view>{}("-h")};
 inline size_t const kVerbosity = {std::hash<std::string_view>{}("-v")};
+inline size_t const kEPCPath = {std::hash<std::string_view>{}("-c")};
+inline size_t const kENodeBPath = {std::hash<std::string_view>{}("-n")};
+inline size_t const kXPos = {std::hash<std::string_view>{}("-x")};
+[[maybe_unused]] inline size_t const kYPos = {std::hash<std::string_view>{}("-y")};
 }  // namespace hashed
 
 namespace parsing {
+std::string composeNumber(std::string_view index_str);
+
 enum class ParseResult : uint8_t { NO_ERR, WRONG_FLAG, NO_ARGUMENT, HELP, SV_PARSING_ERR };
 class ArgHolder {
   template <typename T>
@@ -48,8 +52,23 @@ class ArgHolder {
     return return_value;
   }  // namespace parsing
 
-  bool pushIndex(std::string token);
   bool pushAddr(std::string token);
+  bool pushMSISDN(std::string token) { return pushValue(std::move(token), _msisdn); }
+  bool pushIMSI(std::string token) { return pushValue(std::move(token), _imsi); }
+  bool pushIMEI(std::string token) { return pushValue(std::move(token), _imei); }
+  bool pushX(std::string token) { return pushValue(std::move(token), _x); }
+  [[maybe_unused]] bool pushY(std::string token) { return pushValue(std::move(token), _y); }
+  [[maybe_unused]] bool pushEPC(std::string token)
+  {
+    _epc_path = std::move(token);
+    return true;
+  }
+  [[maybe_unused]] bool pushENodeB(std::string token)
+  {
+    _enodeb_path = std::move(token);
+    return true;
+  }
+
   template <logging::LoggerPolicy T>
   bool setLog(std::string token, T)
   {
@@ -61,75 +80,108 @@ class ArgHolder {
       case config::LogVerbosity::WRONG_FLAG:
         return false;
       default:
-        _log_level = log_level;
-        logging::SingleThreadLogger::verbosity_logger = {_log_level};
-        logging::MultithreadLogger::verbosity_logger = {_log_level};
+        logging::SingleThreadLogger::verbosity_logger = {log_level};
+        logging::MultithreadLogger::verbosity_logger = {log_level};
     }
     return true;
   }
 
-  //move into
-  bool pushRole(std::string token)
-  {
-    _role = token;
-    return true;
-  }
-  //move into
-  bool pushLib(std::string token)
-  {
-    _libs.emplace_back(token);
-    return true;
-  }
-
   container<network_addr::IpAddr>&& getAddr() { return std::move(_addresses); }
-  container<std::string> getLibs() { return std::move(_libs); }
-  std::string getRole() { return std::move(_role); }
-  [[nodiscard]] size_t getIndex() const { return _index; }
+
+  std::string getEPCPath() { return std::move(_epc_path); }
+  std::string getENodeBPath() { return std::move(_enodeb_path); }
+
+  [[nodiscard]] uint64_t getIMEI() const { return _imei; }
+  [[nodiscard]] uint64_t getMSISDN() const { return _msisdn; }
+  [[nodiscard]] uint64_t getIMSI() const { return _imsi; }
 
  private:
+  template <typename T>
+  bool pushValue(std::string&& token, T& value)
+  {
+    logging::SingleThreadPresets::functionCall();
+
+    auto parsed_addr = parseNumber<T>(composeNumber(std::move(token)));
+
+    if (!parsed_addr.has_value()) {
+      logging::SingleThreadPresets::defaultError(
+          std::format("Couldn't collect number - {}", token));
+      return false;
+    }
+
+    value = parsed_addr.value();
+    return true;
+  }
+
+  template <typename T>
+  std::expected<T, ParseResult> parseNumber(std::string_view index)
+  {
+    logging::SingleThreadPresets::functionCall();
+
+    T index_number{};
+    auto [ptr, ec] = std::from_chars(index.begin(), index.end(), index_number);
+    if (ec != std::errc() || ptr != index.end() || index.size() == 0) {
+      logging::SingleThreadPresets::userInputError(index, *ptr);
+      return std::unexpected(ParseResult::SV_PARSING_ERR);
+    }
+
+    return index_number;
+  }
+
   container<network_addr::IpAddr> _addresses;
-  container<std::string> _libs;
-  std::string _role = "User";
-  size_t _index{};
-  config::LogVerbosity _log_level{config::LogVerbosity::Info};
+
+  std::string _epc_path;
+  std::string _enodeb_path;
+
+  uint64_t _imei;
+  uint64_t _msisdn;
+  uint64_t _imsi;
+  uint64_t _port;
+
+  int64_t _x;
+  [[maybe_unused]] int64_t _y;
 };
 
 inline bool isNumericFlag(size_t hash)
 {
-  return hash == hashed::kAddrHash || hash == hashed::kIndexHash;
+  return hash == hashed::kAddr || hash == hashed::kIMSI || hash == hashed::kIMEI ||
+         hash == hashed::kMSISDN || hash == hashed::kXPos || hash == hashed::kYPos;
 }
 
 std::expected<ArgHolder, ParseResult> parseArguments(int argc, char** argv,
                                                      ArgHolder::argsMap& flags);
-
-std::expected<custom_types::PolymorphicVectorQuad, ParseResult> parseStringVector(
-    nlohmann::json& json);
-
 inline static parsing::ArgHolder::argsMap& getArgSetterMain()
 {
   static parsing::ArgHolder::argsMap map = {
-      {hashed::kAddrHash,
+      {hashed::kAddr,
        [](std::string& value, parsing::ArgHolder& holder) {
          return holder.pushAddr(std::move(value));
-       }},
-      {hashed::kIndexHash,
-       [](std::string& value, parsing::ArgHolder& holder) {
-         return holder.pushIndex(std::move(value));
-       }},
-      {hashed::kRoleHash,
-       [](std::string& value, parsing::ArgHolder& holder) {
-         return holder.pushRole(std::move(value));
-       }},
-      {hashed::kLibHash,
-       [](std::string& value, parsing::ArgHolder& holder) {
-         return holder.pushLib(std::move(value));
        }},
       {hashed::kHelp, [](std::string&, parsing::ArgHolder&) { return true; }},
       {hashed::kVerbosity,
        [](std::string& value, parsing::ArgHolder& holder) {
          return holder.setLog(std::move(value), logging::SingleThreadPolicy{});
        }},
-
+      {hashed::kXPos,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.pushX(std::move(value));
+       }},
+      {hashed::kYPos,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.pushY(std::move(value));
+       }},
+      {hashed::kIMEI,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.pushIMEI(std::move(value));
+       }},
+      {hashed::kIMSI,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.pushIMSI(std::move(value));
+       }},
+      {hashed::kMSISDN,
+       [](std::string& value, parsing::ArgHolder& holder) {
+         return holder.pushMSISDN(std::move(value));
+       }},
   };
 
   return map;

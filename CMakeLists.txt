@@ -5,6 +5,10 @@ project(ProteiPractice
         DESCRIPTION "Homework for PROTEI practice"
 )
 
+set(BUILD_SHARED_LIBS OFF)
+set(CMAKE_EXE_LINKER_FLAGS "-static")
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -106,7 +110,6 @@ FetchContent_MakeAvailable(json)
 
 if(BENCHMARK)
 add_executable(proteip.benchmark)
-
 
 FetchContent_Declare( googlebenchmark
         GIT_REPOSITORY https://github.com/google/benchmark.git
