@@ -35,7 +35,7 @@ add_compile_options(${SILENCE_WARNING})
 add_link_options(${SILENCE_WARNING})
 
 add_executable(proteip src/main.cpp)
-add_executable(proteip.server src/server.cpp)
+#add_executable(proteip.server src/server.cpp)
 add_executable(proteip.test)
 
 if(TEST_COVERAGE)
@@ -48,19 +48,15 @@ if(TEST_COVERAGE)
 endif()
 
 set(SRCS         
-        src/parsing.cpp   
-        src/custom_types.cpp
-        src/display.cpp      
-        src/menu_functions.cpp  
-        src/settings.cpp
-        src/server.cpp
+src/display.cpp      src/parsing.cpp  
+src/exchange_ue.cpp  src/menu_functions.cpp  src/settings.cpp
 )
 
 target_compile_options(proteip PRIVATE
         -Wall -Wextra -Wsign-conversion -Wconversion)
 
-target_compile_options(proteip.server PRIVATE
-        -Wall -Wextra -Wsign-conversion -Wconversion)
+#target_compile_options(proteip.server PRIVATE
+#       -Wall -Wextra -Wsign-conversion -Wconversion)
 
 if(CPPCHECK)
   find_program(cppcheck_exe NAMES cppcheck REQUIRED)
@@ -76,12 +72,12 @@ target_sources(proteip
                 BASE_DIRS include
 )
 
-target_sources(proteip.server 
-        PRIVATE src/server_impl.cpp ${SRCS}
-        PRIVATE
-                FILE_SET HEADERS
-                BASE_DIRS include
-)
+#target_sources(proteip.server 
+#        PRIVATE src/server_impl.cpp ${SRCS}
+#       PRIVATE
+#               FILE_SET HEADERS
+#               BASE_DIRS include
+#)
 
 target_sources(proteip.test
     PRIVATE tests/test.cpp ${SRCS} 
@@ -144,5 +140,5 @@ enable_testing()
 target_link_libraries(proteip.test PRIVATE GTest::gtest_main)
 
 target_link_libraries(proteip PRIVATE nlohmann_json::nlohmann_json)
-target_link_libraries(proteip.server PRIVATE nlohmann_json::nlohmann_json)
+#target_link_libraries(proteip.server PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(proteip.test PRIVATE nlohmann_json::nlohmann_json)

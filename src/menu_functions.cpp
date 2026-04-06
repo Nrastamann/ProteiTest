@@ -12,63 +12,16 @@
 #include "parsing.hpp"
 
 #include <sys/socket.h>
-#include "custom_types.hpp"
 #include "ip_addr.hpp"
 #include "logger.hpp"
 #include "menu_functions.hpp"
 #include "resources_test.hpp"
+#include "utility.hpp"
 
 namespace menu_functions {
-static constexpr size_t kMaxBuffer{4096};
-namespace {
-template <typename T>
-concept isPartOf = std::is_assignable_v<custom_types::any_type, T>;
-}  // namespace
+//static constexpr size_t kMaxBuffer{4096};
 
-template <isPartOf T>
-static inline std::from_chars_result convertAnyType(std::string_view string_input,
-                                                    T& emplace_element)
-{
-  logging::SingleThreadPresets::functionCall();
-
-  std::from_chars_result conv_result{};
-
-  conv_result = std::from_chars(string_input.begin(), string_input.end(), emplace_element);
-
-  return conv_result;
-}
-
-template <>
-inline std::from_chars_result convertAnyType<std::string>(std::string_view string_input,
-                                                          std::string& emplace_element)
-{
-  logging::SingleThreadPresets::functionCall();
-
-  emplace_element = string_input.data();
-  return {.ptr = string_input.end(), .ec = std::errc()};
-}
-
-//need to support 'true'/'false' input
-static inline std::from_chars_result convertAnyTypeBool(std::string_view string_input,
-                                                        bool& emplace_element,
-                                                        size_t hashed_input)
-{
-  logging::SingleThreadPresets::functionCall();
-
-  std::from_chars_result conv_result{.ptr = string_input.end(), .ec = std::errc()};
-
-  emplace_element = hashed_input == hashed::kTrueSymbolic;
-
-  if (!emplace_element && hashed_input != hashed::kFalseSymbolic) {
-    size_t input{};
-    conv_result = std::from_chars(string_input.begin(), string_input.end(), input);
-    emplace_element = input == 1;
-  }
-
-  return conv_result;
-}
-
-static nlohmann::json getJson(data_storage::PolymorphicDimensionalVector& vector)
+/*static nlohmann::json getJson(data_storage::PolymorphicDimensionalVector& vector)
 {
   logging::SingleThreadPresets::functionCall();
 
@@ -90,7 +43,8 @@ static nlohmann::json getJson(data_storage::PolymorphicDimensionalVector& vector
 
   return json_to_send;
 }
-
+*/
+/*
 static bool sendToSocket(const network_addr::IpAddr& ip_addr, std::string_view str_to_send,
                          std::string& str_to_get, nlohmann::json& json_to_send,
                          data_storage::DataPool& datapool)
@@ -144,67 +98,8 @@ static bool sendToSocket(const network_addr::IpAddr& ip_addr, std::string_view s
   close(client_socket);
   return true;
 }
-
-std::from_chars_result emplaceInVector(
-    custom_types::any_type& emplace_element, std::string_view string_input,
-    size_t hashed_input)  //with hashed_input to support 'true'/'false' insert
-{
-  logging::SingleThreadPresets::functionCall();
-
-  std::from_chars_result conv_result{};
-
-  conv_result = std::visit(
-      custom_types::Visitor{[string_input]<typename T>(T& emplace_element) {
-                              return convertAnyType<T>(string_input, emplace_element);
-                            },
-                            [string_input, hashed_input](bool& emplace_element) {
-                              return convertAnyTypeBool(string_input, emplace_element,
-                                                        hashed_input);
-                            }},
-      emplace_element);
-
-  return conv_result;
-}
-
-void changeType(AppSettings& settings)
-{
-  logging::SingleThreadPresets::functionCall();
-
-  display::clearScreen();
-  std::string string_input;
-
-  const auto& type_dispatch = custom_types::getDefaultValues();
-
-  while (true) {
-    std::cout << "Enter new type (name must correspond with c++ types) or "
-                 "enter 'quit' if you've changed your "
-                 "mind\nlist of supported type is:\n\t-all uint/int types with "
-                 "bit width\n\t-float\n\t-double\n\t-string\n\t-bool\n\t-common "
-                 "int\n\t-char\nEnter new type: ";
-
-    std::cin >> string_input;
-    logging::SingleThreadPresets::userInput(string_input);
-
-    std::ranges::transform(string_input, string_input.begin(), ::tolower);
-    size_t hashed_input = std::hash<std::string_view>{}(string_input);
-
-    if (hashed_input == hashed::kQuit) {
-      logging::SingleThreadPresets::menuQuit();
-      return;
-    }
-
-    if (std::cin.good() && type_dispatch.contains(hashed_input)) {
-      settings.setTypeHash(hashed_input);
-
-      logging::SingleThreadPresets::menuQuit();
-      return;
-    }
-
-    logging::SingleThreadPresets::wrongInput();
-    display::clearCinBuffer();
-  }
-}
-
+*/
+/*
 void changeName(AppSettings& settings)
 {
   logging::SingleThreadPresets::functionCall();
@@ -225,7 +120,7 @@ void changeName(AppSettings& settings)
     }
 
     if (std::cin.good()) {
-      settings.setName(std::move(string_input));
+      //      settings.setName(std::move(string_input));
       logging::SingleThreadPresets::menuQuit();
       return;
     }
@@ -233,56 +128,6 @@ void changeName(AppSettings& settings)
     display::clearCinBuffer();
     logging::SingleThreadPresets::wrongInput();
   }
-}
-
-void enterVector(data_storage::DataPool& vector, AppSettings const& settings)
-{
-  namespace rn = std::ranges;
-  logging::SingleThreadPresets::functionCall();
-  auto& default_values = custom_types::getDefaultValues().at(settings.cgetTypeHash());
-  custom_types::PolymorphicVectorQuad spare_vector;
-  std::cout << "Enter " << custom_types::kVectorDimensionsAmount << "-dimensional vector of "
-            << custom_types::getTypename(default_values)
-            << " or "
-               "enter 'quit' if you've changed your "
-               "mind.\nFormat is "
-            << custom_types::kVectorDimensionsAmount << " values separated by whitespaces: ";
-
-  bool is_conversion_not_done = true;
-  std::string string_input;
-  const auto& default_value = custom_types::getDefaultValues().at(settings.cgetTypeHash());
-
-  rn::fill(spare_vector, default_value);
-
-  while (is_conversion_not_done) {
-    is_conversion_not_done = false;
-
-    for (auto& element : spare_vector) {
-      std::cin >> string_input;
-      logging::SingleThreadPresets::userInput(string_input);
-
-      std::string lowercase_input = string_input;
-      std::ranges::transform(lowercase_input, lowercase_input.begin(), ::tolower);
-      size_t hashed_input = std::hash<std::string_view>{}(lowercase_input);
-
-      if (hashed_input == hashed::kQuit) {
-        logging::SingleThreadPresets::menuQuit();
-        return;
-      }
-
-      auto [ptr, ec] = emplaceInVector(element, string_input, hashed_input);
-
-      if (ec != std::errc() || ptr != string_input.end().base()) {
-        is_conversion_not_done = true;
-        logging::SingleThreadPresets::wrongInput();
-        display::clearCinBuffer();
-        break;
-      }
-    }
-  }
-
-  logging::SingleThreadPresets::menuQuit();
-  vector.push(data_storage::PolymorphicDimensionalVector{spare_vector});
 }
 
 void emptyQueue(data_storage::DataPool& data_pool, NonConstTag)
@@ -357,5 +202,5 @@ void sendToServer(data_storage::DataPool& datapool, const AppSettings& settings)
     }
   }
   datapool.pop();
-}
+}*/
 }  // namespace menu_functions

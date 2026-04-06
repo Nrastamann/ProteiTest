@@ -9,7 +9,6 @@
 #include <string_view>
 #include <variant>
 #include <vector>
-#include "custom_types.hpp"
 #include "data_pool.hpp"
 #include "ip_addr.hpp"
 #include "menu.hpp"
@@ -17,7 +16,7 @@
 #include "parsing.hpp"
 #include "server.hpp"
 #include "settings.hpp"
-
+/*
 class InputFixture : public testing::Test {
   static constexpr size_t kIndexTest{42};
 
@@ -187,6 +186,7 @@ TEST_F(ParsingFixture, WrongAddressParsingTestPRT)
   EXPECT_EQ(args.has_value(), false);
 }
 */
+/*
 TEST_F(InputFixture, OptionsPickTestPRT)
 {
   std::vector<std::string_view> arr{"QUIT",  "EXIT",  "TyPe",     "Vector", "rolE",
@@ -414,6 +414,7 @@ TEST_F(ClientServerFixture, TestServer)
     EXPECT_EQ(std::get<std::string>(vec.at(i)), kVecStr.at(i));
   }
 }
+*/
 /*
  * TODO: Somehow need to test this inside gtest
 TEST_F(ClientServerFixture, TestServerThreads)

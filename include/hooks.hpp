@@ -1,16 +1,16 @@
 #pragma once
 #include <functional>
 #include <variant>
-#include "custom_types.hpp"
 #include "display.hpp"
 #include "logger.hpp"
+#include "utility.hpp"
 
 namespace menu_hooks {
 using menu_hook = std::variant<std::function<void()>>;
 inline void callHook(const menu_hook& hook)
 {
   logging::SingleThreadPresets::functionCall();
-  std::visit(custom_types::Visitor{[](const std::function<void()>& fn) { fn(); }}, hook);
+  std::visit(utility::Visitor{[](const std::function<void()>& fn) { fn(); }}, hook);
 }
 
 inline void defaultEmpty() {}

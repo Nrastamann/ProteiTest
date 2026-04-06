@@ -117,7 +117,7 @@ class Menu {
     logging::SingleThreadPresets::functionCall();
 
     std::visit(
-        custom_types::Visitor{
+        utility::Visitor{
             [&settings = arguments._cl_args](const std::function<void(AppSettings&)>& fn) {
               fn(settings);
             },
@@ -147,6 +147,16 @@ class Menu {
                                  menu_hooks::post_hooks_protei::clearBuffer}},
         {hashed::kClear, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
                                   menu_hooks::post_hooks_protei::defaultClear}},
+        //=========
+        {hashed::kActivate, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
+                                     menu_hooks::post_hooks_protei::defaultClear}},
+        {hashed::kMove, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
+                                 menu_hooks::post_hooks_protei::defaultClear}},
+        {hashed::kSMS, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
+                                menu_hooks::post_hooks_protei::defaultClear}},
+        {hashed::kStatus, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
+                                   menu_hooks::post_hooks_protei::defaultClear}},
+
     };
 
     logging::SingleThreadPresets::createdStaticContainer(
