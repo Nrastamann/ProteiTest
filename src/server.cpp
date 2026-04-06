@@ -1,4 +1,4 @@
-#include "server.hpp"
+/*#include "server.hpp"
 #include <sys/socket.h>
 #include <algorithm>
 #include "config.hpp"
@@ -241,4 +241,4 @@ int serverStart(int argc, char** argv)
   return 0;
 }
 
-}  // namespace server
+}  // namespace server*/

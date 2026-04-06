@@ -11,16 +11,11 @@ void displayMenu()
 
   std::cout << hint_text << delimeter << '\n';
 
-  std::cout << "Name\t\tenter your name\n";
-  std::cout << "Send\t\tsend front vector to server and push recieved vector to\n"
-               "the back (supports multiple server connection)\n";
-  std::cout << "Type\t\tenter type\n";
-  std::cout << "Clear\t\tclear screen\n";
-  std::cout << "Settings:\tprint settings\n";
-  std::cout << "Empty:\t\tempty datapool and print it\n";
-  std::cout << "Vector:\t\tenter 4-dimensional vector\n";
-  std::cout << "Print:\t\tprint 4-dimensional vector\n";
-  std::cout << "Quit:\t\tquit the program\n";
+  std::cout << "Status:\t\tPrint current status\n";
+  std::cout << "Activate:\t\tActivate your device for transmitting data\n";
+  std::cout << "SMS:\t\tSend SMS to other UE\n";
+  std::cout << "Clear:\t\tClear screen\n";
+  std::cout << "Quit/Exit:\t\tQuit the program\n";
   std::cout << delimeter << '\n';
 }
 }  // namespace display

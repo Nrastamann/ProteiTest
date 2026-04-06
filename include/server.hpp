@@ -5,15 +5,11 @@
 #include <array>
 #include <concepts>
 #include <condition_variable>
-#include <expected>
 #include <functional>
 #include <mutex>
 #include <nlohmann/json.hpp>
 #include <queue>
-#include <string>
-#include <string_view>
 #include <type_traits>
-#include "custom_types.hpp"
 #include "logger.hpp"
 
 namespace server {
@@ -170,7 +166,7 @@ class BufferPool {
 };
 
 SocketWrapper serverSetup(uint16_t port);
-void dataManipulation(std::string& result, custom_types::PolymorphicVectorQuad& vector);
+//void dataManipulation(std::string& result, ::PolymorphicVectorQuad& vector);
 void serverTask(int client_socket, BufferPool<kThreadNum>& buffer_pool);
 int serverStart(int argc, char** argv);
 

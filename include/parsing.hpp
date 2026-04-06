@@ -136,7 +136,7 @@ class ArgHolder {
   uint64_t _imei;
   uint64_t _msisdn;
   uint64_t _imsi;
-  uint64_t _port;
+  [[maybe_unused]] uint64_t _port;
 
   int64_t _x;
   [[maybe_unused]] int64_t _y;

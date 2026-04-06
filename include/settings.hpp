@@ -7,15 +7,13 @@
 
 class AppSettings {
  public:
-  explicit AppSettings(parsing::ArgHolder& arguments)
-      : _addresses(arguments.getAddr()), _index(arguments.getIndex())
+  explicit AppSettings(parsing::ArgHolder& arguments) : _addresses(arguments.getAddr())
   {
     logging::SingleThreadPresets::createObject<resources_tests::ConnectionTest>();
 
     _should_close = !resources_tests::ConnectionTest{_addresses}();
   }
   [[nodiscard]] std::vector<network_addr::IpAddr>& getAddr() { return _addresses; }
-  [[nodiscard]] size_t cgetIndex() const { return _index; }
   [[nodiscard]] bool cgetShouldClose() const { return _should_close; }
   [[nodiscard]] const std::vector<network_addr::IpAddr>& cgetAddress() const
   {
@@ -26,7 +24,6 @@ class AppSettings {
 
  private:
   std::vector<network_addr::IpAddr> _addresses;
-  size_t _index;
   bool _should_close{false};
 };
 
