@@ -127,19 +127,18 @@ class ArgHolder {
 
     return index_number;
   }
-
   container<network_addr::IpAddr> _addresses;
 
   std::string _epc_path;
   std::string _enodeb_path;
 
-  uint64_t _imei;
-  uint64_t _msisdn;
-  uint64_t _imsi;
-  [[maybe_unused]] uint64_t _port;
+  uint64_t _imei{};
+  uint64_t _msisdn{};
+  uint64_t _imsi{};
+  [[maybe_unused]] uint64_t _port{};
 
-  int64_t _x;
-  [[maybe_unused]] int64_t _y;
+  int64_t _x{};
+  [[maybe_unused]] int64_t _y{};
 };
 
 inline bool isNumericFlag(size_t hash)

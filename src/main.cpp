@@ -84,7 +84,6 @@ int main(int argc, char* argv[])
     default:
       break;
   }
-
   AppSettings settings(parsed_arguments.value());
 
   if (settings.cgetShouldClose()) {

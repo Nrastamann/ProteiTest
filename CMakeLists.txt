@@ -104,6 +104,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
+FetchContent_Declare(
+        SPSCQueue
+        URL https://github.com/rigtorp/SPSCQueue/archive/refs/tags/v1.1.tar.gz
+)
+FetchContent_MakeAvailable(SPSCQueue)
+
+
 if(BENCHMARK)
 add_executable(proteip.benchmark)
 
@@ -139,6 +146,6 @@ enable_testing()
 
 target_link_libraries(proteip.test PRIVATE GTest::gtest_main)
 
-target_link_libraries(proteip PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(proteip PRIVATE nlohmann_json::nlohmann_json SPSCQueue::SPSCQueue)
 #target_link_libraries(proteip.server PRIVATE nlohmann_json::nlohmann_json)
 target_link_libraries(proteip.test PRIVATE nlohmann_json::nlohmann_json)
