@@ -9,6 +9,7 @@
 #include "menu.hpp"
 #include "parsing.hpp"
 #include "settings.hpp"
+#include "ue_context.hpp"
 
 static constexpr std::string_view kHelpText =
     "Usage: proteip: [-a server_address port] [-i index] [-r role] [-l - lib_name] [-h help] [-v verbosity]\n\
@@ -84,7 +85,8 @@ int main(int argc, char* argv[])
     default:
       break;
   }
-  AppSettings settings(parsed_arguments.value());
+  ue::DeviceConfiguration cfg = parsed_arguments.value().getDeviceConfig();
+  AppSettings settings(parsed_arguments.value(), cfg);
 
   if (settings.cgetShouldClose()) {
     return 1;

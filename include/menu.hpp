@@ -13,10 +13,12 @@ inline size_t const kSMS = std::hash<std::string_view>{}("sms");
 inline size_t const kStatus = std::hash<std::string_view>{}("status");
 inline size_t const kWrongInput = std::hash<std::string_view>{}("wrong");
 inline size_t const kClear = std::hash<std::string_view>{}("clear");
+inline size_t const kSettings = std::hash<std::string_view>{}("settings");
 }  // namespace hashed
 
 using polymorphic_function =
     std::variant<std::function<void(AppSettings&)>,
+                 std::function<void(data_storage::DataPool&, AppSettings&, BothNonConstTag)>,
                  std::function<void(data_storage::DataPool&, const AppSettings&)>,
                  std::function<void(data_storage::DataPool&, NonConstTag)>,
                  std::function<void(const data_storage::DataPool&)>, std::function<void()>>;
@@ -129,6 +131,10 @@ class Menu {
                 const std::function<void(data_storage::DataPool&, NonConstTag)>& fn) {
               fn(vec, {});
             },
+            [&vec = arguments._dataPool, &settings = arguments._cl_args](
+                const std::function<void(data_storage::DataPool&, AppSettings & settings,
+                                         BothNonConstTag)>& fn) { fn(vec, settings, {}); },
+
             [&vec = arguments._dataPool](
                 const std::function<void(const data_storage::DataPool&)>& fn) { fn(vec); },
             [](const std::function<void()>& fn) { fn(); }},
@@ -147,15 +153,18 @@ class Menu {
                                  menu_hooks::post_hooks_protei::clearBuffer}},
         {hashed::kClear, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
                                   menu_hooks::post_hooks_protei::defaultClear}},
+        {hashed::kSettings,
+         MenuItem{menu_functions::printCurrentAppSettings, menu_hooks::defaultEmpty,
+                  menu_hooks::post_hooks_protei::clearBuffer}},
+        {hashed::kMove, MenuItem{menu_functions::moveX, menu_hooks::defaultEmpty,
+                                 menu_hooks::post_hooks_protei::defaultClear}},
+        {hashed::kStatus, MenuItem{menu_functions::status, menu_hooks::defaultEmpty,
+                                   menu_hooks::post_hooks_protei::clearBuffer}},
         //=========
         {hashed::kActivate, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
                                      menu_hooks::post_hooks_protei::defaultClear}},
-        {hashed::kMove, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
-                                 menu_hooks::post_hooks_protei::defaultClear}},
         {hashed::kSMS, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
                                 menu_hooks::post_hooks_protei::defaultClear}},
-        {hashed::kStatus, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
-                                   menu_hooks::post_hooks_protei::defaultClear}},
 
     };
 

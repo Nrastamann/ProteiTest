@@ -1,24 +1,70 @@
 #include <algorithm>
-#include <charconv>
 #include <string>
-#include <unordered_map>
-#include <variant>
 
 #include <nlohmann/json.hpp>
 
 #include "data_pool.hpp"
 #include "display.hpp"
-#include "nlohmann/json_fwd.hpp"
 #include "parsing.hpp"
 
 #include <sys/socket.h>
-#include "ip_addr.hpp"
 #include "logger.hpp"
 #include "menu_functions.hpp"
-#include "resources_test.hpp"
-#include "utility.hpp"
+#include "settings.hpp"
 
 namespace menu_functions {
+void status(data_storage::DataPool& sms, AppSettings& settings, BothNonConstTag)
+{
+  auto& exchanger = settings.getExchanger();
+  std::cout << "SMS Status:\n";
+  sms.printAll(exchanger.getContext().msisdn());
+  std::cout << "Connectivity status:\n";
+
+  std::cout << "Power:\t\t" << exchanger.power() << '\n';
+  std::cout << "EnodeB number:\t" << exchanger.enodeb() << '\n';
+
+  std::cout << "Active:\t\t" << exchanger.inActive() << '\n';
+  std::cout << "Attached:\t" << exchanger.attached() << '\n';
+  std::cout << "X:\t\t" << exchanger.x() << '\n';
+}
+
+void moveX(AppSettings& settings)
+{
+  logging::SingleThreadPresets::functionCall();
+  display::clearScreen();
+  std::string string_input;
+  while (true) {
+    std::cout << "Enter distance to emulate movement\n"
+                 "enter 'quit' if you've changed your mind: ";
+
+    std::cin >> string_input;
+    logging::SingleThreadPresets::userInput(string_input);
+    std::string lowered_input;
+    lowered_input.resize(string_input.size());
+    std::ranges::transform(string_input, lowered_input.begin(), ::tolower);
+
+    if (std::hash<std::string_view>{}(lowered_input) == hashed::kQuit) {
+      logging::SingleThreadPresets::menuQuit();
+      return;
+    }
+
+    if (std::cin.good()) {
+      auto parse_res = parsing::parseNumber<int64_t>(lowered_input);
+
+      if (parse_res.has_value()) {
+
+        settings.getExchanger().moveX(parse_res.value());
+
+        logging::SingleThreadPresets::menuQuit();
+        return;
+      }
+    }
+
+    display::clearCinBuffer();
+    logging::SingleThreadPresets::wrongInput();
+  }
+}
+}  // namespace menu_functions
 //static constexpr size_t kMaxBuffer{4096};
 
 /*static nlohmann::json getJson(data_storage::PolymorphicDimensionalVector& vector)
@@ -203,4 +249,3 @@ void sendToServer(data_storage::DataPool& datapool, const AppSettings& settings)
   }
   datapool.pop();
 }*/
-}  // namespace menu_functions

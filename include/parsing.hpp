@@ -12,6 +12,7 @@
 #include "config.hpp"
 #include "ip_addr.hpp"
 #include "logger.hpp"
+#include "ue_context.hpp"
 
 namespace hashed {
 inline size_t const kAddr = {std::hash<std::string_view>{}("-a")};
@@ -28,9 +29,26 @@ inline size_t const kXPos = {std::hash<std::string_view>{}("-x")};
 }  // namespace hashed
 
 namespace parsing {
+
 std::string composeNumber(std::string_view index_str);
 
 enum class ParseResult : uint8_t { NO_ERR, WRONG_FLAG, NO_ARGUMENT, HELP, SV_PARSING_ERR };
+
+template <typename T>
+std::expected<T, ParseResult> parseNumber(std::string_view index)
+{
+  logging::SingleThreadPresets::functionCall();
+
+  T index_number{};
+  auto [ptr, ec] = std::from_chars(index.begin(), index.end(), index_number);
+  if (ec != std::errc() || ptr != index.end() || index.size() == 0) {
+    logging::SingleThreadPresets::userInputError(index, *ptr);
+    return std::unexpected(ParseResult::SV_PARSING_ERR);
+  }
+
+  return index_number;
+}
+
 class ArgHolder {
   template <typename T>
   using container = std::vector<T>;
@@ -90,6 +108,12 @@ class ArgHolder {
 
   std::string getEPCPath() { return std::move(_epc_path); }
   std::string getENodeBPath() { return std::move(_enodeb_path); }
+  [[nodiscard]] int64_t getX() const { return _x; }
+
+  [[nodiscard]] ue::DeviceConfiguration getDeviceConfig() const
+  {
+    return {_imei, _msisdn, _imsi};
+  }
 
   [[nodiscard]] uint64_t getIMEI() const { return _imei; }
   [[nodiscard]] uint64_t getMSISDN() const { return _msisdn; }
@@ -113,20 +137,6 @@ class ArgHolder {
     return true;
   }
 
-  template <typename T>
-  std::expected<T, ParseResult> parseNumber(std::string_view index)
-  {
-    logging::SingleThreadPresets::functionCall();
-
-    T index_number{};
-    auto [ptr, ec] = std::from_chars(index.begin(), index.end(), index_number);
-    if (ec != std::errc() || ptr != index.end() || index.size() == 0) {
-      logging::SingleThreadPresets::userInputError(index, *ptr);
-      return std::unexpected(ParseResult::SV_PARSING_ERR);
-    }
-
-    return index_number;
-  }
   container<network_addr::IpAddr> _addresses;
 
   std::string _epc_path;

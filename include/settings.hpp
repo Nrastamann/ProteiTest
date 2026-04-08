@@ -1,32 +1,29 @@
 #pragma once
-#include <vector>
-#include "ip_addr.hpp"
+#include "exchange_ue.hpp"
 #include "logger.hpp"
 #include "parsing.hpp"
 #include "resources_test.hpp"
+#include "ue_context.hpp"
 
 class AppSettings {
  public:
-  explicit AppSettings(parsing::ArgHolder& arguments) : _addresses(arguments.getAddr())
+  explicit AppSettings(parsing::ArgHolder& arguments, ue::DeviceConfiguration& config)
+      : _exchanger(config, arguments.getAddr()[0], arguments.getX())
   {
     logging::SingleThreadPresets::createObject<resources_tests::ConnectionTest>();
 
-    _should_close = !resources_tests::ConnectionTest{_addresses}();
+    _should_close = !resources_tests::ConnectionTest{{_exchanger.getAddr()}}();
   }
-  [[nodiscard]] std::vector<network_addr::IpAddr>& getAddr() { return _addresses; }
   [[nodiscard]] bool cgetShouldClose() const { return _should_close; }
-  [[nodiscard]] const std::vector<network_addr::IpAddr>& cgetAddress() const
-  {
-    return _addresses;
-  }
 
   void setShouldClose() { _should_close = true; }
+  [[nodiscard]] ue::Exchanger& getExchanger() { return _exchanger; }
 
  private:
-  std::vector<network_addr::IpAddr> _addresses;
+  ue::Exchanger _exchanger;
   bool _should_close{false};
 };
 
 namespace ui_protei {
-void printAppSettings(AppSettings const& settings);
+void printAppSettings(AppSettings& settings);
 }  // namespace ui_protei
