@@ -20,15 +20,15 @@ struct DeviceConfiguration {  //maybe inheritance?
 
 class UeContext : public DeviceConfiguration {
  public:
-  UeContext(DeviceConfiguration& context, uint64_t tmsi, uint64_t ttl_ue)
-      : DeviceConfiguration(context), _tmsi(tmsi), _ttl_ue(ttl_ue)
+  UeContext(DeviceConfiguration& context, uint32_t tmsi, uint64_t ttl_ue)
+      : DeviceConfiguration(context), _ttl_ue(ttl_ue), _tmsi(tmsi)
   {
   }
-  [[nodiscard]] uint64_t tmsi() const { return _tmsi; }
+  [[nodiscard]] uint32_t tmsi() const { return _tmsi; }
   [[nodiscard]] uint64_t ttlUe() const { return _ttl_ue; }
 
  private:
-  uint64_t _tmsi;
   uint64_t _ttl_ue;
+  uint32_t _tmsi;
 };
 };  // namespace ue
