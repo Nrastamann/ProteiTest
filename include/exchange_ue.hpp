@@ -2,7 +2,6 @@
 #include <unistd.h>
 #include <atomic>
 #include <functional>
-#include <mutex>
 #include <semaphore>
 #include <thread>
 #include <unordered_map>
@@ -18,6 +17,11 @@ class Exchanger {
   static constexpr size_t kQueueLength{15};
 
  public:
+  Exchanger(DeviceConfiguration& ctxt, network_addr::IpAddr& addr, int64_t x)
+      : _ctxt(ctxt, 0, 0), _ip_addr(addr), _x(x) {};
+  Exchanger(ue::UeContext& ctxt, network_addr::IpAddr& addr, int64_t x)
+      : _ctxt(ctxt), _ip_addr(addr), _x(x) {};
+
   void attachTask();
   void pingTask();
   void receiveSmsTask();
@@ -44,6 +48,15 @@ class Exchanger {
       worker6.detach();
     }
   }
+  [[nodiscard]] network_addr::IpAddr& getAddr() { return _ip_addr; }
+  [[nodiscard]] ue::UeContext& getContext() { return _ctxt; }
+  [[nodiscard]] double power() const { return _power; }
+  [[nodiscard]] size_t enodeb() const { return _picked_enodeb; }
+  [[nodiscard]] int socket() const { return _socket; }
+  [[nodiscard]] bool inActive() const { return _in_active; }
+  [[nodiscard]] bool attached() const { return _attached; }
+  [[nodiscard]] int64_t x() const { return _x; }
+  void moveX(int64_t delta) { _x += delta; }
 
  private:
   void closeConnection()
@@ -113,10 +126,11 @@ class Exchanger {
 
   //std::counting_semaphore<kSendQueueNumber>{0};
   //std::counting_semaphore<kSendQueueNumber> _send_queue_sm{0};
-
+  double _power{};
   size_t _picked_enodeb{0};
-  int _socket;
-  std::atomic<bool> _in_active;
+  int64_t _x;
+  int _socket{-1};
+  std::atomic<bool> _in_active{false};
   std::atomic<bool> _attached{false};
 };
 }  // namespace ue

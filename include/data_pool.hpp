@@ -85,7 +85,7 @@ class DataPool {
 
     while (_status_queue.size() != 0) {
       auto* str = _status_queue.front();
-      _storage[str->_message_id].second = str->_status;
+      std::get<1>(_storage[str->_message_id]) = str->_status;
       _message_queue.pop();
     }
   }

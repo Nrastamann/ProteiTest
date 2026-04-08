@@ -11,11 +11,13 @@ void displayMenu()
 
   std::cout << hint_text << delimeter << '\n';
 
-  std::cout << "Status:\t\tPrint current status\n";
-  std::cout << "Activate:\t\tActivate your device for transmitting data\n";
-  std::cout << "SMS:\t\tSend SMS to other UE\n";
+  std::cout << "Activate:\tActivate your device for transmitting data\n";
   std::cout << "Clear:\t\tClear screen\n";
-  std::cout << "Quit/Exit:\t\tQuit the program\n";
+  std::cout << "Move:\t\tMove in space\n";
+  std::cout << "Settings:\tPrint settings\n";
+  std::cout << "SMS:\t\tSend SMS to other UE\n";
+  std::cout << "Status:\t\tPrint current status\n";
+  std::cout << "Quit/Exit:\tQuit the program\n";
   std::cout << delimeter << '\n';
 }
 }  // namespace display

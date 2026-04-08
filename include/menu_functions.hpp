@@ -5,6 +5,7 @@
 #include "settings.hpp"
 
 struct NonConstTag {};
+struct BothNonConstTag {};
 
 namespace hashed {
 inline size_t const kQuit = std::hash<std::string_view>{}("quit");
@@ -22,8 +23,11 @@ void changeName(AppSettings& settings);
 void enterVector(data_storage::DataPool& vector, AppSettings const& settings);
 void emptyQueue(data_storage::DataPool& data_pool, NonConstTag);
 
+void moveX(AppSettings& settings);
+
 void printVector(data_storage::DataPool& arr, NonConstTag);
 void sendToServer(data_storage::DataPool& datapool, const AppSettings& settings);
+void status(data_storage::DataPool& sms, AppSettings& settings, BothNonConstTag);
 
 //std::from_chars_result emplaceInVector(utility::any_type& emplace_element,
 //                                       std::string_view string_input, size_t hashed_input);
@@ -34,7 +38,7 @@ inline void quit(AppSettings& settings)
   settings.setShouldClose();
 }
 
-inline void printCurrentAppSettings(const AppSettings& settings)
+inline void printCurrentAppSettings(AppSettings& settings)
 {
   ui_protei::printAppSettings(settings);
 }

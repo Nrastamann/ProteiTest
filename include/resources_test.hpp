@@ -80,14 +80,15 @@ class ConnectionTest final : ITest {
   ConnectionTest(ConnectionTest&&) = default;
   ConnectionTest& operator=(const ConnectionTest&) = default;
   ConnectionTest& operator=(ConnectionTest&&) = default;
-  ConnectionTest(std::span<network_addr::IpAddr> addresses) : _resources(addresses) {}
+  //ConnectionTest(std::span<network_addr::IpAddr> addresses) : _resources(addresses) {}
+  ConnectionTest(network_addr::IpAddr& address) : _resource(address) {}
 
   bool operator()() override
   {
     bool value = true;
-    auto bad_it{_resources.begin()};
+    //  auto bad_it{_resource.begin()};
 
-    auto test_resource = [&bad_it](const network_addr::IpAddr& addr) {
+    auto test_resource = [/*&bad_it*/](const network_addr::IpAddr& addr) {
       int client_socket = socket(AF_INET, SOCK_STREAM, 0);
       if (client_socket == -1) {
         return false;
@@ -104,16 +105,15 @@ class ConnectionTest final : ITest {
         return false;
       }
 
-      std::advance(bad_it, 1);
+      //      std::advance(bad_it, 1);
 
       close(client_socket);
       return true;
     };
 
-    if (_invalid_state ||
-        (_resources.size() != 0 && !std::ranges::all_of(_resources, test_resource))) {
-
-      std::string output_str = std::format("{}", *bad_it);
+    if (_invalid_state || (!test_resource(_resource))) {
+      /*_resources.size() != 0 && !std::ranges::all_of(_resources, test_resource))*/
+      std::string output_str = std::format("{}", _resource);
 
       logging::SingleThreadPresets::acquiringResourceError<ConnectionTest>(output_str);
 
@@ -124,8 +124,8 @@ class ConnectionTest final : ITest {
   };
 
  private:
-  std::span<network_addr::IpAddr> _resources;
-
+  //std::span<network_addr::IpAddr> _resources;
+  network_addr::IpAddr _resource;
   bool _invalid_state = false;
 };
 }  // namespace resources_tests

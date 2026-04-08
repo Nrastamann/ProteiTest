@@ -106,7 +106,7 @@ void Exchanger::receiveTask()
 
 ConnectionStatus Exchanger::createSocket()
 {
-  _socket = socket(AF_INET, SOCK_STREAM, 0);
+  _socket = ::socket(AF_INET, SOCK_STREAM, 0);
   if (_socket == -1) {
     logging::SingleThreadPresets::acquiringResourceError<resources_tests::ConnectionTest>(
         std::format("couldn't create socket to {}", _ip_addr));
