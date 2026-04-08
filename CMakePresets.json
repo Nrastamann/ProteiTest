@@ -129,8 +129,7 @@
                      "name": "_debug",
                      "hidden": true,
                      "targets": [
-                            "proteip",
-                            "proteip.test"
+                            "proteip"
                      ]
               },
               {

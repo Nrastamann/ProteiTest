@@ -156,16 +156,15 @@ class Menu {
         {hashed::kSettings,
          MenuItem{menu_functions::printCurrentAppSettings, menu_hooks::defaultEmpty,
                   menu_hooks::post_hooks_protei::clearBuffer}},
-        {hashed::kMove, MenuItem{menu_functions::moveX, menu_hooks::defaultEmpty,
-                                 menu_hooks::post_hooks_protei::defaultClear}},
+        {hashed::kMove,
+         MenuItem{menu_functions::moveX, menu_hooks::pre_hooks_protei::defaultClear,
+                  menu_hooks::post_hooks_protei::defaultClear}},
         {hashed::kStatus, MenuItem{menu_functions::status, menu_hooks::defaultEmpty,
                                    menu_hooks::post_hooks_protei::clearBuffer}},
-        //=========
-        {hashed::kActivate, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
-                                     menu_hooks::post_hooks_protei::defaultClear}},
-        {hashed::kSMS, MenuItem{menu_functions::emptyFunction, menu_hooks::defaultEmpty,
+        {hashed::kSMS, MenuItem{menu_functions::sms, menu_hooks::pre_hooks_protei::defaultClear,
                                 menu_hooks::post_hooks_protei::defaultClear}},
-
+        {hashed::kActivate, MenuItem{menu_functions::activate, menu_hooks::defaultEmpty,
+                                     menu_hooks::post_hooks_protei::defaultClear}},
     };
 
     logging::SingleThreadPresets::createdStaticContainer(

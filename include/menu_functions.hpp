@@ -17,16 +17,9 @@ inline size_t const kFalseSymbolic = std::hash<std::string_view>{}("false");
 }  // namespace hashed
 
 namespace menu_functions {
-void changeType(AppSettings& settings);
-void changeName(AppSettings& settings);
-
-void enterVector(data_storage::DataPool& vector, AppSettings const& settings);
-void emptyQueue(data_storage::DataPool& data_pool, NonConstTag);
-
 void moveX(AppSettings& settings);
-
-void printVector(data_storage::DataPool& arr, NonConstTag);
-void sendToServer(data_storage::DataPool& datapool, const AppSettings& settings);
+void sms(data_storage::DataPool& sms, AppSettings& settings, BothNonConstTag);
+void activate(data_storage::DataPool& data_pool, AppSettings& settings, BothNonConstTag);
 void status(data_storage::DataPool& sms, AppSettings& settings, BothNonConstTag);
 
 //std::from_chars_result emplaceInVector(utility::any_type& emplace_element,

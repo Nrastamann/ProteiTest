@@ -15,6 +15,8 @@
 namespace menu_functions {
 void status(data_storage::DataPool& sms, AppSettings& settings, BothNonConstTag)
 {
+  sms.flush();
+  logging::SingleThreadPresets::functionCall();
   auto& exchanger = settings.getExchanger();
   std::cout << "SMS Status:\n";
   sms.printAll(exchanger.getContext().msisdn());
@@ -28,10 +30,58 @@ void status(data_storage::DataPool& sms, AppSettings& settings, BothNonConstTag)
   std::cout << "X:\t\t" << exchanger.x() << '\n';
 }
 
+void activate(data_storage::DataPool& data_pool, AppSettings& settings, BothNonConstTag)
+{
+  logging::SingleThreadPresets::functionCall();
+  settings.getExchanger().setActive(data_pool);
+}
+
+void sms(data_storage::DataPool& sms, AppSettings& settings, BothNonConstTag)
+{
+  logging::SingleThreadPresets::functionCall();
+
+  auto& exchanger = settings.getExchanger();
+  std::array<std::string, 2> input;
+  while (true) {
+    std::cout << "Enter number and text of your sms\n"
+                 "enter 'quit' if you've changed your mind: ";
+    for (auto& input_str : input) {
+      std::cin >> input_str;
+      logging::SingleThreadPresets::userInput(input_str);
+
+      std::string lowered_input;
+      lowered_input.resize(input_str.size());
+      std::ranges::transform(input_str, lowered_input.begin(), ::tolower);
+
+      if (std::hash<std::string_view>{}(lowered_input) == hashed::kQuit) {
+        logging::SingleThreadPresets::menuQuit();
+        return;
+      }
+      if (!std::cin.good()) {
+        break;
+      }
+    }
+
+    if (!std::cin.good()) {
+      display::clearCinBuffer();
+      logging::SingleThreadPresets::wrongInput();
+      continue;
+    }
+
+    auto parse_res = parsing::parseNumber<uint64_t>(input[0]);
+
+    if (parse_res.has_value() && input[1].size() > 0) {
+      sms.pushNewSms({._msisdn = parse_res.value(), ._sms = input[1]});
+      exchanger.pushToSend(std::move(input[1]));
+      logging::SingleThreadPresets::menuQuit();
+      return;
+    }
+  }
+}
+
 void moveX(AppSettings& settings)
 {
   logging::SingleThreadPresets::functionCall();
-  display::clearScreen();
   std::string string_input;
   while (true) {
     std::cout << "Enter distance to emulate movement\n"

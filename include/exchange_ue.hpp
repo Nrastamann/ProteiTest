@@ -1,11 +1,13 @@
 #pragma once
+#include <bits/chrono.h>
 #include <unistd.h>
 #include <atomic>
+#include <chrono>
 #include <functional>
-#include <semaphore>
 #include <thread>
 #include <unordered_map>
 #include <variant>
+#include "data_pool.hpp"
 #include "ip_addr.hpp"
 #include "rigtorp/SPSCQueue.h"
 #include "ue_context.hpp"
@@ -13,6 +15,7 @@
 namespace ue {
 enum class ConnectionStatus : uint8_t { socket_creation_err, connection_err, valid_connection };
 class Exchanger {
+  static constexpr std::chrono::milliseconds kSleepTime{50};
   static constexpr size_t kSendQueueNumber{4};
   static constexpr size_t kQueueLength{15};
 
@@ -24,28 +27,55 @@ class Exchanger {
 
   void attachTask();
   void pingTask();
-  void receiveSmsTask();
-  void receiveSmsStatusTask();
   void sendTask();
   void receiveTask();
 
-  void setActive(bool value)
+  void receiveSmsTask(data_storage::DataPool& data)
   {
-    _in_active = value;
+    while (_in_active) {
+      if (_receivedSmsQ.size() == 0) {
+        std::this_thread::sleep_for(kSleepTime);
+        continue;
+      }
+      auto* sms = _receivedSmsQ.front();
+      data.pushSms(std::move(*sms));
+      _receivedSmsQ.pop();
+    }
+  }
+  void receiveSmsStatusTask(data_storage::DataPool& data)
+  {
+
+    while (_in_active) {
+      if (_receivedSmsStatusQ.size() == 0) {
+        std::this_thread::sleep_for(kSleepTime);
+        continue;
+      }
+      auto* sms = _receivedSmsStatusQ.front();
+      data.pushStatus(std::move(*sms));
+      _receivedSmsStatusQ.pop();
+    }
+  }
+
+  void setActive(data_storage::DataPool& DataPool)
+  {
+    _in_active = !_in_active;
+
     if (_in_active) {  //need to understand, what of these need to restart
-      std::thread worker1(&Exchanger::attachTask, this);
-      std::thread worker2(&Exchanger::pingTask, this);
-      std::thread worker3(&Exchanger::receiveSmsTask, this);
-      std::thread worker4(&Exchanger::receiveSmsStatusTask, this);
-      std::thread worker5(&Exchanger::sendTask, this);
-      std::thread worker6(&Exchanger::receiveTask, this);
+      createSocket();
+      std::thread worker1(&Exchanger::pingTask, this);
+      std::thread worker2(&Exchanger::receiveSmsTask, this, std::ref(DataPool));
+      std::thread worker3(&Exchanger::receiveSmsStatusTask, this, std::ref(DataPool));
+      std::thread worker4(&Exchanger::sendTask, this);
+      std::thread worker5(&Exchanger::receiveTask, this);
 
       worker1.detach();
       worker2.detach();
       worker3.detach();
       worker4.detach();
       worker5.detach();
-      worker6.detach();
+    }
+    else {
+      closeConnection();
     }
   }
   [[nodiscard]] network_addr::IpAddr& getAddr() { return _ip_addr; }
@@ -58,62 +88,104 @@ class Exchanger {
   [[nodiscard]] int64_t x() const { return _x; }
   void moveX(int64_t delta) { _x += delta; }
 
- private:
+  void pushToSend(
+      std::variant<std::variant<utility::MeasurementReq, utility::MeasurementConnectReq>,
+                   std::string, utility::AcknowledgmentReq, utility::AttachReq,
+                   utility::AuthReq>&& msg)
+  {
+    std::visit(
+        utility::Visitor{
+            [this](std::variant<utility::MeasurementReq, utility::MeasurementConnectReq>&&
+                       measurement) { _poolingSendQ.push(std::move(measurement)); },
+            [this](std::string&& str) { _sendSmsQ.push(std::move(str)); },
+            [this](auto&& attach) {
+              _attachment_send_q.push(std::forward<decltype(attach)>(std::move(attach)));
+            },
+            [this](utility::AcknowledgmentReq&& ack) {
+              _acknowledgementQ.push(std::move(ack));
+            },
+        },
+        std::move(msg));
+  }
+
+  void pushToRecv(
+      std::variant<
+          utility::SmsReqNet, std::variant<utility::ConfigResp, utility::MeasurementResp>,
+          utility::AcknowledgmentResp, utility::AttachResponse, utility::AuthResp>&& msg)
+  {
+    std::visit(
+        utility::Visitor{
+            [this](std::variant<utility::ConfigResp, utility::MeasurementResp>&& measurement) {
+              _poolingBufferQ.push(std::move(measurement));
+            },
+            [this](utility::SmsReqNet&& str) { _receivedSmsQ.push(std::move(str)); },
+            [this](auto&& attach) {
+              _attachment_recv_q.push(std::forward<decltype(attach)>(std::move(attach)));
+            },
+            [this](utility::AcknowledgmentResp&& ack) {
+              _receivedSmsStatusQ.push(std::move(ack));
+            },
+        },
+        std::move(msg));
+  }
   void closeConnection()
   {
     close(_socket);
     _attached = false;
     _in_active = false;
   }
+
+ private:
   ConnectionStatus createSocket();
   using recv_map =
-      std::unordered_map<utility::MessageFlag, std::function<void(utility::UEMessageData&&)>>;
-
-  const recv_map& getMap()
+      std::unordered_map<utility::MessageFlag, std::function<void(utility::UEMessageData&)>>;
+  static const recv_map& getMap()
   {
     const static recv_map receive_work{
         {utility::MessageFlag::SMSSend,
-         [this](utility::UEMessageData&& message) {
-           this->_receivedSmsQ.push(std::get<utility::SmsReqNet>(std::move(message)));
+         [](utility::UEMessageData& message) {
+           message = std::get<utility::SmsReqNet>(message);
          }},
         {utility::MessageFlag::SMSStatus,
-         [this](utility::UEMessageData&& message) {
-           _receivedSmsStatusQ.push(std::get<utility::AcknowledgmentReq>(std::move(message)));
+         [](utility::UEMessageData& message) {
+           message = std::get<utility::AcknowledgmentResp>(message);
          }},  //function to set status
         {utility::MessageFlag::AuthResp,
-         [this](utility::UEMessageData&& message) {
-           _attachment_recv_q.push(std::get<utility::AttachResult>(std::move(message)));
+         [](utility::UEMessageData& message) {
+           message = std::get<utility::AuthResp>(message);
          }},
         {utility::MessageFlag::RangeResp,
-         [this](utility::UEMessageData&& message) {
-           this->_poolingBufferQ.push(
-               std::get<utility::MeasurementControl>(std::move(message)));
+         [](utility::UEMessageData& message) {
+           message = std::get<utility::MeasurementResp>(message);
          }},
         {utility::MessageFlag::Configuration,
-         [this](utility::UEMessageData&& message) {
-           this->_poolingBufferQ.push(std::get<utility::ConfigReq>(std::move(message)));
+         [](utility::UEMessageData& message) {
+           message = std::get<utility::ConfigResp>(message);
          }},
-        {utility::MessageFlag::AttachResp, [this](utility::UEMessageData&& message) {
-           this->_attachment_recv_q.push(std::get<utility::AttachResponse>(std::move(message)));
+        {utility::MessageFlag::AttachResp, [](utility::UEMessageData& message) {
+           message = std::get<utility::AttachResponse>(message);
          }}};
     return receive_work;
   }
 
+  static constexpr size_t kAttachmentQLen{2};
+  alignas(utility::kCacheLength) std::atomic<bool> _in_active{false};
+  alignas(utility::kCacheLength) std::atomic<bool> _attached{false};
   //send queues
-  rigtorp::SPSCQueue<utility::AcknowledgmentUE> _acknowledgementQ{kQueueLength};
+  rigtorp::SPSCQueue<utility::AcknowledgmentReq> _acknowledgementQ{kQueueLength};
   rigtorp::SPSCQueue<std::string> _sendSmsQ{kQueueLength};
-  rigtorp::SPSCQueue<std::variant<utility::MeasurementReq, utility::MeasurementReport>>
+  rigtorp::SPSCQueue<std::variant<utility::MeasurementReq, utility::MeasurementConnectReq>>
       _poolingSendQ{kQueueLength};
   rigtorp::SPSCQueue<std::variant<utility::AttachReq, utility::AuthReq>> _attachment_send_q{
-      kQueueLength};
+      kAttachmentQLen};
 
   //receive queues
   rigtorp::SPSCQueue<utility::SmsReqNet> _receivedSmsQ{kQueueLength};
-  rigtorp::SPSCQueue<std::variant<utility::ConfigReq, utility::MeasurementControl>>
+  rigtorp::SPSCQueue<std::variant<utility::ConfigResp, utility::MeasurementResp>>
       _poolingBufferQ{kQueueLength};
-  rigtorp::SPSCQueue<utility::AcknowledgmentReq> _receivedSmsStatusQ{kQueueLength};
-  rigtorp::SPSCQueue<std::variant<utility::AttachResponse, utility::AttachResult>>
-      _attachment_recv_q{kQueueLength};
+  rigtorp::SPSCQueue<utility::AcknowledgmentResp> _receivedSmsStatusQ{kQueueLength};
+  rigtorp::SPSCQueue<std::variant<utility::AttachResponse, utility::AuthResp>>
+      _attachment_recv_q{kAttachmentQLen};
 
   UeContext _ctxt;
 
@@ -121,16 +193,11 @@ class Exchanger {
 
   network_addr::IpAddr _ip_addr;
 
-  std::counting_semaphore<kSendQueueNumber> _send_queue_sm{0};
-  std::counting_semaphore<2> _attach_sm{1};
-
   //std::counting_semaphore<kSendQueueNumber>{0};
   //std::counting_semaphore<kSendQueueNumber> _send_queue_sm{0};
   double _power{};
   size_t _picked_enodeb{0};
   int64_t _x;
   int _socket{-1};
-  std::atomic<bool> _in_active{false};
-  std::atomic<bool> _attached{false};
 };
 }  // namespace ue
