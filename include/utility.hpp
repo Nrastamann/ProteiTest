@@ -22,7 +22,6 @@ struct SmsReqNet {
 };
 
 enum class MessageFlag : uint8_t {
-  WRONG_RESPONSE_FLAG,
   SMSSend,        //Send/receive text
   SMSStatus,      //send/receive Status
   RangeReq,       //Request enodeb power
@@ -40,25 +39,25 @@ enum class SMSStatus : uint8_t {
   Received,
 };
 struct SmsUe {
-  std::string _sms;
   uint64_t _msisdn;
+  std::string _sms;
 };
 //sms status
-struct AcknowledgmentReq {
+struct AcknowledgmentResp {
   uint32_t _tmsi;
   size_t _message_id;
   SMSStatus _status;
 };
 
 //tmsi_d status to mme
-struct AcknowledgmentUE {
+struct AcknowledgmentReq {
   uint32_t _tmsi_d;
 };
 
 //measurement for enodeb power send
 struct MeasurementReq {
   uint64_t _imei;
-  uint64_t _x;
+  int64_t _x;
 };
 
 struct EnodeBInfo {
@@ -68,19 +67,21 @@ struct EnodeBInfo {
 
 //result off measurementreq
 //for future use
-struct MeasurementControl {
+struct MeasurementResp {
   uint64_t _imei;
   EnodeBInfo _info;
 };
 
 //picked enodeb connect_to
-struct MeasurementReport {
+struct MeasurementConnectReq {
   uint64_t _enodeb_idx;
 };
+enum class EnodeBStatus : uint8_t { CONNECT, DISCONNECT };
 //config message
-struct ConfigReq {
+struct ConfigResp {
   uint64_t _imei;
   uint64_t _ttl;
+  EnodeBStatus _status;
 };
 
 //config message
@@ -102,10 +103,10 @@ struct AuthReq {
   uint32_t _tmsi;
 };
 //attached done, correctly
-struct AttachResult {};
-using UEMessageData = std::variant<SmsReqNet, AcknowledgmentReq, AcknowledgmentUE,
-                                   MeasurementReq, MeasurementControl, MeasurementReport,
-                                   AttachReq, AttachResponse, AuthReq, AttachResult, ConfigReq>;
+struct AuthResp {};
+using UEMessageData = std::variant<SmsReqNet, AcknowledgmentResp, AcknowledgmentReq,
+                                   MeasurementReq, MeasurementResp, MeasurementConnectReq,
+                                   AttachReq, AttachResponse, AuthReq, AuthResp, ConfigResp>;
 
 struct UEMessage {
   MessageFlag _msg_type;

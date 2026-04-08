@@ -1,14 +1,12 @@
 #pragma once
 
 #include <cstring>
-#include <format>
 #include <functional>
+#include <iostream>
 #include <mutex>
-#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
-#include "logger.hpp"
 #include "rigtorp/SPSCQueue.h"
 #include "utility.hpp"
 
@@ -45,7 +43,7 @@ class DataPool {
     _message_queue.push(std::move(str));
   }
 
-  void pushStatus(utility::AcknowledgmentReq&& str)
+  void pushStatus(utility::AcknowledgmentResp&& str)
   {
     if (_status_queue.size() == 16) {
       flush();
@@ -94,11 +92,12 @@ class DataPool {
   [[nodiscard]] container_type getContainer() const { return _storage; }
   void printAll(uint64_t msisdn)
   {
+    std::cout << '\n';
     std::lock_guard<std::mutex> lock(_flush_mtx);
     for (auto& msg : _storage) {
       uint64_t msisdn_msg = std::get<2>(msg.second);
-      std::cout << "Message";
-      std::cout << (msisdn == msisdn_msg ? "to " : "from ") << msisdn_msg << ": "
+      std::cout << "Message ";
+      std::cout << (msisdn == msisdn_msg ? "from " : "to ") << msisdn_msg << ": "
                 << std::get<0>(msg.second) << "  | ";
 
       std::string_view status;
@@ -116,6 +115,7 @@ class DataPool {
       }
       std::cout << status;
     }
+    std::cout << '\n';
   }
 
  private:
@@ -125,7 +125,7 @@ class DataPool {
   container_type _storage;
 
   rigtorp::SPSCQueue<utility::SmsUe> _send_sms_queue{kQueueCapacity};
-  rigtorp::SPSCQueue<utility::AcknowledgmentReq> _status_queue{kQueueCapacity};
+  rigtorp::SPSCQueue<utility::AcknowledgmentResp> _status_queue{kQueueCapacity};
   rigtorp::SPSCQueue<utility::SmsReqNet> _message_queue{kQueueCapacity};
   size_t _counter{0};
 };

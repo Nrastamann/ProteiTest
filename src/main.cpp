@@ -85,7 +85,12 @@ int main(int argc, char* argv[])
     default:
       break;
   }
+
   ue::DeviceConfiguration cfg = parsed_arguments.value().getDeviceConfig();
+  if (parsed_arguments.value().getAddr().size() == 0) {
+    std::cout << "No address\n";
+    return 1;
+  }
   AppSettings settings(parsed_arguments.value(), cfg);
 
   if (settings.cgetShouldClose()) {
@@ -105,5 +110,6 @@ int main(int argc, char* argv[])
   while (!settings.cgetShouldClose()) {
     menu.menuTask(0, 0, arguments);
   }
+  settings.getExchanger().closeConnection();
   display::clearScreen();
 }

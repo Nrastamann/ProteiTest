@@ -20,6 +20,10 @@ struct DeviceConfiguration {  //maybe inheritance?
 
 class UeContext : public DeviceConfiguration {
  public:
+  UeContext(uint32_t tmsi, uint64_t ttl_ue, uint64_t imei, uint64_t msisdn, uint64_t imsi)
+      : DeviceConfiguration(imei, msisdn, imsi), _ttl_ue(ttl_ue), _tmsi(tmsi)
+  {
+  }
   UeContext(DeviceConfiguration& context, uint32_t tmsi, uint64_t ttl_ue)
       : DeviceConfiguration(context), _ttl_ue(ttl_ue), _tmsi(tmsi)
   {

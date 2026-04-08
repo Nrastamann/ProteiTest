@@ -5,9 +5,9 @@ project(ProteiPractice
         DESCRIPTION "Homework for PROTEI practice"
 )
 
-set(BUILD_SHARED_LIBS OFF)
-set(CMAKE_EXE_LINKER_FLAGS "-static")
-set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+#set(BUILD_SHARED_LIBS OFF)
+#set(CMAKE_EXE_LINKER_FLAGS "-static")
+#set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -53,7 +53,7 @@ src/exchange_ue.cpp  src/menu_functions.cpp  src/settings.cpp
 )
 
 target_compile_options(proteip PRIVATE
-        -Wall -Wextra -Wsign-conversion -Wconversion)
+        -Wall -Wextra -Wsign-conversion -Wconversion -w)
 
 #target_compile_options(proteip.server PRIVATE
 #       -Wall -Wextra -Wsign-conversion -Wconversion)
@@ -138,7 +138,6 @@ set_property(
         TARGET proteip.test
         APPEND
         PROPERTY COMPILE_OPTIONS -w)
-
 include(GoogleTest)
 
 gtest_discover_tests(proteip.test)
