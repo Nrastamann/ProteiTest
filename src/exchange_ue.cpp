@@ -32,10 +32,12 @@ void Exchanger::sendTask()
 
     if (std::string* data = _sendSmsQ.front(); nullptr != data) {
       _send_queue_sm.acquire();
-      *std::next(it, 1) = utility::UEMessage{
-          ._msg_type = utility::MessageFlag::SMSSend,
-          ._data = utility::SmsReqNet{
-              ._tmsi = _ctxt.tmsi(), ._msisdn = _ctxt.msisdn(), ._sms = {*data->data()}}};
+      *std::next(it, 1) =
+          utility::UEMessage{._msg_type = utility::MessageFlag::SMSSend,
+                             ._data = utility::SmsReqNet{._tmsi = _ctxt.tmsi(),
+                                                         ._msisdn = _ctxt.msisdn(),
+                                                         ._smsid = 0,
+                                                         ._sms = {*data->data()}}};
       _sendSmsQ.pop();
     }
 
@@ -73,8 +75,7 @@ void Exchanger::sendTask()
         send(_socket, packets.begin(), (it_end - it) * sizeof(utility::UEMessage), 0);
 
     if (status == -1) {
-      _in_active = false;
-      close(_socket);
+      closeConnection();
       std::cout << "SEND ERROR\n";  //temp
     }
   }
@@ -89,8 +90,7 @@ void Exchanger::receiveTask()
 
     if (received_amount == -1) {
       std::cout << "RECEIVE ERROR\n";
-      _in_active = false;
-      close(_socket);
+      closeConnection();
       break;
     }
     const auto* it_end = std::next(
@@ -98,11 +98,8 @@ void Exchanger::receiveTask()
 
     for (auto* it = packets.begin(); it != it_end; std::advance(it, 1)) {
       const auto function = _receive_map.find(it->_msg_type);
-      function != _receive_map.end() ? function->second(std::move(it->_data)) : [this]() {
-        this->_in_active = false;
-        this->_attached = false;
-        this->_socket = close(_socket);
-      }();
+      function != _receive_map.end() ? function->second(std::move(it->_data))
+                                     : closeConnection();
     }
   }
 }
@@ -125,7 +122,6 @@ ConnectionStatus Exchanger::createSocket()
   int res = connect(_socket, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr));
 
   if (res != 0) {
-    _in_active = false;
     close(_socket);
     logging::SingleThreadPresets::acquiringResourceError<resources_tests::ConnectionTest>(
         std::format("couldn't connect to {}", _ip_addr));
@@ -133,13 +129,47 @@ ConnectionStatus Exchanger::createSocket()
   }
   return ConnectionStatus::valid_connection;
 }
-ConnectionStatus Exchanger::attach()
+void Exchanger::pingTask()
+{
+  //map of all received enodeb, pick whenever, pick only if signal power greater than threshold
+  while (_in_active) {
+    //if (false) {}
+    std::variant<utility::ConfigReq, utility::MeasurementControl>* msg =
+        _poolingBufferQ.front();
+  }
+}
+void Exchanger::attachTask()
 {
   auto status = createSocket();
   if (status != ConnectionStatus::valid_connection) {
-    return status;
+    closeConnection();
+    return;
   }
 
-  return status;
+  while (_in_active && _attach_sm.try_acquire()) {
+    _attach_sm.acquire();
+
+    _attachment_send_q.push(utility::AttachReq{._imei = _ctxt.imei(),
+                                               ._imsi = _ctxt.imsi(),
+                                               ._msisdn = _ctxt.msisdn(),
+                                               ._enodeb_number = _picked_enodeb});
+
+    _attach_sm.acquire();
+    utility::AttachResponse msg =
+        std::get<utility::AttachResponse>(*_attachment_recv_q.front());
+
+    if (_ctxt.tmsi() != msg._tmsi) {
+      closeConnection();
+      std::cout << "AUTH FAILED!\n";
+      break;
+    }
+    _attachment_recv_q.pop();
+    _attachment_send_q.push(utility::AuthReq{._imei = _ctxt.imei(), ._tmsi = _ctxt.tmsi()});
+
+    _attach_sm.acquire();
+    std::cout << "AUTH DONE CORRECTLY!\n";
+    _attachment_recv_q.pop();
+    _attached = true;
+  }
 }
 }  // namespace ue

@@ -11,19 +11,13 @@ struct Visitor : Callable... {
   using Callable::operator()...;
 };
 inline constexpr size_t kCacheLength = {std::hardware_destructive_interference_size};
-static constexpr size_t kMaxSMSLen{480};  //max message send len equals 512 byte
-//sms req/send inside objects
-struct SmsReq {
-  uint64_t _tmsi;
-  uint64_t _msisdn;
-  uint64_t _sms_id;
-  std::string _sms;
-};
+static constexpr size_t kMaxSMSLen{488};  //max message send len equals 512 byte
 
 //sms req/send to send across network
 struct SmsReqNet {
-  uint64_t _tmsi;
+  uint32_t _tmsi;
   uint64_t _msisdn;
+  size_t _smsid;
   std::array<char, kMaxSMSLen> _sms;
 };
 
@@ -42,18 +36,23 @@ enum class MessageFlag : uint8_t {
 };
 enum class SMSStatus : uint8_t {
   Lost,
+  Waiting,
   Received,
 };
-
+struct SmsUe {
+  std::string _sms;
+  uint64_t _msisdn;
+};
 //sms status
 struct AcknowledgmentReq {
-  uint64_t _tmsi;
+  uint32_t _tmsi;
+  size_t _message_id;
   SMSStatus _status;
 };
 
 //tmsi_d status to mme
 struct AcknowledgmentUE {
-  uint64_t _tmsi_d;
+  uint32_t _tmsi_d;
 };
 
 //measurement for enodeb power send
@@ -89,17 +88,18 @@ struct AttachReq {
   uint64_t _imei;
   uint64_t _imsi;
   uint64_t _msisdn;
+  uint64_t _enodeb_number;
 };
 
 //tmsi
 struct AttachResponse {
-  uint64_t _tmsi;
+  uint32_t _tmsi;
 };
 
 //config message
 struct AuthReq {
   uint64_t _imei;
-  uint64_t _tmsi;
+  uint32_t _tmsi;
 };
 //attached done, correctly
 struct AttachResult {};
