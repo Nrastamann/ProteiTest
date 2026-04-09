@@ -3,16 +3,13 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <array>
 #include <vector>
+#include "exchange_ue.hpp"
 #include "logger.hpp"
 #include "mncs_basestation.hpp"
 #include "mncs_ueconnection.hpp"
-#include "thread_pool.hpp"
 #include "utility.hpp"
-
 namespace mncs {
-class BaseStation;
 class Listener {
   static constexpr size_t kListenNumber{utility::kThreadNum * 2};
 
@@ -35,8 +32,12 @@ class Listener {
   [[nodiscard]] bool getStatus() const { return _shouldClose; }
 
  private:
-  std::vector<UEConnection> _connections;
-  std::unordered_map<size_t, BaseStation>* _base_station_list;
+  using recv_map =
+      std::unordered_map<utility::MessageFlag, std::function<void(utility::UEMessageData&)>>;
+
+  std::vector<mncs::UEConnection> _connections;
+  std::unordered_map<size_t, mncs::BaseStation>* _base_station_list;
+  const recv_map& _map = ue::getMap();
   int _socket{};
   uint16_t _port;
   bool _shouldClose{false};

@@ -61,13 +61,14 @@ class XLR {
     return false;
   }
 
-  uint32_t getTmsi(uint64_t msisdn)
+  std::pair<uint32_t, size_t> getTmsi(uint64_t msisdn)
   {
     for (auto& i : _data) {
       if (i.second._msisdn == msisdn) {
-        return i.second._tmsi;
+        return {i.second._tmsi, i.second._last_enodebid};
       }
     }
+    return {0, 0};
   }
 
   XLR()

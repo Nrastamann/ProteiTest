@@ -25,7 +25,7 @@ class DataPool {
   size_t getHash(std::string_view str, size_t msisdn) const
   {
     return std::hash<size_t>{}(std::hash<std::string_view>{}(str) +
-                               std::hash<size_t>{}(_counter + msisdn));
+                               std::hash<size_t>{}(msisdn));
   }
 
  public:

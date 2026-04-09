@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include "utility.hpp"
 namespace mncs {
+
 void UEConnection::sendDirectly(utility::UEMessage&& msg)
 {
   if (_socket != -1) {
@@ -83,7 +84,7 @@ void UEConnection::run()
                      },
                      [](auto&&) {},
                      [this](utility::AcknowledgmentReq&& msg) {
-                       this->_connected_station.;  //to mme
+                       //             this->_connected_station.;  //to mme
                      },
                      [this](utility::MeasurementReq&& msg) {
                        for (auto& enodeb : *_enodeb_list) {
