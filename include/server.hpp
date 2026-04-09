@@ -11,6 +11,7 @@
 #include <queue>
 #include <type_traits>
 #include "logger.hpp"
+#include "utility.hpp"
 
 namespace server {
 
@@ -109,8 +110,6 @@ inline int setGetServerSocket(Tag, int socket = 0)
   return global_server_socket;
 }
 
-inline constexpr size_t kThreadNum{4};
-
 template <size_t N>
 class BufferPool {
   template <typename T>
@@ -167,7 +166,7 @@ class BufferPool {
 
 SocketWrapper serverSetup(uint16_t port);
 //void dataManipulation(std::string& result, ::PolymorphicVectorQuad& vector);
-void serverTask(int client_socket, BufferPool<kThreadNum>& buffer_pool);
+void serverTask(int client_socket, BufferPool<utility::kThreadNum>& buffer_pool);
 int serverStart(int argc, char** argv);
 
 struct WriteSocketN {};

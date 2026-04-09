@@ -14,6 +14,69 @@
 #include "ue_context.hpp"
 #include "utility.hpp"
 namespace ue {
+using recv_map =
+    std::unordered_map<utility::MessageFlag, std::function<void(utility::UEMessageData&)>>;
+static const recv_map& getMap()
+{
+  const static recv_map receive_work{
+      {utility::MessageFlag::SMSSend,
+       [](utility::UEMessageData& message) {
+         message = *reinterpret_cast<utility::SmsReqNet*>(
+             &std::get<std::array<char, utility::kMsgDataSize>>(message));
+         if constexpr (std::endian::native == std::endian::little) {
+           auto& msg = std::get<utility::SmsReqNet>(message);
+           msg._msisdn = std::byteswap(msg._msisdn);
+           msg._smsid = std::byteswap(msg._smsid);
+           msg._tmsi = std::byteswap(msg._tmsi);
+         }
+       }},
+      {utility::MessageFlag::SMSStatus,
+       [](utility::UEMessageData& message) {
+         message = *reinterpret_cast<utility::AcknowledgmentResp*>(
+             &std::get<std::array<char, utility::kMsgDataSize>>(message));
+         if constexpr (std::endian::native == std::endian::little) {
+           auto& msg = std::get<utility::AcknowledgmentResp>(message);
+           msg._message_id = std::byteswap(msg._message_id);
+           msg._tmsi = std::byteswap(msg._tmsi);
+         }
+       }},  //function to set status
+      {utility::MessageFlag::AuthResp,
+       [](utility::UEMessageData& message) {
+         message = *reinterpret_cast<utility::AuthResp*>(
+             &std::get<std::array<char, utility::kMsgDataSize>>(message));
+       }},
+      {utility::MessageFlag::RangeResp,
+       [](utility::UEMessageData& message) {
+         message = *reinterpret_cast<utility::MeasurementResp*>(
+             &std::get<std::array<char, utility::kMsgDataSize>>(message));
+         if constexpr (std::endian::native == std::endian::little) {
+           auto& msg = std::get<utility::MeasurementResp>(message);
+           msg._imei = std::byteswap(msg._imei);
+           msg._info._enodeb_id = std::byteswap(msg._info._enodeb_id);
+           msg._info._enodeb_power = std::byteswap(msg._info._enodeb_power);
+         }
+       }},
+      {utility::MessageFlag::Configuration,
+       [](utility::UEMessageData& message) {
+         message = *reinterpret_cast<utility::ConfigResp*>(
+             &std::get<std::array<char, utility::kMsgDataSize>>(message));
+         if constexpr (std::endian::native == std::endian::little) {
+           auto& msg = std::get<utility::ConfigResp>(message);
+           msg._imei = std::byteswap(msg._imei);
+           msg._ttl = std::byteswap(msg._ttl);
+         }
+       }},
+      {utility::MessageFlag::AttachResp, [](utility::UEMessageData& message) {
+         message = *reinterpret_cast<utility::AttachResponse*>(
+             &std::get<std::array<char, utility::kMsgDataSize>>(message));
+         if constexpr (std::endian::native == std::endian::little) {
+           auto& msg = std::get<utility::AttachResponse>(message);
+           msg._tmsi = std::byteswap(msg._tmsi);
+         }
+       }}};
+  return receive_work;
+}
+
 enum class ConnectionStatus : uint8_t { socket_creation_err, connection_err, valid_connection };
 class Exchanger {
   static constexpr std::chrono::milliseconds kSleepTime{50};
@@ -138,69 +201,6 @@ class Exchanger {
 
  private:
   ConnectionStatus createSocket();
-  using recv_map =
-      std::unordered_map<utility::MessageFlag, std::function<void(utility::UEMessageData&)>>;
-  static const recv_map& getMap()
-  {
-    const static recv_map receive_work{
-        {utility::MessageFlag::SMSSend,
-         [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::SmsReqNet*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-           if constexpr (std::endian::native == std::endian::little) {
-             auto& msg = std::get<utility::SmsReqNet>(message);
-             msg._msisdn = std::byteswap(msg._msisdn);
-             msg._smsid = std::byteswap(msg._smsid);
-             msg._tmsi = std::byteswap(msg._tmsi);
-           }
-         }},
-        {utility::MessageFlag::SMSStatus,
-         [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::AcknowledgmentResp*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-           if constexpr (std::endian::native == std::endian::little) {
-             auto& msg = std::get<utility::AcknowledgmentResp>(message);
-             msg._message_id = std::byteswap(msg._message_id);
-             msg._tmsi = std::byteswap(msg._tmsi);
-           }
-         }},  //function to set status
-        {utility::MessageFlag::AuthResp,
-         [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::AuthResp*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-         }},
-        {utility::MessageFlag::RangeResp,
-         [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::MeasurementResp*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-           if constexpr (std::endian::native == std::endian::little) {
-             auto& msg = std::get<utility::MeasurementResp>(message);
-             msg._imei = std::byteswap(msg._imei);
-             msg._info._enodeb_id = std::byteswap(msg._info._enodeb_id);
-             msg._info._enodeb_power = std::byteswap(msg._info._enodeb_power);
-           }
-         }},
-        {utility::MessageFlag::Configuration,
-         [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::ConfigResp*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-           if constexpr (std::endian::native == std::endian::little) {
-             auto& msg = std::get<utility::ConfigResp>(message);
-             msg._imei = std::byteswap(msg._imei);
-             msg._ttl = std::byteswap(msg._ttl);
-           }
-         }},
-        {utility::MessageFlag::AttachResp, [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::AttachResponse*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-           if constexpr (std::endian::native == std::endian::little) {
-             auto& msg = std::get<utility::AttachResponse>(message);
-             msg._tmsi = std::byteswap(msg._tmsi);
-           }
-         }}};
-    return receive_work;
-  }
-
   static constexpr size_t kAttachmentQLen{2};
   alignas(utility::kCacheLength) std::atomic<bool> _in_active{false};
   alignas(utility::kCacheLength) std::atomic<bool> _attached{false};

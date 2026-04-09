@@ -129,7 +129,8 @@
                      "name": "_debug",
                      "hidden": true,
                      "targets": [
-                            "proteip"
+                            "proteip",
+                            "proteip.server"
                      ]
               },
               {
@@ -137,7 +138,7 @@
                      "hidden": true,
                      "targets": [
                             "proteip",
-                            "proteip.test",
+                            "proteip.server",
                             "proteip.benchmark"
                      ]
               },
@@ -145,7 +146,8 @@
                      "name": "_source_only",
                      "hidden": true,
                      "targets": [
-                            "proteip"
+                            "proteip",
+                            "proteip.server"
                      ]
               },
               {

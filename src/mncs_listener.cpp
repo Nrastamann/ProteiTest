@@ -1,4 +1,6 @@
 #include "mncs_listener.hpp"
+#include "mncs_basestation.hpp"
+#include "mncs_ueconnection.hpp"
 
 namespace mncs {
 bool Listener::startListener()
@@ -41,7 +43,10 @@ void Listener::server()
       logging::MultithreadPresets::defaultError("Couldn't init client socket\n");
       return;
     }
-    _connections.push_back(std::move({}));
+    _connections.emplace_back(0);
+    _connections.back().setList(this->_base_station_list);
+    std::thread thr(&UEConnection::run, _connections.back());
+    thr.detach();
   }
 }
 }  // namespace mncs
