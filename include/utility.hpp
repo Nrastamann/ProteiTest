@@ -11,7 +11,7 @@ struct Visitor : Callable... {
   using Callable::operator()...;
 };
 inline constexpr size_t kCacheLength = {std::hardware_destructive_interference_size};
-static constexpr size_t kMaxSMSLen{488};  //max message send len equals 512 byte
+static constexpr size_t kMaxSMSLen{480};  //max message send len equals 512 byte
 
 //sms req/send to send across network
 struct SmsReqNet {
@@ -32,7 +32,19 @@ enum class MessageFlag : uint8_t {
   AuthResp,       //AuthResp
   Reconnect,      //reconnect to more powerfull enodeb
   Configuration,  //Configuration resp
+  HandoverDone,
+  HandoverReq,
+  HandoverResp,
+  MMETimeout,
+  SwitchEnodeB,
+  DeliveryReport,
+  EnodeBID,
+  SmsRoute,
+  TimeoutUE,
+  BufferRelease,
+  TTLReset
 };
+
 enum class SMSStatus : uint8_t {
   Lost,
   Waiting,
@@ -62,7 +74,7 @@ struct MeasurementReq {
 
 struct EnodeBInfo {
   uint64_t _enodeb_id;
-  double _enodeb_power;
+  uint64_t _enodeb_power;
 };
 
 //result off measurementreq
@@ -103,14 +115,62 @@ struct AuthReq {
   uint32_t _tmsi;
 };
 //attached done, correctly
-struct AuthResp {};
-using UEMessageData = std::variant<SmsReqNet, AcknowledgmentResp, AcknowledgmentReq,
-                                   MeasurementReq, MeasurementResp, MeasurementConnectReq,
-                                   AttachReq, AttachResponse, AuthReq, AuthResp, ConfigResp>;
+struct AuthResp {
+  EnodeBStatus _status;
+};
+
+struct MMETimeout {};
+
+struct SMSRoute {
+  uint64_t _msisdn;
+  uint32_t _tmsi;
+};
+struct EnodeBID {
+  size_t _id;
+};
+struct ResetSmsttl {
+  uint64_t _sms_id;
+};
+struct DeliveryReport {
+  uint64_t _sms_id;
+  uint32_t _tmsi_id;
+  SMSStatus _status;
+};
+struct HandoverReq {
+  size_t _enodeb_id;
+};
+struct HandoverResp {
+  EnodeBStatus _status;
+};
+struct SwitchEnodeB {};
+
+struct HandoverDone {};
+
+struct TimeoutUE {
+  uint32_t _tmsi;
+};
+
+struct ReleaseBuffer {};
+inline constexpr size_t kMsgDataSize{sizeof(SmsReqNet)};
+using ENodeBMessageData =
+    std::variant<HandoverDone, SwitchEnodeB, HandoverResp, HandoverReq, DeliveryReport,
+                 ReleaseBuffer, EnodeBID, SMSRoute, MMETimeout, SmsReqNet, TimeoutUE,
+                 std::array<char, kMsgDataSize>, AcknowledgmentResp, AcknowledgmentReq,
+                 MeasurementReq, MeasurementResp, MeasurementConnectReq, AttachReq,
+                 AttachResponse, AuthReq, AuthResp, ConfigResp>;
+
+using UEMessageData =
+    std::variant<SmsReqNet, AcknowledgmentResp, AcknowledgmentReq, MeasurementReq,
+                 MeasurementResp, MeasurementConnectReq, AttachReq, AttachResponse, AuthReq,
+                 AuthResp, ConfigResp, std::array<char, kMsgDataSize>>;
 
 struct UEMessage {
   MessageFlag _msg_type;
   UEMessageData _data;
+};
+struct EnodeBMessage {
+  MessageFlag _msg_type;
+  ENodeBMessageData _data;
 };
 inline constexpr size_t kMsgSize{sizeof(UEMessage)};
 };  // namespace utility

@@ -2,6 +2,7 @@
 #include <bits/chrono.h>
 #include <unistd.h>
 #include <atomic>
+#include <bit>
 #include <chrono>
 #include <functional>
 #include <thread>
@@ -25,7 +26,7 @@ class Exchanger {
   Exchanger(ue::UeContext& ctxt, network_addr::IpAddr& addr, int64_t x)
       : _ctxt(ctxt), _ip_addr(addr), _x(x) {};
 
-  void attachTask();
+  void attachTask(rigtorp::SPSCQueue<size_t>& indexes_to_remove);
   void pingTask();
   void sendTask();
   void receiveTask();
@@ -99,7 +100,7 @@ class Exchanger {
                        measurement) { _poolingSendQ.push(std::move(measurement)); },
             [this](std::string&& str) { _sendSmsQ.push(std::move(str)); },
             [this](auto&& attach) {
-              _attachment_send_q.push(std::forward<decltype(attach)>(std::move(attach)));
+              _attachment_send_q.push(std::forward<decltype(attach)>(attach));
             },
             [this](utility::AcknowledgmentReq&& ack) {
               _acknowledgementQ.push(std::move(ack));
@@ -144,26 +145,58 @@ class Exchanger {
     const static recv_map receive_work{
         {utility::MessageFlag::SMSSend,
          [](utility::UEMessageData& message) {
-           message = std::get<utility::SmsReqNet>(message);
+           message = *reinterpret_cast<utility::SmsReqNet*>(
+               &std::get<std::array<char, utility::kMsgDataSize>>(message));
+           if constexpr (std::endian::native == std::endian::little) {
+             auto& msg = std::get<utility::SmsReqNet>(message);
+             msg._msisdn = std::byteswap(msg._msisdn);
+             msg._smsid = std::byteswap(msg._smsid);
+             msg._tmsi = std::byteswap(msg._tmsi);
+           }
          }},
         {utility::MessageFlag::SMSStatus,
          [](utility::UEMessageData& message) {
-           message = std::get<utility::AcknowledgmentResp>(message);
+           message = *reinterpret_cast<utility::AcknowledgmentResp*>(
+               &std::get<std::array<char, utility::kMsgDataSize>>(message));
+           if constexpr (std::endian::native == std::endian::little) {
+             auto& msg = std::get<utility::AcknowledgmentResp>(message);
+             msg._message_id = std::byteswap(msg._message_id);
+             msg._tmsi = std::byteswap(msg._tmsi);
+           }
          }},  //function to set status
         {utility::MessageFlag::AuthResp,
          [](utility::UEMessageData& message) {
-           message = std::get<utility::AuthResp>(message);
+           message = *reinterpret_cast<utility::AuthResp*>(
+               &std::get<std::array<char, utility::kMsgDataSize>>(message));
          }},
         {utility::MessageFlag::RangeResp,
          [](utility::UEMessageData& message) {
-           message = std::get<utility::MeasurementResp>(message);
+           message = *reinterpret_cast<utility::MeasurementResp*>(
+               &std::get<std::array<char, utility::kMsgDataSize>>(message));
+           if constexpr (std::endian::native == std::endian::little) {
+             auto& msg = std::get<utility::MeasurementResp>(message);
+             msg._imei = std::byteswap(msg._imei);
+             msg._info._enodeb_id = std::byteswap(msg._info._enodeb_id);
+             msg._info._enodeb_power = std::byteswap(msg._info._enodeb_power);
+           }
          }},
         {utility::MessageFlag::Configuration,
          [](utility::UEMessageData& message) {
-           message = std::get<utility::ConfigResp>(message);
+           message = *reinterpret_cast<utility::ConfigResp*>(
+               &std::get<std::array<char, utility::kMsgDataSize>>(message));
+           if constexpr (std::endian::native == std::endian::little) {
+             auto& msg = std::get<utility::ConfigResp>(message);
+             msg._imei = std::byteswap(msg._imei);
+             msg._ttl = std::byteswap(msg._ttl);
+           }
          }},
         {utility::MessageFlag::AttachResp, [](utility::UEMessageData& message) {
-           message = std::get<utility::AttachResponse>(message);
+           message = *reinterpret_cast<utility::AttachResponse*>(
+               &std::get<std::array<char, utility::kMsgDataSize>>(message));
+           if constexpr (std::endian::native == std::endian::little) {
+             auto& msg = std::get<utility::AttachResponse>(message);
+             msg._tmsi = std::byteswap(msg._tmsi);
+           }
          }}};
     return receive_work;
   }
@@ -171,6 +204,8 @@ class Exchanger {
   static constexpr size_t kAttachmentQLen{2};
   alignas(utility::kCacheLength) std::atomic<bool> _in_active{false};
   alignas(utility::kCacheLength) std::atomic<bool> _attached{false};
+  alignas(utility::kCacheLength) std::atomic<bool> _attachment_in_process{false};
+
   //send queues
   rigtorp::SPSCQueue<utility::AcknowledgmentReq> _acknowledgementQ{kQueueLength};
   rigtorp::SPSCQueue<std::string> _sendSmsQ{kQueueLength};

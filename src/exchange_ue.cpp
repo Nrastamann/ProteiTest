@@ -1,8 +1,11 @@
 #include "exchange_ue.hpp"
+#include <byteswap.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <array>
+#include <bit>
 #include <cerrno>
 #include <iterator>
 #include <unordered_map>
@@ -10,6 +13,7 @@
 #include "ip_addr.hpp"
 #include "logger.hpp"
 #include "resources_test.hpp"
+#include "rigtorp/SPSCQueue.h"
 #include "timer.hpp"
 #include "utility.hpp"
 namespace ue {
@@ -19,8 +23,10 @@ void Exchanger::sendTask()
   //and run it separate thread
   // logging::MultithreadPresets::functionCall();
   std::array<utility::UEMessage, kSendQueueNumber> packets;
+
   const auto* it_begin = packets.begin();
   while (_in_active) {
+
     bool is_ack = _acknowledgementQ.size() != 0;
     bool is_sms = _sendSmsQ.size() != 0;
     bool is_pool = _poolingSendQ.size() != 0;
@@ -33,28 +39,47 @@ void Exchanger::sendTask()
 
     auto* it = std::prev(packets.begin());
     if (utility::AcknowledgmentReq* data = _acknowledgementQ.front(); is_ack) {
+      data->_tmsi_d = htonl(data->_tmsi_d);
       *std::next(it, 1) =
           utility::UEMessage{._msg_type = utility::MessageFlag::SMSStatus, ._data = *data};
       _acknowledgementQ.pop();
     }
 
-    if (std::string* data = _sendSmsQ.front(); is_sms) {
-      *std::next(it, 1) =
-          utility::UEMessage{._msg_type = utility::MessageFlag::SMSSend,
-                             ._data = utility::SmsReqNet{._tmsi = _ctxt.tmsi(),
-                                                         ._msisdn = _ctxt.msisdn(),
-                                                         ._smsid = 0,
-                                                         ._sms = {*data->data()}}};
+    if (std::string* data = _sendSmsQ.front(); is_sms && _attached) {
+      if constexpr (std::endian::native == std::endian::little) {
+        *std::next(it, 1) = utility::UEMessage{
+            ._msg_type = utility::MessageFlag::SMSSend,
+            ._data = utility::SmsReqNet{._tmsi = std::byteswap(_ctxt.tmsi()),
+                                        ._msisdn = std::byteswap(_ctxt.msisdn()),
+                                        ._smsid = std::byteswap(0),
+                                        ._sms = {*data->data()}}};
+      }
+      else {
+        *std::next(it, 1) =
+            utility::UEMessage{._msg_type = utility::MessageFlag::SMSSend,
+                               ._data = utility::SmsReqNet{._tmsi = _ctxt.tmsi(),
+                                                           ._msisdn = _ctxt.msisdn(),
+                                                           ._smsid = 0,
+                                                           ._sms = {*data->data()}}};
+      }
       _sendSmsQ.pop();
     }
 
     if (auto* data = _poolingSendQ.front(); is_pool) {
       std::visit(
           utility::Visitor{[&it](utility::MeasurementReq req) {
+                             if constexpr (std::endian::native == std::endian::little) {
+                               req._imei = std::byteswap(req._imei);
+                               req._x = std::byteswap(req._x);
+                             }
+
                              *std::next(it, 1) = utility::UEMessage{
                                  ._msg_type = utility::MessageFlag::RangeReq, ._data = req};
                            },
                            [&it](utility::MeasurementConnectReq req) {
+                             if constexpr (std::endian::native == std::endian::little) {
+                               req._enodeb_idx = std::byteswap(req._enodeb_idx);
+                             }
                              *std::next(it, 1) = utility::UEMessage{
                                  ._msg_type = utility::MessageFlag::Reconnect, ._data = req};
                            }},
@@ -65,10 +90,22 @@ void Exchanger::sendTask()
     if (auto* data = _attachment_send_q.front(); is_attach) {
       std::visit(
           utility::Visitor{[&it](utility::AttachReq req) {
+                             if constexpr (std::endian::native == std::endian::little) {
+                               req._imei = std::byteswap(req._imei);
+                               req._enodeb_number = std::byteswap(req._enodeb_number);
+                               req._imsi = std::byteswap(req._imsi);
+                               req._msisdn = std::byteswap(req._msisdn);
+                             }
+
                              *std::next(it, 1) = utility::UEMessage{
                                  ._msg_type = utility::MessageFlag::AttachReq, ._data = req};
                            },
                            [&it](utility::AuthReq req) {
+                             if constexpr (std::endian::native == std::endian::little) {
+                               req._imei = std::byteswap(req._imei);
+                               req._tmsi = std::byteswap(req._tmsi);
+                             }
+
                              *std::next(it, 1) = utility::UEMessage{
                                  ._msg_type = utility::MessageFlag::AuthReq, ._data = req};
                            }},
@@ -109,12 +146,12 @@ void Exchanger::receiveTask()
       if (!_in_active) {
         break;
       }
-      std::visit(
-          utility::Visitor{[this](auto&& msg) { pushToRecv(msg); },
-                           [](utility::AcknowledgmentReq) {}, [](utility::MeasurementReq) {},
-                           [](utility::MeasurementConnectReq) {}, [](utility::AttachReq) {},
-                           [](utility::AuthReq) {}, [](utility::AuthResp) {}},
-          it->_data);
+      std::visit(utility::Visitor{
+                     [this](auto&& msg) { pushToRecv(msg); }, [](utility::AcknowledgmentReq) {},
+                     [](utility::MeasurementReq) {}, [](utility::MeasurementConnectReq) {},
+                     [](utility::AttachReq) {}, [](utility::AuthReq) {},
+                     [](utility::AuthResp) {}, [](std::array<char, utility::kMsgDataSize>) {}},
+                 it->_data);
     }
   }
 }
@@ -144,10 +181,10 @@ ConnectionStatus Exchanger::createSocket()
   }
   return ConnectionStatus::valid_connection;
 }
-static uint64_t findmaxPower(const std::unordered_map<uint64_t, double>& list)
+static uint64_t findmaxPower(const std::unordered_map<uint64_t, uint64_t>& list)
 {
   uint64_t idx = list.begin()->first;
-  double max = list.begin()->second;
+  uint64_t max = list.begin()->second;
   for (const auto& enodeb : list) {
     if (max < enodeb.second) {
       idx = enodeb.first;
@@ -160,13 +197,20 @@ static uint64_t findmaxPower(const std::unordered_map<uint64_t, double>& list)
 void Exchanger::pingTask()
 {
   //map of all received enodeb, pick whenever, pick only if signal power greater than threshold
-  std::unordered_map<uint64_t, double> enodeb_list;
+  std::unordered_map<uint64_t, uint64_t> enodeb_list;
   uint64_t max_enodeb_idx{};
-  double max_power{};
+  uint64_t max_power{};
   pr_utils::Timer timer_ping(_ctxt.ttlUe());
   pushToSend(utility::MeasurementReq{._imei = _ctxt.imei(), ._x = this->_x});
 
+  rigtorp::SPSCQueue<size_t> indexes_to_remove{2};
   while (_in_active) {
+    while (indexes_to_remove.size() != 0) {
+      enodeb_list.erase(*indexes_to_remove.front());
+      indexes_to_remove.pop();
+    }
+    max_enodeb_idx = findmaxPower(enodeb_list);
+
     std::variant<utility::ConfigResp, utility::MeasurementResp>* msg = _poolingBufferQ.front();
 
     if (msg != nullptr) {
@@ -209,12 +253,13 @@ void Exchanger::pingTask()
     }
 
     if (_picked_enodeb != max_enodeb_idx) {
+      _picked_enodeb = max_enodeb_idx;
       pushToSend(utility::MeasurementConnectReq{._enodeb_idx = max_enodeb_idx});
     }
 
     if (!_attached) {
-      if (0 != enodeb_list.size()) {
-        std::thread attach_procedure(&Exchanger::attachTask, this);
+      if (0 != enodeb_list.size() && !_attachment_in_process) {
+        std::thread attach_procedure(&Exchanger::attachTask, this, std::ref(indexes_to_remove));
         attach_procedure.detach();
       }
       continue;
@@ -228,47 +273,55 @@ void Exchanger::pingTask()
   }
 }
 
-void Exchanger::attachTask()
+void Exchanger::attachTask(rigtorp::SPSCQueue<size_t>& indexes_to_remove)
 {
+  _attachment_in_process = true;
   auto status = createSocket();
   if (status != ConnectionStatus::valid_connection) {
     closeConnection();
     return;
   }
 
-  pushToSend(utility::AttachReq{._imei = _ctxt.imei(),
-                                ._imsi = _ctxt.imsi(),
-                                ._msisdn = _ctxt.msisdn(),
-                                ._enodeb_number = _picked_enodeb});
+  while (_in_active && !_attached) {
+    pushToSend(utility::AttachReq{._imei = _ctxt.imei(),
+                                  ._imsi = _ctxt.imsi(),
+                                  ._msisdn = _ctxt.msisdn(),
+                                  ._enodeb_number = _picked_enodeb});
 
-  while (_attachment_recv_q.size() == 0 && _in_active) {
-    std::this_thread::sleep_for(kSleepTime);
+    while (_attachment_recv_q.size() == 0 && _in_active) {
+      std::this_thread::sleep_for(kSleepTime);
+    }
+    if (!_in_active) {
+      break;
+    }
+    utility::AttachResponse msg =
+        std::get<utility::AttachResponse>(*_attachment_recv_q.front());
+
+    _ctxt = ue::UeContext(msg._tmsi, _ctxt.ttlUe(), _ctxt.imei(), this->_ctxt.msisdn(),
+                          this->_ctxt.imsi());
+
+    _attachment_recv_q.pop();
+    pushToSend(utility::AuthReq{._imei = _ctxt.imei(), ._tmsi = _ctxt.tmsi()});
+
+    while (_attachment_recv_q.size() == 0 && _in_active) {
+      std::this_thread::sleep_for(kSleepTime);
+    }
+    if (!_in_active) {
+      break;
+    }
+
+    auto* msg_activate = _attachment_recv_q.front();
+
+    auto msg_result = std::get<utility::AuthResp>(*msg_activate);  //what if attach failed?
+    if (msg_result._status == utility::EnodeBStatus::DISCONNECT) {
+
+      indexes_to_remove.push(_picked_enodeb);
+      return;
+    }
+    std::cout << "AUTH DONE CORRECTLY!\n";
+    _attachment_recv_q.pop();
+    _attached = true;
+    _attachment_in_process = false;
   }
-  if (!_in_active) {
-    return;
-  }
-
-  utility::AttachResponse msg = std::get<utility::AttachResponse>(*_attachment_recv_q.front());
-
-  _ctxt = ue::UeContext(msg._tmsi, _ctxt.ttlUe(), _ctxt.imei(), this->_ctxt.msisdn(),
-                        this->_ctxt.imsi());
-
-  _attachment_recv_q.pop();
-  pushToSend(utility::AuthReq{._imei = _ctxt.imei(), ._tmsi = _ctxt.tmsi()});
-
-  while (_attachment_recv_q.size() == 0 && _in_active) {
-    std::this_thread::sleep_for(kSleepTime);
-  }
-  if (!_in_active) {
-    return;
-  }
-
-  auto* msg_activate = _attachment_recv_q.front();
-
-  std::get<utility::AuthResp>(*msg_activate);  //what if attach failed?
-
-  std::cout << "AUTH DONE CORRECTLY!\n";
-  _attachment_recv_q.pop();
-  _attached = true;
 }
 }  // namespace ue
