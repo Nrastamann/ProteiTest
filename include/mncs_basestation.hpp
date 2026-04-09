@@ -3,13 +3,17 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
+#include <iterator>
 #include <unordered_map>
+#include <variant>
 #include <vector>
 #include "exchange_ue.hpp"
 #include "mncs_listener.hpp"
+#include "mncs_ueconnection.hpp"
 #include "utility.hpp"
 
 namespace mncs {
+class UEConnection;
 struct Spinlock {
   std::atomic<bool> _lock{false};
   void lock()
@@ -22,110 +26,108 @@ struct Spinlock {
         ;
     }
   }
+  bool tryLock() noexcept
+  {
+    return !_lock.load(std::memory_order_release) &&
+           !_lock.exchange(true, std::memory_order_acquire);
+  }
   void unlock() { _lock.store(false, std::memory_order_release); }
 };
-class EnodeBStorage {};
 class BaseStation {
-  static constexpr size_t kQueueLength{4};
   static constexpr uint64_t kMaxPower{100};
+  using flagMap = const std::unordered_map<utility::MessageFlag,
+                                           std::function<void(utility::EnodeBMessage&)>>;
+
+ public:
   BaseStation(int64_t x, int64_t radius) : _x(x), _radius(radius)
   {
     if (radius == 0) {
       _radius = 1;
     }
   }
-  using recv_map = std::unordered_map<utility::MessageFlag,
-                                      std::function<void(utility::ENodeBMessageData&)>>;
-  static const recv_map& getMap()
-  {
-    const static recv_map receive_work{
-        {utility::MessageFlag::SMSSend,
-         [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::SmsReqNet*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-           if constexpr (std::endian::native == std::endian::little) {
-             auto& msg = std::get<utility::SmsReqNet>(message);
-             msg._msisdn = std::byteswap(msg._msisdn);
-             msg._smsid = std::byteswap(msg._smsid);
-             msg._tmsi = std::byteswap(msg._tmsi);
-           }
-         }},
-        {utility::MessageFlag::SMSStatus,
-         [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::AcknowledgmentResp*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-           if constexpr (std::endian::native == std::endian::little) {
-             auto& msg = std::get<utility::AcknowledgmentResp>(message);
-             msg._message_id = std::byteswap(msg._message_id);
-             msg._tmsi = std::byteswap(msg._tmsi);
-           }
-         }},  //function to set status
-        {utility::MessageFlag::AuthResp,
-         [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::AuthResp*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-         }},
-        {utility::MessageFlag::RangeResp,
-         [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::MeasurementResp*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-           if constexpr (std::endian::native == std::endian::little) {
-             auto& msg = std::get<utility::MeasurementResp>(message);
-             msg._imei = std::byteswap(msg._imei);
-             msg._info._enodeb_id = std::byteswap(msg._info._enodeb_id);
-             msg._info._enodeb_power = std::byteswap(msg._info._enodeb_power);
-           }
-         }},
-        {utility::MessageFlag::Configuration,
-         [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::ConfigResp*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-           if constexpr (std::endian::native == std::endian::little) {
-             auto& msg = std::get<utility::ConfigResp>(message);
-             msg._imei = std::byteswap(msg._imei);
-             msg._ttl = std::byteswap(msg._ttl);
-           }
-         }},
-        {utility::MessageFlag::AttachResp, [](utility::UEMessageData& message) {
-           message = *reinterpret_cast<utility::AttachResponse*>(
-               &std::get<std::array<char, utility::kMsgDataSize>>(message));
-           if constexpr (std::endian::native == std::endian::little) {
-             auto& msg = std::get<utility::AttachResponse>(message);
-             msg._tmsi = std::byteswap(msg._tmsi);
-           }
-         }}};
-    return receive_work;
-  }
 
- public:
-  using flagMap = const std::unordered_map<utility::MessageFlag,
-                                           std::function<void(utility::EnodeBMessage&)>>;
+  int remove();
+
+  BaseStation* connect(UEConnection& connection);
+
   [[nodiscard]] uint64_t getPower(int64_t pos) const
   {
     return kMaxPower - (std::abs(_x - pos) / _radius);
   }
-
-  void connect() {}
-  void push()
+  [[nodiscard]] size_t getIdx() const { return _idx; }
+  void run()
   {
-    if (_buffer_received.size() != 0) {}
+    while (!_shutdown) {
+      if (auto* msg = _receiveQ.front(); msg != nullptr) {
+        std::visit(
+            utility::Visitor{
+                [this](utility::SmsReqNet&& msg) {
+                  buffer.push_back(
+                      std::pair{std::move(msg._sms), getHash(msg._sms, msg._msisdn)});
+                  _counter++;
+                  _sendMME.push(utility::SMSRoute{._msisdn = msg._msisdn, ._tmsi = msg._tmsi});
+                },
+                [this](utility::AcknowledgmentReq&& msg) {
+                  _sendMME.push(
+                      utility::DeliveryReport{._sms_id = msg._smsid,
+                                              ._tmsi_id = msg._tmsi_d,
+                                              ._status = utility::SMSStatus::Received});
+                },
+                [this](utility::MeasurementReq&& msg) {
+                  size_t power = getPower(msg._x);
+                  _sendQ.push(utility::MeasurementResp{
+                      ._imei = msg._imei, ._info{._enodeb_id = _idx, ._enodeb_power = power}});
+                },
+
+                [this](utility::MeasurementConnectReq&& msg) {
+                  _sendMME.push(utility::HandoverReq{._enodeb_id = msg._enodeb_idx});
+                },
+
+                [this](utility::AttachReq&& msg) {
+                  _sendMME.push(utility::EnodeBIDSend{._id = _idx});
+                },
+                [](auto&& msg) {},
+            },
+            std::move(*msg));
+      }
+      if (auto* msg = _receiveMME.front(); msg != nullptr) {
+        std::visit(utility::Visitor{
+                       [](utility::AttachReqMME&& msg) {},
+                       [](utility::SwitchReq&& msg) {},
+                       [](utility::EnodeBIDSend&& msg) {},
+                       [](utility::TimeoutUE&& msg) {},
+                       [](utility::ResetSmsttl&& msg) {},
+                       [](utility::DeliveryReport&& msg) {},
+                       [](utility::StatusReport&& msg) {},
+                       [](utility::SMSRoute&& msg) {},
+                       [](utility::updateLocation&& msg) {},
+                       [](auto&& msg) {},
+                   },
+                   std::move(*msg));
+      }
+    }
   }
-  void run();
+  [[nodiscard]] size_t getHash(std::string_view str, size_t msisdn) const
+  {
+    return std::hash<size_t>{}(std::hash<std::string_view>{}(str) +
+                               std::hash<size_t>{}(_counter + msisdn));
+  }
+
+  static constexpr size_t kQueueLength{6};
+  rigtorp::SPSCQueue<utility::UEMessageData> _receiveQ{kQueueLength};
+  rigtorp::SPSCQueue<utility::UEMessageData> _sendQ{kQueueLength};
+
+  rigtorp::SPSCQueue<utility::ENodeBMMERecv> _receiveMME{kQueueLength};
+  rigtorp::SPSCQueue<utility::ENodeBMMESend> _sendMME{kQueueLength};
+
+  rigtorp::SPSCQueue<std::variant<>> _receiveEnodeB{kQueueLength};
+  rigtorp::SPSCQueue<std::variant<>> _sendEnodeB{kQueueLength};
 
  private:
-  std::array<rigtorp::template SPSCQueue<utility::ENodeBMessageData>, kThreadNum> _read_queue{
-      {kQueueLength}, {kQueueLength}, {kQueueLength}, {kQueueLength}, {kQueueLength},
-      {kQueueLength}, {kQueueLength}, {kQueueLength}, {kQueueLength}, {kQueueLength}};
-  std::array<rigtorp::template SPSCQueue<utility::UEMessageData>, kThreadNum> _buffer_received{
-      {kQueueLength}, {kQueueLength}, {kQueueLength}, {kQueueLength}, {kQueueLength},
-      {kQueueLength}, {kQueueLength}, {kQueueLength}, {kQueueLength}};
-  std::array<bool, kThreadNum> _flags{false};
-  std::array<Spinlock, kThreadNum> _locks;
-  std::array<size_t, kThreadNum> _counters;
-  std::array<std::vector<utility::SmsReqNet>, kThreadNum> _buffers;
-
-  const recv_map& _map = getMap();
-
+  std::mutex _mtx_handover;
+  std::vector<std::pair<std::string, size_t>> buffer;
+  size_t _counter{0};
+  size_t _idx{};
   int64_t _x;
   int64_t _radius;
   bool _shutdown;

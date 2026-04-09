@@ -10,6 +10,8 @@ template <typename... Callable>
 struct Visitor : Callable... {
   using Callable::operator()...;
 };
+
+inline constexpr size_t kThreadNum{8};
 inline constexpr size_t kCacheLength = {std::hardware_destructive_interference_size};
 static constexpr size_t kMaxSMSLen{480};  //max message send len equals 512 byte
 
@@ -63,6 +65,7 @@ struct AcknowledgmentResp {
 
 //tmsi_d status to mme
 struct AcknowledgmentReq {
+  size_t _smsid;
   uint32_t _tmsi_d;
 };
 
@@ -119,45 +122,60 @@ struct AuthResp {
   EnodeBStatus _status;
 };
 
-struct MMETimeout {};
-
 struct SMSRoute {
   uint64_t _msisdn;
   uint32_t _tmsi;
 };
-struct EnodeBID {
+//from enode to mme
+struct EnodeBIDSend {
   size_t _id;
 };
-struct ResetSmsttl {
-  uint64_t _sms_id;
-};
+
 struct DeliveryReport {
   uint64_t _sms_id;
   uint32_t _tmsi_id;
   SMSStatus _status;
 };
+
 struct HandoverReq {
   size_t _enodeb_id;
 };
+
 struct HandoverResp {
   EnodeBStatus _status;
 };
-struct SwitchEnodeB {};
+
+//switch request
+struct SwitchReq {};
 
 struct HandoverDone {};
 
 struct TimeoutUE {
   uint32_t _tmsi;
 };
-
+struct ReleaseNodeBReq {};
+struct CloseResp {};
 struct ReleaseBuffer {};
+
+struct TimeoutSms {
+  uint64_t _enodeb_id;
+  uint64_t _smsid;
+};
+struct ResetSmsttl {
+  uint64_t _sms_id;
+};
+
 inline constexpr size_t kMsgDataSize{sizeof(SmsReqNet)};
-using ENodeBMessageData =
-    std::variant<HandoverDone, SwitchEnodeB, HandoverResp, HandoverReq, DeliveryReport,
-                 ReleaseBuffer, EnodeBID, SMSRoute, MMETimeout, SmsReqNet, TimeoutUE,
-                 std::array<char, kMsgDataSize>, AcknowledgmentResp, AcknowledgmentReq,
-                 MeasurementReq, MeasurementResp, MeasurementConnectReq, AttachReq,
-                 AttachResponse, AuthReq, AuthResp, ConfigResp>;
+struct StatusReport {};
+struct RouteSMSMMe {
+  size_t _id_enodeb;
+};
+struct updateLocation {};
+
+using ENodeBMMESend = std::variant<SwitchReq, EnodeBIDSend, TimeoutUE, ResetSmsttl,
+                                   DeliveryReport, StatusReport, SMSRoute, updateLocation>;
+using ENodeBMMERecv = std::variant<ReleaseBuffer, CloseResp, ReleaseNodeBReq, TimeoutSms,
+                                   StatusReport, RouteSMSMMe>;
 
 using UEMessageData =
     std::variant<SmsReqNet, AcknowledgmentResp, AcknowledgmentReq, MeasurementReq,
@@ -168,9 +186,6 @@ struct UEMessage {
   MessageFlag _msg_type;
   UEMessageData _data;
 };
-struct EnodeBMessage {
-  MessageFlag _msg_type;
-  ENodeBMessageData _data;
-};
+
 inline constexpr size_t kMsgSize{sizeof(UEMessage)};
 };  // namespace utility

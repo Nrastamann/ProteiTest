@@ -10,16 +10,35 @@ void BaseStation::run()
         continue;
       }
 
-      if (_buffer_received.size() == 0) {
+      if (_read_queue.size() == 0) {
         continue;
       }
-      auto* msg = _buffer_received.front();
+      //auto* msg = _read_queue.front();
       //need mme reference/ptr
-      std::visit(utility::Visitor{[](auto& i) {
+      /*std::visit(utility::Visitor{[](auto& i) {
 
                  }},
-                 msg);
+                 msg);*/
     }
   }
 }
+int BaseStation::remove() {}
+BaseStation* BaseStation::connect(UEConnection& connection)
+{
+  auto* lock_it = _locks.begin();
+  for (auto* it = _flags.begin(); it != _flags.end();
+       std::advance(it, 1), std::advance(lock_it, 1)) {
+
+    if (*it || !lock_it->tryLock()) {
+      continue;
+    }
+    lock_it->lock();
+    *it = true;
+    lock_it->unlock();
+    connection.setidx(it - _flags.begin());
+    return this;
+  }
+  return nullptr;
+}
+
 }  // namespace mncs
