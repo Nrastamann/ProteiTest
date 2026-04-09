@@ -37,7 +37,7 @@ class DataPool {
 
   void pushSms(utility::SmsReqNet&& str)
   {
-    if (_message_queue.size() == 16) {
+    if (_message_queue.size() == _send_sms_queue.capacity()) {
       flush();
     }
     _message_queue.push(std::move(str));
@@ -45,7 +45,7 @@ class DataPool {
 
   void pushStatus(utility::AcknowledgmentResp&& str)
   {
-    if (_status_queue.size() == 16) {
+    if (_status_queue.size() == _send_sms_queue.capacity()) {
       flush();
     }
 
@@ -54,7 +54,7 @@ class DataPool {
 
   void pushNewSms(utility::SmsUe&& str)
   {
-    if (_send_sms_queue.size() == 16) {
+    if (_send_sms_queue.size() == _send_sms_queue.capacity()) {
       flush();
     }
 
@@ -75,8 +75,7 @@ class DataPool {
       auto* str = _send_sms_queue.front();
       size_t hash = getHash(str->_sms, str->_msisdn);
       _counter++;
-      _storage.insert({hash, std::tuple{std::string(str->_sms.data()),
-                                        utility::SMSStatus::Waiting, str->_msisdn}});
+      _storage.insert({hash, std::tuple{str->_sms, utility::SMSStatus::Waiting, str->_msisdn}});
 
       _send_sms_queue.pop();
     }
