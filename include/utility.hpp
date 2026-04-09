@@ -38,7 +38,6 @@ enum class MessageFlag : uint8_t {
   HandoverReq,
   HandoverResp,
   MMETimeout,
-  SwitchEnodeB,
   DeliveryReport,
   EnodeBID,
   SmsRoute,
@@ -123,6 +122,7 @@ struct AuthResp {
 };
 
 struct SMSRoute {
+  uint64_t _idx_sender;
   uint64_t _msisdn;
   uint32_t _tmsi;
 };
@@ -138,15 +138,17 @@ struct DeliveryReport {
 };
 
 struct HandoverReq {
+  size_t _enodeb_id;  //handover to
+};
+
+struct HandoverResp {  //handover to
   size_t _enodeb_id;
 };
 
-struct HandoverResp {
-  EnodeBStatus _status;
-};
-
 //switch request
-struct SwitchReq {};
+struct SwitchReq {
+  uint64_t _idx;
+};
 
 struct HandoverDone {};
 
@@ -157,10 +159,7 @@ struct ReleaseNodeBReq {};
 struct CloseResp {};
 struct ReleaseBuffer {};
 
-struct TimeoutSms {
-  uint64_t _enodeb_id;
-  uint64_t _smsid;
-};
+struct TimeoutSms {};
 struct ResetSmsttl {
   uint64_t _sms_id;
 };
@@ -170,17 +169,23 @@ struct StatusReport {};
 struct RouteSMSMMe {
   size_t _id_enodeb;
 };
-struct updateLocation {};
-
+struct UpdateLocation {};
+struct TTLOS {
+  uint64_t tmsi;
+};
 using ENodeBMMESend = std::variant<SwitchReq, EnodeBIDSend, TimeoutUE, ResetSmsttl,
-                                   DeliveryReport, StatusReport, SMSRoute, updateLocation>;
+                                   DeliveryReport, StatusReport, SMSRoute, UpdateLocation>;
 using ENodeBMMERecv = std::variant<ReleaseBuffer, CloseResp, ReleaseNodeBReq, TimeoutSms,
                                    StatusReport, RouteSMSMMe>;
+
+using ENodeBEnodeB = std::variant<HandoverReq, HandoverResp, ReleaseBuffer, SmsReqNet>;
 
 using UEMessageData =
     std::variant<SmsReqNet, AcknowledgmentResp, AcknowledgmentReq, MeasurementReq,
                  MeasurementResp, MeasurementConnectReq, AttachReq, AttachResponse, AuthReq,
                  AuthResp, ConfigResp, std::array<char, kMsgDataSize>>;
+using MMEMsg =
+    std::variant<SMSRoute, DeliveryReport, EnodeBIDSend, AuthReq, TTLOS, AttachReq, SwitchReq>;
 
 struct UEMessage {
   MessageFlag _msg_type;

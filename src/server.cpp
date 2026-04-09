@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "config.hpp"
 #include "logger.hpp"
+#include "mme.hpp"
 #include "mncs_basestation.hpp"
 #include "mncs_listener.hpp"
 #include "mncs_ueconnection.hpp"
@@ -61,10 +62,6 @@ inline static parsing::ArgHolder::argsMap& getArgSetterServer()
 int serverStart(int argc, char** argv)
 {
   logging::MultithreadPresets::functionCall();
-  thread_pool::ThreadPool threads(utility::kThreadNum);
-
-  server::BufferPool<utility::kThreadNum> buffers{};
-
   auto result = parsing::parseArguments(argc, argv, getArgSetterServer());
 
   switch (result.error_or(parsing::ParseResult::NO_ERR)) {
@@ -98,9 +95,14 @@ int serverStart(int argc, char** argv)
 
   mncs::XLR xlr;
   mncs::Listener listener{port, nullptr};
-  mncs::UEConnection sck(0);
-  if (!listener.getStatus()) {}
-  while (true) {}
+  mncs::MME mme;
+  if (!listener.getStatus()) {
+    return;
+  }
+
+  std::thread worker1(&mncs::MME::run, &mme, std::ref(xlr));
+  worker1.detach();
+  listener.startListener();
   return 0;
 }
 
