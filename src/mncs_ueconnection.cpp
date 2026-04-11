@@ -1,67 +1,70 @@
 #include "mncs_ueconnection.hpp"
 #include <sys/socket.h>
+#include <bit>
+#include <chrono>
+#include <thread>
+#include <utility>
+#include <variant>
 #include "utility.hpp"
+static constexpr size_t kSleepTime{5};
 namespace mncs {
-
-void UEConnection::sendDirectly(utility::UEMessage&& msg)
-{
-  if (_socket != -1) {
-    auto cast_fn = _map.find(msg._msg_type);
-    cast_fn != _map.end() ? cast_fn->second(msg._data) : terminate();
-    if (-1 == _socket) {
-      return;
-    }
-
-    ssize_t res = send(_socket, &msg._data, utility::kMsgSize, 0);
-    if (-1 == res) {
-      terminate();
-    }
-  }
-}
 
 void UEConnection::run()
 {
-  std::array<utility::UEMessage, recv_buffer_len> packets;
-  utility::UEMessage buf;
+  std::array<utility::UEMessage, kBufferLength> packets;
+  auto* it_begin = packets.begin();
+  utility::UEMessageData msg;
   while (_socket != -1) {
-    while (this->_connected_station->_sendQ.size() != 0) {
-      std::visit(utility::Visitor{[&buf](utility::SmsReqNet&& msg) {
-                                    buf._msg_type = utility::MessageFlag::SMSSend;
-                                    buf._data = std::move(msg);
-                                  },
-                                  [&buf](utility::AcknowledgmentResp&& msg) {
-                                    buf._msg_type = utility::MessageFlag::SMSStatus;
-                                    buf._data = std::move(msg);
-                                  },
-                                  [&buf](utility::MeasurementResp&& msg) {
-                                    buf._msg_type = utility::MessageFlag::RangeResp;
-                                    buf._data = std::move(msg);
-                                  },
-                                  [&buf](utility::AttachResponse&& msg) {
-                                    buf._msg_type = utility::MessageFlag::AttachResp;
-                                    buf._data = std::move(msg);
-                                  },
+    auto* it = std::prev(packets.begin());
 
-                                  [&buf](utility::AuthResp&& msg) {
-                                    buf._msg_type = utility::MessageFlag::AuthResp;
-                                    buf._data = std::move(msg);
-                                  },
-                                  [&buf](utility::ConfigResp&& msg) {
-                                    buf._msg_type = utility::MessageFlag::Configuration;
-                                    buf._data = std::move(msg);
-                                  },
-                                  [](auto&&) {}},
-                 std::move(*this->_connected_station->_sendQ.front()));
-      this->_connected_station->_sendQ.pop();
-      ssize_t res = ::send(_socket, &buf, utility::kMsgSize, 0);
-      if (res == -1) {
-        this->terminate();
-        return;
+    auto* message_to_send = _messages_send.front();
+    auto* measurement_results = _measurementQ.front();
+
+    while (message_to_send != nullptr || measurement_results != nullptr ||
+           packets.end() != it_begin) {
+      while (measurement_results != nullptr) {
+        msg = {*measurement_results};
+        _socket_data_processing.at(utility::MessageFlag::MeasureResponse)(msg);
+        *std::next(it, 1) = utility::UEMessage{
+            ._msg_type = utility::MessageFlag::MeasureResponse, ._data = msg};
+        _measurementQ.pop();
+        measurement_results = _measurementQ.front();
+      }
+      while (message_to_send != nullptr) {
+        utility::MessageFlag flag = std::visit(
+            utility::Visitor{
+                [](auto&) { return utility::MessageFlag::SMSStatus; },
+                [](utility::SmsReqNet&) { return utility::MessageFlag::SMSSend; },
+                [](utility::ConfigResponse&) {
+                  return utility::MessageFlag::MeasurementReport;
+                },
+                [](utility::MeasurementResponse&) {
+                  return utility::MessageFlag::MeasureResponse;
+                },
+                [](utility::AcknowledgmentResponse&) {
+                  return utility::MessageFlag::AttachResponse;
+                },
+                [](utility::AttachResponse&) { return utility::MessageFlag::AttachResponse; },
+                [](utility::AuthRequest&) { return utility::MessageFlag::AuthRequest; }},
+            *message_to_send);
+        _socket_data_processing.at(flag)(*message_to_send);
+        *std::next(it, 1) = utility::UEMessage{._msg_type = flag, ._data = *message_to_send};
+
+        _messages_send.pop();
+        message_to_send = _messages_send.front();
       }
     }
-    ssize_t res = recv(_socket, packets.begin(), utility::kMsgSize, MSG_DONTWAIT);
+    ssize_t status =
+        send(_socket, packets.begin(), ((it - it_begin) + 1) * sizeof(utility::UEMessage), 0);
+
+    if (status == -1) {
+      terminate();
+      std::cout << "SEND ERROR\n";  //temp
+    }
+    ssize_t res = recv(_socket, packets.begin(), sizeof(packets), MSG_DONTWAIT);
     if (res == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(kSleepTime));
         continue;
       }
       std::cout << "RECEIVE ERROR\n";
@@ -73,33 +76,23 @@ void UEConnection::run()
         std::next(packets.end(), -static_cast<int64_t>((res / sizeof(utility::UEMessage))));
 
     for (auto* it = packets.begin(); it != it_end; std::advance(it, 1)) {
-      auto cast_fn = _map.find(it->_msg_type);
-      cast_fn != _map.end() ? cast_fn->second(it->_data) : terminate();
+      auto cast_fn = _socket_data_processing.find(it->_msg_type);
+      cast_fn != _socket_data_processing.end() ? cast_fn->second(it->_data) : terminate();
       if (-1 != _socket) {
         break;
       }
-      std::visit(utility::Visitor{
-                     [this](utility::SmsReqNet&& msg) {
-                       this->_connected_station->_receiveQ.push(std::move(msg));
-                     },
-                     [](auto&&) {},
-                     [this](utility::AcknowledgmentReq&& msg) {
-                       //             this->_connected_station.;  //to mme
-                     },
-                     [this](utility::MeasurementReq&& msg) {
-                       for (auto& enodeb : *_enodeb_list) {
-                         enodeb.second._receiveQ.push(std::move(msg));
-                       }
-                     },
-                     [this](utility::MeasurementConnectReq&& msg) {
-                       _enodeb_list->at(msg._enodeb_idx)._receiveQ.push(std::move(msg));
-                     },
-                     [this](utility::AttachReq&& msg) {
-                       this->_connected_station->_receiveQ.push(std::move(msg));
-                     },
-                     [this](utility::AuthReq&& msg) {},  //to mme},
-                 },
-                 std::move(it->_data));
+
+      std::visit(utility::Visitor{[this](auto& msg) { _messages_recv.push(msg); },
+                                  [this](utility::MeasurementRequest& msg) {
+                                    for (auto& station : _enodeb_list) {
+                                      uint64_t power = station.second->getPower(msg._x);
+                                      _measurementQ.push(utility::MeasurementResponse{
+                                          ._imei = msg._imei,
+                                          ._info = {._enodeb_power = power,
+                                                    ._enodeb_id = station.second->getIdx()}});
+                                    }
+                                  }},
+                 it->_data);
     }
   }
 }

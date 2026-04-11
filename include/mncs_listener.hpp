@@ -14,10 +14,11 @@ class Listener {
   static constexpr size_t kListenNumber{utility::kThreadNum * 2};
 
  public:
-  Listener(uint16_t port, std::unordered_map<size_t, BaseStation>* ptr_to_nodes)
+  Listener(uint16_t port,
+           std::unordered_map<size_t, std::unique_ptr<BaseStation>>& ptr_to_nodes)
       : _base_station_list(ptr_to_nodes), _port(port)
   {
-    _connections.reserve(utility::kThreadNum);
+    _connections.reserve(kListenNumber);
   }
 
   ~Listener() { close(_socket); }
@@ -35,8 +36,8 @@ class Listener {
   using recv_map =
       std::unordered_map<utility::MessageFlag, std::function<void(utility::UEMessageData&)>>;
 
-  std::vector<mncs::UEConnection> _connections;
-  std::unordered_map<size_t, mncs::BaseStation>* _base_station_list;
+  std::vector<std::unique_ptr<mncs::UEConnection>> _connections;
+  std::unordered_map<size_t, std::unique_ptr<mncs::BaseStation>>& _base_station_list;
   const recv_map& _map = ue::getMap();
   int _socket{};
   uint16_t _port;
