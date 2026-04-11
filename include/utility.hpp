@@ -1,19 +1,94 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <queue>
 #include <string>
 #include <variant>
+
 namespace utility {
 template <typename... Callable>
 struct Visitor : Callable... {
   using Callable::operator()...;
 };
 
+struct Spinlock {
+  std::atomic<bool> _lock{false};
+  void lock()
+  {
+    for (;;) {
+      if (!_lock.exchange(true, std::memory_order_acquire)) {
+        return;
+      }
+      while (_lock.load(std::memory_order_relaxed))
+        ;
+    }
+  }
+  bool tryLock() noexcept
+  {
+    return !_lock.load(std::memory_order_release) &&
+           !_lock.exchange(true, std::memory_order_acquire);
+  }
+  void unlock() { _lock.store(false, std::memory_order_release); }
+};
+
 inline constexpr size_t kThreadNum{8};
 inline constexpr size_t kCacheLength = {std::hardware_destructive_interference_size};
 static constexpr size_t kMaxSMSLen{480};  //max message send len equals 512 byte
+template <size_t BufferLength, size_t BufferAmount>
+class Buffer {
+  using buffer_capacity_type = uint8_t;
+  using buffer_item_type = std::array<char, 1>;
+  using buffer = std::array<buffer_item_type, BufferLength>;
+  using buffer_container = std::array<buffer, BufferAmount>;
+
+ public:
+  Buffer()
+  {
+    buffer_capacity_type i{0};
+    while (i != BufferAmount) {
+      _buffer_idx.push(i++);
+    }
+  }
+  buffer_container::iterator getBuffer()
+  {
+    if (_buffer_idx.size() == 0) {
+      return _buffers.end();
+    }
+    _buffer_lock.lock();
+    size_t idx = _buffer_idx.front();
+    _buffers.pop();
+    _buffer_lock.unlock();
+    return std::next(_buffers.begin(), idx);
+  }
+  buffer_container::iterator end() { return _buffers.end(); };
+  bool bufferAvailability() { return _buffer_idx.size() != 0; }
+  void releaseBuffer(buffer_capacity_type idx)
+  {
+    if (idx >= BufferAmount) {
+      return;
+    }
+    _buffer_lock.lock();
+    _buffer_idx.push(idx);
+    _buffer_lock.unlock();
+  };
+  void releaseBuffer(buffer_container::iterator it)
+  {
+    if (it >= _buffers.end()) {
+      return;
+    }
+    _buffer_lock.lock();
+    _buffer_idx.push(it - _buffers.begin());
+    _buffer_lock.unlock();
+  };
+
+ private:
+  alignas(utility::kCacheLength) utility::Spinlock _buffer_lock;
+  std::queue<buffer_capacity_type> _buffer_idx;
+  buffer_container _buffers;
+};
 
 //sms req/send to send across network
 struct SmsReqNet {
@@ -24,26 +99,16 @@ struct SmsReqNet {
 };
 
 enum class MessageFlag : uint8_t {
-  SMSSend,        //Send/receive text
-  SMSStatus,      //send/receive Status
-  RangeReq,       //Request enodeb power
-  RangeResp,      //respone enodeb power
-  AttachReq,      //Attach req
-  AttachResp,     //Attach resp
-  AuthReq,        //Auth req
-  AuthResp,       //AuthResp
-  Reconnect,      //reconnect to more powerfull enodeb
-  Configuration,  //Configuration resp
-  HandoverDone,
-  HandoverReq,
-  HandoverResp,
-  MMETimeout,
-  DeliveryReport,
-  EnodeBID,
-  SmsRoute,
-  TimeoutUE,
-  BufferRelease,
-  TTLReset
+  SMSSend,            //Send/receive text
+  SMSStatus,          //send/receive Status
+  MeasureRequest,     //Request enodeb power
+  MeasureResponse,    //respone enodeb power
+  AttachRequest,      //Attach req
+  AttachResponse,     //Attach resp
+  AuthRequest,        //Auth req
+  AuthResponse,       //AuthResp
+  MeasurementReport,  //reconnect to more powerfull enodeb
+  ConfigurationResp,  //Configuration resp
 };
 
 enum class SMSStatus : uint8_t {
@@ -56,20 +121,20 @@ struct SmsUe {
   std::string _sms;
 };
 //sms status
-struct AcknowledgmentResp {
+struct AcknowledgmentResponse {
   uint32_t _tmsi;
   size_t _message_id;
   SMSStatus _status;
 };
 
 //tmsi_d status to mme
-struct AcknowledgmentReq {
+struct AcknowledgmentRequest {
   size_t _smsid;
   uint32_t _tmsi_d;
 };
 
 //measurement for enodeb power send
-struct MeasurementReq {
+struct MeasurementRequest {
   uint64_t _imei;
   int64_t _x;
 };
@@ -81,111 +146,50 @@ struct EnodeBInfo {
 
 //result off measurementreq
 //for future use
-struct MeasurementResp {
+struct MeasurementResponse {
   uint64_t _imei;
   EnodeBInfo _info;
 };
 
 //picked enodeb connect_to
-struct MeasurementConnectReq {
+struct MeasurementReport {
   uint64_t _enodeb_idx;
 };
 enum class EnodeBStatus : uint8_t { CONNECT, DISCONNECT };
 //config message
-struct ConfigResp {
+struct ConfigResponse {
   uint64_t _imei;
   uint64_t _ttl;
   EnodeBStatus _status;
 };
 
 //config message
-struct AttachReq {
+struct AttachRequest {
   uint64_t _imei;
   uint64_t _imsi;
   uint64_t _msisdn;
-  uint64_t _enodeb_number;
 };
 
 //tmsi
-struct AttachResponse {
+struct AttachResponse {};
+
+//config message
+struct AuthRequest {
   uint32_t _tmsi;
 };
 
-//config message
-struct AuthReq {
+//attached done, correctly
+struct AuthResponse {
   uint64_t _imei;
   uint32_t _tmsi;
 };
-//attached done, correctly
-struct AuthResp {
-  EnodeBStatus _status;
-};
-
-struct SMSRoute {
-  uint64_t _idx_sender;
-  uint64_t _msisdn;
-  uint32_t _tmsi;
-};
-//from enode to mme
-struct EnodeBIDSend {
-  size_t _id;
-};
-
-struct DeliveryReport {
-  uint64_t _sms_id;
-  uint32_t _tmsi_id;
-  SMSStatus _status;
-};
-
-struct HandoverReq {
-  size_t _enodeb_id;  //handover to
-};
-
-struct HandoverResp {  //handover to
-  size_t _enodeb_id;
-};
-
-//switch request
-struct SwitchReq {
-  uint64_t _idx;
-};
-
-struct HandoverDone {};
-
-struct TimeoutUE {
-  uint32_t _tmsi;
-};
-struct ReleaseNodeBReq {};
-struct CloseResp {};
-struct ReleaseBuffer {};
-
-struct TimeoutSms {};
-struct ResetSmsttl {
-  uint64_t _sms_id;
-};
 
 inline constexpr size_t kMsgDataSize{sizeof(SmsReqNet)};
-struct StatusReport {};
-struct RouteSMSMMe {
-  size_t _id_enodeb;
-};
-struct UpdateLocation {};
-struct TTLOS {
-  uint64_t tmsi;
-};
-using ENodeBMMESend = std::variant<SwitchReq, EnodeBIDSend, TimeoutUE, ResetSmsttl,
-                                   DeliveryReport, StatusReport, SMSRoute, UpdateLocation>;
-using ENodeBMMERecv = std::variant<ReleaseBuffer, CloseResp, ReleaseNodeBReq, TimeoutSms,
-                                   StatusReport, RouteSMSMMe>;
-
-using ENodeBEnodeB = std::variant<HandoverReq, HandoverResp, ReleaseBuffer, SmsReqNet>;
 
 using UEMessageData =
-    std::variant<SmsReqNet, AcknowledgmentResp, AcknowledgmentReq, MeasurementReq,
-                 MeasurementResp, MeasurementConnectReq, AttachReq, AttachResponse, AuthReq,
-                 AuthResp, ConfigResp, std::array<char, kMsgDataSize>>;
-using MMEMsg =
-    std::variant<SMSRoute, DeliveryReport, EnodeBIDSend, AuthReq, TTLOS, AttachReq, SwitchReq>;
+    std::variant<SmsReqNet, AcknowledgmentResponse, AcknowledgmentRequest, MeasurementRequest,
+                 MeasurementResponse, MeasurementReport, AttachRequest, AttachResponse,
+                 AuthRequest, AuthResponse, ConfigResponse, std::array<char, kMsgDataSize>>;
 
 struct UEMessage {
   MessageFlag _msg_type;

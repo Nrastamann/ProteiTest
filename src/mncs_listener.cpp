@@ -1,5 +1,6 @@
 #include "mncs_listener.hpp"
-#include "mncs_basestation.hpp"
+#include <cstddef>
+#include <memory>
 #include "mncs_ueconnection.hpp"
 
 namespace mncs {
@@ -34,8 +35,12 @@ bool Listener::startListener()
 
 void Listener::server()
 {
-  while (_shouldClose) {
-    int client_socket{};
+
+  std::vector<size_t> vec;
+  int client_socket{};
+  auto start_connection = _connections.begin();
+  while (!_shouldClose) {
+    size_t counter{0};
 
     client_socket = accept(_socket, nullptr, nullptr);
 
@@ -43,10 +48,17 @@ void Listener::server()
       logging::MultithreadPresets::defaultError("Couldn't init client socket\n");
       return;
     }
-    _connections.emplace_back(0);
-    _connections.back().setList(this->_base_station_list);
-    std::thread thr(&UEConnection::run, _connections.back());
-    thr.detach();
+    _connections.emplace_back(
+        std::make_unique<mncs::UEConnection>(client_socket, _base_station_list));
+
+    for (auto it = _connections.begin(); it != _connections.end(); ++it) {
+      if (it->get()->isEnded()) {
+        vec.push_back(it - start_connection);
+      }
+    }
+    for (auto& idx : vec) {
+      _connections.erase(_connections.begin() + static_cast<int64_t>(idx - counter++));
+    }
   }
 }
 }  // namespace mncs

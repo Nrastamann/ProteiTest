@@ -3,7 +3,7 @@
 #include <endian.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <functional>
+#include <thread>
 #include <unordered_map>
 #include "exchange_ue.hpp"
 #include "mncs_basestation.hpp"
@@ -11,36 +11,47 @@
 #include "utility.hpp"
 namespace mncs {
 class BaseStation;
-static constexpr size_t recv_buffer_len{4};
 class UEConnection {
- public:
-  UEConnection(int socket) : _socket(socket) {}
-  void setList(std::unordered_map<size_t, BaseStation>* ptr) { _enodeb_list = ptr; }
-  void setStation(BaseStation* ptr) { _connected_station = ptr; }
+  static constexpr size_t kBufferLength{10};
 
-  void sendDirectly(utility::UEMessage&& msg);
+ public:
+  UEConnection(int socket,
+               std::unordered_map<size_t, std::unique_ptr<BaseStation>>& enodeb_list)
+      : _socket(socket), _enodeb_list(enodeb_list)
+  {
+    std::thread worker(&UEConnection::run, this);
+    worker.detach();
+  }
+
   void run();
   void terminate()
   {
     close(_socket);
     _socket = -1;
   }
+  [[nodiscard]] bool isEnded() const { return _socket == -1; }
+  void setEnodeb(size_t enodebidx) { _connected_station = enodebidx; }
+  void setImei(uint64_t imei) { _imei = imei; }
+  void setImsi(uint64_t imsi) { _imsi = imsi; }
+  void setTmsi(uint32_t tmsi) { _tmsi = tmsi; }
 
-  void pushToBase() {}
-  void pushToUe() {}
-  void setidx(size_t idx) { _idx = idx; }
-  [[nodiscard]] size_t getidx() const { return _idx; }
+  [[nodiscard]] uint64_t getImei() const { return _imei; }
+  [[nodiscard]] uint64_t getImsi() const { return _imsi; }
+  [[nodiscard]] uint32_t getTmsi() const { return _tmsi; }
+  [[nodiscard]] UEConnection* getConnection() { return this; }
 
  private:
-  using recv_map =
-      std::unordered_map<utility::MessageFlag, std::function<void(utility::UEMessageData&)>>;
-  const recv_map& _map = ue::getMap();
-  std::unordered_map<size_t, BaseStation>* _enodeb_list{nullptr};
-  BaseStation* _connected_station{nullptr};
-  size_t _idx{};
+  const ue::net_conversion_map& _socket_data_processing = ue::getMap();
+  //message type to enodeb
+  rigtorp::SPSCQueue<utility::UEMessageData> _messages_send{kBufferLength};
+  //message from enodeb
+  rigtorp::SPSCQueue<utility::UEMessageData> _messages_recv{kBufferLength};
+  rigtorp::SPSCQueue<utility::MeasurementResponse> _measurementQ{kBufferLength};
+
+  std::unordered_map<size_t, std::unique_ptr<BaseStation>>& _enodeb_list;
+  size_t _connected_station{};  //atomic counters in shared vs accessing unordered_map
   uint64_t _imei{};
   uint64_t _imsi{};
-  uint64_t _msisdn{};
   uint32_t _tmsi{};
 
   int _socket;

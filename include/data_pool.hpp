@@ -22,7 +22,7 @@ class DataPool {
 
   using container_type_ref = container_type&;
 
-  size_t getHash(std::string_view str, size_t msisdn) const
+  static size_t getHash(std::string_view str, size_t msisdn)
   {
     return std::hash<size_t>{}(std::hash<std::string_view>{}(str) +
                                std::hash<size_t>{}(msisdn));
@@ -35,21 +35,21 @@ class DataPool {
   auto end() { return _storage.end(); }
   auto begin() { return _storage.begin(); }
 
-  void pushSms(utility::SmsReqNet&& str)
+  void pushSms(utility::SmsReqNet& str)
   {
     if (_message_queue.size() == _send_sms_queue.capacity()) {
       flush();
     }
-    _message_queue.push(std::move(str));
+    _message_queue.push(str);
   }
 
-  void pushStatus(utility::AcknowledgmentResp&& str)
+  void pushStatus(utility::AcknowledgmentResponse& str)
   {
     if (_status_queue.size() == _send_sms_queue.capacity()) {
       flush();
     }
 
-    _status_queue.push(std::move(str));
+    _status_queue.push(str);
   }
 
   void pushNewSms(utility::SmsUe&& str)
@@ -124,7 +124,7 @@ class DataPool {
   container_type _storage;
 
   rigtorp::SPSCQueue<utility::SmsUe> _send_sms_queue{kQueueCapacity};
-  rigtorp::SPSCQueue<utility::AcknowledgmentResp> _status_queue{kQueueCapacity};
+  rigtorp::SPSCQueue<utility::AcknowledgmentResponse> _status_queue{kQueueCapacity};
   rigtorp::SPSCQueue<utility::SmsReqNet> _message_queue{kQueueCapacity};
   size_t _counter{0};
 };
