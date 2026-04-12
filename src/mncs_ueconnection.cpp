@@ -120,6 +120,7 @@ void UEConnection::receiveTask(
               [this, &enodeb_list](messages::ue::AttachRequest& msg) {
                 _imei = msg._imei;
                 _imsi = msg._imsi;
+                _idx = std::hash<size_t>{}(msg._msisdn);
                 _tmsi = 0;
 
                 _messages_recv.push(

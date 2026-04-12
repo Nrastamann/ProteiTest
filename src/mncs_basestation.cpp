@@ -1,12 +1,68 @@
 #include "mncs_basestation.hpp"
+#include <chrono>
 #include <functional>
+#include <set>
+#include <thread>
+#include <unordered_map>
 #include <utility>
 #include <variant>
 #include "mncs_messages.hpp"
 #include "timer.hpp"
+#include "ue_messages.hpp"
 #include "utility.hpp"
 namespace mncs {
+void BaseStation::updateTTL()
+{
+  std::vector<size_t> connections_expired;
+  std::set<size_t> connections_timeout;
+  while (!_shut_down) {
+    connections_timeout.clear();
+    connections_expired.resize(0);
 
+    auto* ttl = _update_ttl.front();
+    while (ttl != nullptr) {
+      _net_connection_lock.lock();
+      std::visit(utility::Visitor{[this](TTLResetUE msg) {
+                                    _connections.at(msg._connection_id).second.restart();
+                                  },
+                                  [this, &connections_timeout](TTLFree msg) {
+                                    connections_timeout.erase(msg._connection_id);
+                                  }},
+                 *ttl);
+      _net_connection_lock.unlock();
+
+      _update_ttl.pop();
+      ttl = _update_ttl.front();
+    }
+
+    _handover_buffer_lock.lock();  //bcz can cancel handover
+    for (auto& element : _reroute_service) {
+      if (element.second->_isExpired && !element.second->_timer.checkTimer()) {
+        connections_expired.push_back(element.first);
+      }
+    }
+    _handover_buffer_lock.unlock();
+
+    for (auto& element : _connections) {
+      if (!element.second.second.checkTimer()) {
+        connections_timeout.insert(element.first);
+      }
+    }
+
+    for (auto& expired : connections_expired) {
+      releaseBuffer(expired);
+    }
+
+    for (const auto& connection : connections_timeout) {
+      auto& connection_timeout = _connections.at(connection);
+      _lock_send_queues.lock();
+      _mmeMsgsSend.push(OutOfService{._tmsi = connection_timeout.first->getTmsi()});
+      _lock_send_queues.unlock();
+    }
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(kSleepTimeTTLUpdate));
+  }
+}
 void BaseStation::pushToConnections(mncs::UEConnection* connection)
 {
   _net_connection_lock.lock();
@@ -17,14 +73,18 @@ void BaseStation::pushToConnections(mncs::UEConnection* connection)
 void BaseStation::markAsExpired(size_t connection_id)
 {
   _handover_buffer_lock.lock();
-  _reroute_service.at(connection_id)->_isExpired = true;
+  auto it = _reroute_service.find(connection_id);
+  if (it != _reroute_service.end()) {
+    it->second->_isExpired = true;
+    it->second->_timer.restart();
+  }
   _handover_buffer_lock.unlock();
 }
 void BaseStation::pushToHandoverBuffer(size_t connection_id, size_t target_enodeb)
 {
   _handover_buffer_lock.lock();
-  _reroute_service.insert(
-      {connection_id, std::make_unique<HandoverServiceBuffer>(1000, target_enodeb)});
+  _reroute_service.insert({connection_id, std::make_unique<HandoverServiceBuffer>(
+                                              kHandoverDecayMS, target_enodeb)});
   _handover_buffer_lock.unlock();
 }
 
@@ -47,7 +107,7 @@ bool BaseStation::tryPush(serviceMsg& msg)
       },  //need to check, if send/recv is work propperly
       msg);
 }
-
+bool BaseStation::contains(size_t connection_id) {}
 void BaseStation::releaseBuffer(size_t connection_id)
 {
   _handover_buffer_lock.lock();
@@ -72,9 +132,11 @@ void BaseStation::releaseBuffer(size_t connection_id)
 void BaseStation::cancelHandover(size_t connection_id)
 {
   _handover_buffer_lock.lock();
+
   auto buffer = std::move(_reroute_service.at(connection_id));
   _reroute_service.erase(connection_id);
   _handover_buffer_lock.unlock();
+  //need to check recv/send buffer
   while (buffer->_recv.size() + buffer->_send.size() != 0) {
     auto* send = buffer->_send.front();
     auto* recv = buffer->_recv.front();
@@ -172,158 +234,40 @@ void BaseStation::handover()
     }
   }
 }
-/*
 void BaseStation::ebsend()
 {
-  utility::UEMessageData msg;
-  while (!_shut_down) {
-    auto* connection = _connect.front();
-    while (connection != nullptr) {
-      _connections.insert({(*connection)->getIdx(), {*connection, pr_utils::Timer(_ttl_ue)}});
-      _connect.pop();
-      connection = _connect.front();
-    }
+  auto* enodeb = _enodeb_recv_q.front();
+  auto* mme = _mmeMsgsRecv.front();
+  std::vector<size_t> connections;
+  while (_shut_down) {
+    while (enodeb != nullptr) {
+      std::visit(utility::Visitor{[this](auto&) {}}, *enodeb);
+      //      _handover_buffer_lock.lock();
 
-    auto* handover_msg = _handoverMsgsRecv.front();
-    auto* message_mme = _mmeMsgsRecv.front();
-    auto* enodeb_msg = _enodeb_recv_q.front();
-    while (message_mme != nullptr || enodeb_msg != nullptr || handover_msg != nullptr) {
-      while (handover_msg != nullptr) {
-        std::visit(
-            utility::Visitor{
-                [this](utility::HandoverStart& msg) {
-                  if (!_buffer.bufferAvailability()) {
-                    _handoverMsgsSend.push(utility::HandoverRefuse{
-                        ._idx_dst = _idx, ._idx_refused = msg._src->getStationId()});
-                    return;
-                  }
-                  _lock_queues.lock();
-                  _handoverMsgsSend.push(
-                      utility::HandoverAck{._dst = this, ._src_idx = msg._src->getStationId()});
-                  _move_connection = msg._src;
-                },
-                [this](utility::HandoverAck& msg) {
-                  _handoverMsgsSend.push(
-                      utility::Move{._src = msg._dst->_move_connection,
-                                    ._dst_idx = _move_connection->getStationId()});
-                },
-                [this](utility::Move& msg) {
-                  auto* buf = _buffer.getBuffer();
-                  auto* prev_buf = msg._src->getCurrentBuffer();
-
-                  msg._src->setCurrentBuffer(buf);
-                  msg._src->setPrevBuffer(buf);
-
-                  _connections.insert(
-                      {msg._src->getIdx(), std::pair{msg._src, pr_utils::Timer(_ttl_ue)}});
-
-                  _handoverMsgsSend.push(utility::SwitchMsg{._enodeb_idx_new = _idx,
-                                                            ._tmsi_s = msg._src->getTmsi()});
-                },
-
-                [this](utility::FreeBufferMsg& msg) {
-                  _lock_queues.unlock();
-                  if (msg._idx_from == _idx) {
-                    _buffer.releaseBuffer(msg._connection->getPrevBuffer());
-                    msg._connection->setPrevBuffer(msg._connection->getCurrentBuffer());
-                    _move_connection = nullptr;
-                  }
-                },
-                [this](utility::HandoverRefuse&) { _lock_queues.unlock(); }, [](auto&) {}},
-            *handover_msg);
-        _handoverMsgsRecv.pop();
-        handover_msg = _handoverMsgsRecv.front();
-      }
-
-      auto& msg = std::get<utility::ForwardSms>(*enodeb_msg);
-      _lock_sms_buffer.lock();
-      auto* it = _buffer.getBuffer();
-      _lock_sms_buffer.unlock();
-
-      it->insert({msg._sms_id, {msg._sms, msg._sms._tmsi}});
-
-      _mmeMsgsSend.push(utility::ResetSMSTTL{._id = msg._sms._id});
       _enodeb_recv_q.pop();
-      enodeb_msg = _enodeb_recv_q.front();
-
-      while (message_mme != nullptr) {
-        std::visit(
-            utility::Visitor{
-                [this](auto&) {}, [this](utility::AttachResponseMME& msg) {},
-                [this](utility::AuthReqMMe& msg) {},
-                [this](utility::SMSError& msg) {
-                  msg._connection->pushToUE(
-                      utility::AcknowledgmentResponse{._tmsi = msg._connection->getTmsi(),
-                                                      ._status = utility::SMSStatus::Lost,
-                                                      ._message_id = msg._sms_id});
-                },
-                [this](utility::SMSGood& msg) {
-                  _enodeb_send_q.push(utility::ForwardSms{
-                      ._connection = msg._connection,
-                      ._sms_id = msg._sms_id,
-                      ._sms = msg._connection->getCurrentBuffer()->at(msg._sms_id).first});
-                },
-                [this](utility::StatusReport& msg) {
-                  if (_connections.contains(msg._id._connection_id)) {
-                    auto connection = _connections.at(msg._id._connection_id);
-                    _connections.at(msg._id._connection_id)
-                        .first->pushToUE(utility::AcknowledgmentResponse{
-                            ._message_id = msg._sms_id,
-                            ._status = utility::SMSStatus::Received,
-                            ._tmsi = connection.first->getTmsi()});
-                  }
-                  //remove from buffer, send to connection if idx is correct
-                }},
-            *message_mme);
-        _mmeMsgsRecv.pop();
-        message_mme = _mmeMsgsRecv.front();
-      }
+      enodeb = _enodeb_recv_q.front();
     }
-  }
-
-  for (auto& connection : _connections) {
-    auto* msg_ue = connection.second.first->getFromUE();
-    while (msg_ue != nullptr) {
-      std::visit(
-          /*utility::Visitor{
-              [this, &connection](utility::AttachRequest& msg) {
-          _mmeMsgsSend.push(
-              utility::AttachMME{._enodeb_idx = _idx,
-                                 ._id._connection_id = connection.first,
-                                 ._id._transaction_id = connection.second.first->getImsi()});
-
-          [this, &connection](utility::MeasurementReport& msg) {
-            _handoverMsgsSend.push(utility::HandoverStart{._src = connection.second.first,
-                                                          ._dst_idx = msg._enodeb_idx});
-          },
-              [this, &connection](utility::AuthResponse& msg) {
-                _mmeMsgsSend.push(utility::AuthRespMME{
-                    ._tmsi = msg._tmsi, ._imsi = connection.second.first->getImsi()});
-              },
-              [this, &connection](utility::SmsReqNet& msg) {
-                connection.second.first->getCurrentBuffer()->insert(
-                    {msg._smsid, {msg, msg._tmsi}});
-                _mmeMsgsSend.push(utility::SendInto{._enodeb_idx = _idx,
-                                                    ._connection = connection.second.first,
-                                                    ._tmsi_s = msg._tmsi,
-                                                    ._msisdn = msg._msisdn,
-                                                    ._sms_id = msg._smsid});
-              },
-              [this, &connection](utility::AcknowledgmentResponse& msg) {
-                uint32_t transaction_id =
-                    connection.second.first->getCurrentBuffer()->at(msg._message_id).second;
-                _mmeMsgsSend.push(utility::DeliveryReport{._sms_id = msg._message_id,
-                                                          ._tmsi_d = msg._tmsi,
-                                                          ._transaction_id = transaction_id});
-              },
-              [this](auto&) {
-              }},
-          */
-/*
-              *msg_ue);
-      msg_ue = connection.second.first->getFromUE();
-      connection.second.first->popFromUe();
+    while (mme != nullptr) {
+      std::visit(utility::Visitor{
+                     [this](AuthRequest& msg) {
+                       _connections.at(msg._id._connection_id)
+                           .first->pushToUE(messages::ue::AuthRequest{._tmsi = msg._tmsi});
+                     },
+                     [this](AttachAccept& msg) {
+                       _connections.at(msg._id._connection_id)
+                           .first->pushToUE(messages::ue::AttachResponse{});
+                     },
+                     [this](RemoveConnection& msg) {
+                       _update_ttl.push(mncs::TTLFree{msg._connection_id});
+                     },
+                     [this](RouteRequestAnsNegative& msg) {}, [this](RouteRequestAns& msg) {},
+                     [this](DeliveryReport& msg) {}},
+                 *mme);
+      _mmeMsgsRecv.pop();
+      mme = _mmeMsgsRecv.front();
     }
+    for (auto& connection : _connections) {}
   }
-}*/
+}
+void BaseStation::ebrecv() {}
 }  // namespace mncs

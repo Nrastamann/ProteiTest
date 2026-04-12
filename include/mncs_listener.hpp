@@ -13,14 +13,12 @@
 namespace mncs {
 class Listener {
   static constexpr size_t kListenNumber{utility::kThreadNum * 2};
-  static size_t connection_id;
 
  public:
   Listener(uint16_t port,
            std::unordered_map<size_t, std::unique_ptr<BaseStation>>& ptr_to_nodes)
       : _base_station_list(ptr_to_nodes), _port(port)
   {
-    connection_id = 0;
     _connections.reserve(kListenNumber);
   }
 
