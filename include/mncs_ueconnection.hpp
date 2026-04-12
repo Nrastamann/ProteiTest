@@ -28,6 +28,7 @@ class UEConnection {
   {
     std::thread sender(&UEConnection::sendTask, this);
     std::thread receiver(&UEConnection::receiveTask, this, std::ref(enodeb_list));
+
     sender.detach();
     receiver.detach();
   }

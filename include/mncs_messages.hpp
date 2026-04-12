@@ -8,6 +8,16 @@
 
 namespace mncs {
 class UEConnection;
+
+struct TTLResetUE {
+  size_t _connection_id;
+};
+struct TTLFree {
+  size_t _connection_id;
+};
+
+using TTLMsg = std::variant<TTLResetUE, TTLFree>;
+
 struct ID {
   uint64_t _connection_id;
   uint64_t _enodeb_id;

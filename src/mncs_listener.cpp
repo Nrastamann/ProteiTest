@@ -39,6 +39,7 @@ void Listener::server()
   std::vector<size_t> vec;
   int client_socket{};
   auto start_connection = _connections.begin();
+  size_t connection_number{0};
   while (!_shouldClose) {
     size_t counter{0};
 
@@ -49,7 +50,7 @@ void Listener::server()
       return;
     }
     _connections.emplace_back(std::make_unique<mncs::UEConnection>(
-        _base_station_list, connection_id++, client_socket));
+        _base_station_list, connection_number++, client_socket));
 
     for (auto it = _connections.begin(); it != _connections.end(); ++it) {
       if (it->get()->isEnded()) {

@@ -16,9 +16,11 @@
 namespace mncs {
 class UEConnection;
 class BaseStation {
+  static constexpr size_t kSleepTimeTTLUpdate{50};
+  static constexpr size_t kTtlQueueLength{64};
   static constexpr uint64_t kMaxPower{100};
   static constexpr size_t kQueueLength{6};
-
+  static constexpr size_t kHandoverDecayMS{2000};
   using connection_id = uint64_t;
   using serviceMsg =
       std::variant<EnodeBEnodeBRecv, EnodeBEnodeBSend, EnodeBToMME, EnodeBFromMME>;
@@ -32,6 +34,7 @@ class BaseStation {
   void ebrecv();
   void ebsend();
   void handover();
+  void updateTTL();
 
   BaseStation(int64_t x, int64_t radius, uint64_t ttl_ue)
       : _x(x), _radius(radius), _ttl_ue(ttl_ue)
@@ -42,6 +45,12 @@ class BaseStation {
     std::thread handover_task(&BaseStation::handover, this);
     std::thread send_task(&BaseStation::ebrecv, this);
     std::thread recv_task(&BaseStation::ebsend, this);
+    std::thread ttler(&BaseStation::updateTTL, this);
+
+    handover_task.detach();
+    send_task.detach();
+    recv_task.detach();
+    ttler.detach();
   }
 
   [[nodiscard]] uint64_t getPower(int64_t pos) const;
@@ -52,13 +61,14 @@ class BaseStation {
  private:
   void markAsExpired(size_t connection_id);
   void pushToHandoverBuffer(size_t connection_id, size_t target_enodeb);
-  //NEED TO LOCK BEFORE AND UNLOCK AFTER MANUALLY, BCZ CONNECTION MAY BE FREE'D
   void pushDataToHandoverBuffer(size_t connection_id, serviceMsg& msg, bool isSend);
   bool tryPush(serviceMsg& msg);
   void releaseBuffer(size_t connection_id);
   void cancelHandover(size_t connection_id);
-  alignas(utility::kCacheLength) std::mutex _lock_send_queues;
-  alignas(utility::kCacheLength) std::mutex _lock_recv_queues;
+  bool contains(size_t connection_id);
+
+  alignas(utility::kCacheLength)::utility::Spinlock _lock_send_queues;
+  alignas(utility::kCacheLength)::utility::Spinlock _lock_recv_queues;
   alignas(utility::kCacheLength)::utility::Spinlock _handover_buffer_lock;
   alignas(utility::kCacheLength)::utility::Spinlock _net_connection_lock;
 
@@ -81,7 +91,7 @@ class BaseStation {
   std::unordered_map<size_t, std::unique_ptr<HandoverServiceBuffer>> _reroute_service;
   utility::default_buffer _buffer;
 
-  rigtorp::SPSCQueue<ConnectToEnodeB*> _connect{4};
+  rigtorp::SPSCQueue<TTLMsg> _update_ttl{kTtlQueueLength};
 
   rigtorp::SPSCQueue<ServiceMsgWrapper> _reroute_recv{4};
   rigtorp::SPSCQueue<ServiceMsgWrapper> _reroute_send{4};
@@ -94,6 +104,7 @@ class BaseStation {
 
   rigtorp::SPSCQueue<HandoverMsg> _handoverMsgsRecv{2};
   rigtorp::SPSCQueue<HandoverMsg> _handoverMsgsSend{2};
+
   std::unordered_map<connection_id, std::pair<UEConnection*, pr_utils::Timer>> _connections;
 
   size_t _idx{};
