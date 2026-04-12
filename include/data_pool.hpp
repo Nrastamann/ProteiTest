@@ -8,8 +8,8 @@
 #include <string_view>
 #include <utility>
 #include "rigtorp/SPSCQueue.h"
+#include "ue_messages.hpp"
 #include "utility.hpp"
-
 namespace data_storage {
 class DataPool {
   using value_type = std::string;
@@ -18,7 +18,7 @@ class DataPool {
 
   using const_return_reference_type = const return_type&;
   using container_type = std::unordered_map<
-      size_t, std::tuple<std::string, utility::SMSStatus, uint64_t>>;  //tmsi_src+hash
+      size_t, std::tuple<std::string, messages::ue::SMSStatus, uint64_t>>;  //tmsi_src+hash
 
   using container_type_ref = container_type&;
 
@@ -35,7 +35,7 @@ class DataPool {
   auto end() { return _storage.end(); }
   auto begin() { return _storage.begin(); }
 
-  void pushSms(utility::SmsReqNet& str)
+  void pushSms(messages::ue::SmsReqNet& str)
   {
     if (_message_queue.size() == _send_sms_queue.capacity()) {
       flush();
@@ -43,7 +43,7 @@ class DataPool {
     _message_queue.push(str);
   }
 
-  void pushStatus(utility::AcknowledgmentResponse& str)
+  void pushStatus(messages::ue::AcknowledgmentResponse& str)
   {
     if (_status_queue.size() == _send_sms_queue.capacity()) {
       flush();
@@ -52,7 +52,7 @@ class DataPool {
     _status_queue.push(str);
   }
 
-  void pushNewSms(utility::SmsUe&& str)
+  void pushNewSms(messages::ue::SmsUe&& str)
   {
     if (_send_sms_queue.size() == _send_sms_queue.capacity()) {
       flush();
@@ -66,8 +66,9 @@ class DataPool {
     std::lock_guard<std::mutex> lock(_flush_mtx);
     while (_message_queue.size() != 0) {
       auto* str = _message_queue.front();
-      _storage.insert({str->_smsid, std::tuple{std::string(str->_sms.data()),
-                                               utility::SMSStatus::Received, str->_msisdn}});
+      _storage.insert(
+          {str->_smsid, std::tuple{std::string(str->_sms.data()),
+                                   messages::ue::SMSStatus::Received, str->_msisdn}});
       _message_queue.pop();
     }
 
@@ -75,7 +76,8 @@ class DataPool {
       auto* str = _send_sms_queue.front();
       size_t hash = getHash(str->_sms, str->_msisdn);
       _counter++;
-      _storage.insert({hash, std::tuple{str->_sms, utility::SMSStatus::Waiting, str->_msisdn}});
+      _storage.insert(
+          {hash, std::tuple{str->_sms, messages::ue::SMSStatus::Waiting, str->_msisdn}});
 
       _send_sms_queue.pop();
     }
@@ -102,13 +104,13 @@ class DataPool {
       std::string_view status;
 
       switch (std::get<1>(msg.second)) {
-        case utility::SMSStatus::Waiting:
+        case messages::ue::SMSStatus::Waiting:
           status = "Still waiting.\n";
           break;
-        case utility::SMSStatus::Lost:
+        case messages::ue::SMSStatus::Lost:
           status = "Lost.\n";
           break;
-        case utility::SMSStatus::Received:
+        case messages::ue::SMSStatus::Received:
           status = "Received.\n";
           break;
       }
@@ -123,9 +125,9 @@ class DataPool {
   alignas(utility::kCacheLength) std::mutex _flush_mtx;
   container_type _storage;
 
-  rigtorp::SPSCQueue<utility::SmsUe> _send_sms_queue{kQueueCapacity};
-  rigtorp::SPSCQueue<utility::AcknowledgmentResponse> _status_queue{kQueueCapacity};
-  rigtorp::SPSCQueue<utility::SmsReqNet> _message_queue{kQueueCapacity};
+  rigtorp::SPSCQueue<messages::ue::SmsUe> _send_sms_queue{kQueueCapacity};
+  rigtorp::SPSCQueue<messages::ue::AcknowledgmentResponse> _status_queue{kQueueCapacity};
+  rigtorp::SPSCQueue<messages::ue::SmsReqNet> _message_queue{kQueueCapacity};
   size_t _counter{0};
 };
 }  // namespace data_storage

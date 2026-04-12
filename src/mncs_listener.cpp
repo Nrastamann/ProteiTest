@@ -48,8 +48,8 @@ void Listener::server()
       logging::MultithreadPresets::defaultError("Couldn't init client socket\n");
       return;
     }
-    _connections.emplace_back(
-        std::make_unique<mncs::UEConnection>(client_socket, _base_station_list));
+    _connections.emplace_back(std::make_unique<mncs::UEConnection>(
+        _base_station_list, connection_id++, client_socket));
 
     for (auto it = _connections.begin(); it != _connections.end(); ++it) {
       if (it->get()->isEnded()) {

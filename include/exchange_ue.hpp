@@ -10,10 +10,12 @@
 #include "ip_addr.hpp"
 #include "rigtorp/SPSCQueue.h"
 #include "ue_context.hpp"
+#include "ue_messages.hpp"
 #include "utility.hpp"
 namespace ue {
 using net_conversion_map =
-    std::unordered_map<utility::MessageFlag, std::function<void(utility::UEMessageData&)>>;
+    std::unordered_map<messages::ue::MessageFlag,
+                       std::function<void(messages::ue::UEMessageData&)>>;
 const net_conversion_map& getMap();
 
 enum class ConnectionStatus : uint8_t { socket_creation_err, connection_err, valid_connection };
@@ -21,13 +23,15 @@ class Exchanger {
   static constexpr std::chrono::milliseconds kSleepTime{50};
   static constexpr size_t kSendQueueNumber{4};
   static constexpr size_t kQueueLength{15};
-  using send_type =
-      std::variant<std::variant<utility::MeasurementRequest, utility::MeasurementReport>,
-                   std::string, utility::AcknowledgmentRequest, utility::AttachRequest,
-                   utility::AuthResponse>;
+  using send_type = std::variant<
+      std::variant<messages::ue::MeasurementRequest, messages::ue::MeasurementReport>,
+      std::string, messages::ue::AcknowledgmentRequest, messages::ue::AttachRequest,
+      messages::ue::AuthResponse>;
   using recv_type = std::variant<
-      utility::SmsReqNet, std::variant<utility::ConfigResponse, utility::MeasurementResponse>,
-      utility::AcknowledgmentResponse, utility::AttachResponse, utility::AuthRequest>;
+      messages::ue::SmsReqNet,
+      std::variant<messages::ue::ConfigResponse, messages::ue::MeasurementResponse>,
+      messages::ue::AcknowledgmentResponse, messages::ue::AttachResponse,
+      messages::ue::AuthRequest>;
 
  public:
   Exchanger(DeviceConfiguration& ctxt, network_addr::IpAddr& addr, int64_t x)
@@ -73,19 +77,21 @@ class Exchanger {
   alignas(utility::kCacheLength) std::atomic<bool> _attachment_in_process{false};
 
   //send queues
-  rigtorp::SPSCQueue<utility::AcknowledgmentRequest> _acknowledgementQ{kQueueLength};
+  rigtorp::SPSCQueue<messages::ue::AcknowledgmentRequest> _acknowledgementQ{kQueueLength};
   rigtorp::SPSCQueue<std::string> _sendSmsQ{kQueueLength};
-  rigtorp::SPSCQueue<std::variant<utility::MeasurementRequest, utility::MeasurementReport>>
+  rigtorp::SPSCQueue<
+      std::variant<messages::ue::MeasurementRequest, messages::ue::MeasurementReport>>
       _poolingSendQ{kQueueLength};
-  rigtorp::SPSCQueue<std::variant<utility::AttachRequest, utility::AuthResponse>>
+  rigtorp::SPSCQueue<std::variant<messages::ue::AttachRequest, messages::ue::AuthResponse>>
       _attachment_send_q{kAttachmentQLen};
 
   //receive queues
-  rigtorp::SPSCQueue<utility::SmsReqNet> _receivedSmsQ{kQueueLength};
-  rigtorp::SPSCQueue<std::variant<utility::ConfigResponse, utility::MeasurementResponse>>
+  rigtorp::SPSCQueue<messages::ue::SmsReqNet> _receivedSmsQ{kQueueLength};
+  rigtorp::SPSCQueue<
+      std::variant<messages::ue::ConfigResponse, messages::ue::MeasurementResponse>>
       _poolingBufferQ{kQueueLength};
-  rigtorp::SPSCQueue<utility::AcknowledgmentResponse> _receivedSmsStatusQ{kQueueLength};
-  rigtorp::SPSCQueue<std::variant<utility::AttachResponse, utility::AuthRequest>>
+  rigtorp::SPSCQueue<messages::ue::AcknowledgmentResponse> _receivedSmsStatusQ{kQueueLength};
+  rigtorp::SPSCQueue<std::variant<messages::ue::AttachResponse, messages::ue::AuthRequest>>
       _attachment_recv_q{kAttachmentQLen};
 
   UeContext _ctxt;

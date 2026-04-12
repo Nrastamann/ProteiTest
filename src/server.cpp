@@ -1,14 +1,12 @@
 #include "server.hpp"
 #include <sys/socket.h>
-#include <algorithm>
 #include "config.hpp"
 #include "logger.hpp"
-#include "mme.hpp"
 #include "mncs_basestation.hpp"
 #include "mncs_listener.hpp"
+#include "mncs_mme.hpp"
 #include "mncs_ueconnection.hpp"
 #include "parsing.hpp"
-#include "thread_pool.hpp"
 #include "xlr.hpp"
 static constexpr std::string_view kHelpText =
     "Usage: proteip.server -p port [-h help] [-v verbosity]\n\
@@ -92,16 +90,16 @@ int serverStart(int argc, char** argv)
     std::cout << kHelpText;
     return 1;
   }
-
+  std::unordered_map<size_t, std::unique_ptr<mncs::BaseStation>> ptrs;
   mncs::XLR xlr;
-  mncs::Listener listener{port, nullptr};
+  mncs::Listener listener{port, ptrs};
   mncs::MME mme;
   if (!listener.getStatus()) {
-    return;
+    return 0;
   }
 
-  std::thread worker1(&mncs::MME::run, &mme, std::ref(xlr));
-  worker1.detach();
+  //std::thread worker1(&mncs::MME::run, &mme, std::ref(xlr));
+  // worker1.detach();
   listener.startListener();
   return 0;
 }

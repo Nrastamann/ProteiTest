@@ -1,21 +1,18 @@
 #pragma once
-#include <chrono>
 #include <cstdint>
-#include <functional>
 #include <set>
 #include <variant>
-#include <vector>
-#include "mncs_basestation.hpp"
 #include "rigtorp/SPSCQueue.h"
 #include "timer.hpp"
 #include "utility.hpp"
-#include "xlr.hpp"
 namespace mncs {
 class MME {
   static constexpr size_t kDefaultTtl{120000};
   static constexpr size_t kMMELength{15};
   static constexpr size_t kHandoverQueueLength{15};
-  using transaction_id = uint64_t;  //imsi or tmsi
+  using transaction_id = uint64_t;
+  using tmsi = uint64_t;  //imsi or tmsi
+
   using enodeb_index = uint64_t;
   using state_type = std::variant<uint64_t>;
   using procedure_state = std::pair<state_type, enodeb_index>;
@@ -36,6 +33,8 @@ class MME {
   rigtorp::SPSCQueue<msg_type> _message_queue{kMMELength};
   rigtorp::SPSCQueue<msg_handover_type> _handover_queue{kHandoverQueueLength};
   std::unordered_map<transaction_id, procedure_state> _state_map;
+  //  std::unordered_map<>;
+
   pr_utils::Timer _ttlepc{kDefaultTtl};
   uint64_t _ttl;
   uint64_t _mme_id;
