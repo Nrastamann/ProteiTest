@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <queue>
-#include <unordered_map>
+#include <utility>
 #include "ue_messages.hpp"
 
 namespace utility {
@@ -50,25 +50,11 @@ class Buffer {
     tmsi _tmsi;
     bool _flag;
   };
-  using buffer_item_type = BufferData;
-  using buffer = std::unordered_map<connection_id, buffer_item_type>;
+  using buffer_item_type = std::vector<BufferData>;
+  using buffer = std::pair<connection_id, buffer_item_type>;
   using buffer_container = std::array<buffer, BufferAmount>;
 
  public:
-  buffer_item_type& findByTransactionId(size_t transcation_id)
-  {
-    //bad
-    auto it = _buffers.begin().begin();
-    for (auto& items : _buffers) {
-      for (auto& item : items) {
-        it = item;
-        if (std::get<1>(item) == transcation_id) {
-          return item;
-        }
-      }
-    }
-    return _buffers.end().begin();
-  }
   using iterator = buffer_container::iterator;
   Buffer()
   {
@@ -76,6 +62,24 @@ class Buffer {
     while (i != BufferAmount) {
       _buffer_idx.push(i++);
     }
+  }
+  void removeBufferData(buffer_container::iterator it, size_t sms_id)
+  {
+    for (auto* it_small = it->begin(); it_small != it->end(); std::advance(it, 1)) {
+      if (it_small->_sms._smsid == sms_id) {
+        it->erase(it_small);
+        return;
+      }
+    }
+  }
+  BufferData& findBufferData(buffer_container::iterator it, size_t sms_id)
+  {
+    for (auto& el : *it) {
+      if (el._sms._smsid == sms_id) {
+        return el;
+      }
+    }
+    std::unreachable();
   }
   buffer_container::iterator getBuffer()
   {

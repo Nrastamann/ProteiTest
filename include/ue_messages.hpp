@@ -37,20 +37,17 @@ struct SmsUe {
   uint64_t _msisdn;
   std::string _sms;
 };
-//sms status
 struct AcknowledgmentResponse {
   uint32_t _tmsi;
   size_t _message_id;
   SMSStatus _status;
 };
 
-//tmsi_d status to mme
 struct AcknowledgmentRequest {
   uint32_t _tmsi_d;
   size_t _sms_id;
 };
 
-//measurement for enodeb power send
 struct MeasurementRequest {
   uint64_t _imei;
   int64_t _x;
