@@ -66,6 +66,7 @@ struct AttachAccept {
   ID _id;
 };
 struct OutOfService {
+  size_t _enodeb_id;
   uint32_t _tmsi;
 };
 struct CancelLocationReq {
@@ -76,7 +77,7 @@ struct CancelLocationResp {
 };
 
 struct RemoveConnection {
-  uint32_t _connection_id;
+  ID _id;
 };
 //HANDOVER
 struct EnodeBID {
@@ -122,40 +123,49 @@ struct ReleaseBuffer {
   utility::default_buffer::iterator _prev_buffer;
 };
 //SMS
+struct SmsId {
+  size_t _smsid;
+  ID _id;
+};
+
 struct SendInto {
   uint32_t _tmsi_s;
   uint64_t _msisdn;
-  uint64_t _sms_id;
+  SmsId _id;
 };
+
 struct RouteRequest {
-  uint32_t _tmsi_s;
   uint64_t _msisdn_dst;
+  uint32_t _tmsi_s;
 };
 struct RouteRequestAnsNegative {
   uint32_t _tmsi_s;
 };
 struct RouteRequestAns {
+  size_t _enodeb_target;
   uint32_t _tmsi_d;
   uint32_t _tmsi_s;
-  uint64_t _transaction_id;
-  uint64_t _enodeb_id;
 };
+struct RouteRequestEB {
+  SmsId _id;
+  size_t _enodeb_target;
+};
+
 struct Forward {
-  uint32_t _tmsi_d;
-  uint32_t _tmsi_s;
-  uint64_t _transaction_id;
   messages::ue::SmsReqNet _msg;
+  size_t _enodeb_target;
 };
 struct ResetSMSTTL {
-  uint64_t _transaction_id;
+  size_t _connection_id;
+  size_t _sms_id;
 };
 
 struct DeliveryReport {
-  uint32_t _tmsi_d;
   uint64_t _sms_id;
+  uint32_t _tmsi_d;
 };
 struct StatusReport {
-  uint32_t _tmsi_d;
+  SmsId _id;
   uint32_t _tmsi_s;
 };
 
@@ -173,10 +183,10 @@ using EnodeBEnodeBSend = std::variant<Forward>;
 using EnodeBEnodeBRecv = std::variant<Forward>;  //for type dispatch
 
 using EnodeBToMME = std::variant<AttachRequest, AuthResponse, OutOfService, SendInto,
-                                 ResetSMSTTL, StatusReport>;
+                                 ResetSMSTTL, DeliveryReport>;
 
-using EnodeBFromMME = std::variant<AuthRequest, AttachAccept, RemoveConnection, RouteRequestAns,
-                                   RouteRequestAnsNegative, DeliveryReport>;
+using EnodeBFromMME =
+    std::variant<AuthRequest, AttachAccept, RemoveConnection, RouteRequestEB, StatusReport>;
 
 using ToHLR = std::variant<AuthInfoRequest, LocationUpdateReq, CancelLocationReq, RouteRequest>;
 
