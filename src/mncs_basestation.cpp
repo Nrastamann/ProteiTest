@@ -229,8 +229,10 @@ void BaseStation::handover()
                                             {msg._connectionToMove, pr_utils::Timer(_ttl_ue)}});
                        _net_connection_lock.unlock();
 
-                       _handoverMsgsSend.push(
-                           SwitchEnodeB{._connection_id = msg._connectionToMove->getIdx()});
+                       _handoverMsgsSend.push(SwitchEnodeB{
+                           ._id = {._dst_id = msg._id._src_id, ._src_id = msg._id._dst_id},
+                           ._connection_id = msg._connectionToMove->getIdx(),
+                           ._tmsi = msg._connectionToMove->getTmsi()});
                      },
                      [this](ReleaseBuffer& msg) {
                        _buffer.releaseBuffer(msg._prev_buffer);
@@ -310,7 +312,7 @@ void BaseStation::ebsend()
                 connection.first->pushToUE(messages::ue::AcknowledgmentResponse{
                     ._status = messages::ue::SMSStatus::Received,
                     ._message_id = msg._id._smsid,
-                    ._tmsi = msg._tmsi_s});
+                    ._tmsi = connection.first->getTmsi()});
                 _buffer.removeBufferData(connection.first->getBuffer(), msg._id._smsid);
               }},
           *mme);
@@ -375,9 +377,26 @@ void BaseStation::ebsend()
     auto* reroute = _reroute_recv.front();
     while (reroute != nullptr) {
       std::visit(utility::Visitor{
-                     [this](EnodeBToMME& msg) { _mmeMsgsSend.push(msg); },
-                     [this](auto& msg) { _enodeb_send_q.push(msg); },
-                     [this](EnodeBFromMME& msg) { _mmeMsgsRecv.push(msg); },
+                     [this](EnodeBToMME& msg) {
+                       _lock_send_queues.lock();
+                       _mmeMsgsSend.push(msg);
+                       _lock_send_queues.unlock();
+                     },
+                     [this](auto& msg) {
+                       _lock_recv_queues.lock();
+                       _enodeb_recv_q.push(msg);
+                       _lock_recv_queues.unlock();
+                     },
+                     [this](EnodeBEnodeBSend& msg) {
+                       _lock_send_queues.lock();
+                       _enodeb_send_q.push(msg);
+                       _lock_send_queues.unlock();
+                     },
+                     [this](EnodeBFromMME& msg) {
+                       _lock_recv_queues.lock();
+                       _mmeMsgsRecv.push(msg);
+                       _lock_recv_queues.unlock();
+                     },
                  },
                  reroute->_data);
 

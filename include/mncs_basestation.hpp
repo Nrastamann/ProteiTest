@@ -31,7 +31,6 @@ class BaseStation {
   };
 
  public:
-  void ebrecv();
   void ebsend();
   void handover();
   void updateTTL();
@@ -43,12 +42,10 @@ class BaseStation {
       _radius = 1;
     }
     std::thread handover_task(&BaseStation::handover, this);
-    std::thread send_task(&BaseStation::ebrecv, this);
     std::thread recv_task(&BaseStation::ebsend, this);
     std::thread ttler(&BaseStation::updateTTL, this);
 
     handover_task.detach();
-    send_task.detach();
     recv_task.detach();
     ttler.detach();
   }
