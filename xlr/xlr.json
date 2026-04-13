@@ -1,0 +1,28 @@
+{
+       "_data": [
+              {
+                     "MSISDN": 1,
+                     "IMEI": 1,
+                     "IMSI": 1,
+                     "MME_ID": 1,
+                     "TMSI": 1,
+                     "EnodeB-id": 0
+              },
+              {
+                     "MSISDN": 2,
+                     "IMEI": 2,
+                     "IMSI": 2,
+                     "MME_ID": 1,
+                     "TMSI": 2,
+                     "EnodeB-id": 0
+              },
+              {
+                     "MSISDN": 3,
+                     "IMEI": 1,
+                     "IMSI": 1,
+                     "MME_ID": 1,
+                     "TMSI": 1,
+                     "EnodeB-id": 0
+              }
+       ]
+}

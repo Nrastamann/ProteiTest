@@ -4,11 +4,12 @@
 #include <variant>
 
 #include "mncs_ueconnection.hpp"
+
 #include "utility.hpp"
 
 namespace mncs {
 class UEConnection;
-
+class BaseStation;
 struct TTLResetUE {
   size_t _connection_id;
 };
@@ -194,4 +195,12 @@ using ToHLR = std::variant<AuthInfoRequest, LocationUpdateReq, CancelLocationReq
 
 using FromHLR =
     std::variant<AuthInfoResponse, LocationUpdateAns, CancelLocationResp, RouteRequestAns>;
+
+using serviceMsg = std::variant<EnodeBEnodeBRecv, EnodeBEnodeBSend, EnodeBToMME, EnodeBFromMME>;
+
+struct ServiceMsgWrapper {
+  serviceMsg _data;
+  size_t _enodeb_id;
+};
+
 }  // namespace mncs

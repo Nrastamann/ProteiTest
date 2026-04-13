@@ -1,12 +1,13 @@
 #pragma once
 #include <cstdint>
-#include <set>
 #include <unordered_map>
-#include <variant>
+#include "mncs_basestation.hpp"
+#include "mncs_ueconnection.hpp"
+
 #include "mncs_messages.hpp"
 #include "rigtorp/SPSCQueue.h"
 #include "timer.hpp"
-#include "utility.hpp"
+
 namespace mncs {
 class MME {
   static constexpr size_t kDefaultTtl{120000};
@@ -47,6 +48,15 @@ class MME {
   void terminate();
   void handover();
   void process();
+  bool getStatus() const { return _is_on; }
+  rigtorp::SPSCQueue<EnodeBToMME>& getToMme() { return _to_mme; }
+  rigtorp::SPSCQueue<EnodeBFromMME>& getFromMme() { return _from_mme; }
+
+  rigtorp::SPSCQueue<HandoverMsg>& getToHandover() { return _handover_queue; }
+  rigtorp::SPSCQueue<HandoverMsg>& getFromHandover() { return _handover_ans; }
+
+  rigtorp::SPSCQueue<ToHLR>& getToHLR() { return _to_hlr; }
+  rigtorp::SPSCQueue<FromHLR>& getFromHLR() { return _from_hlr; }
 
  private:
   rigtorp::SPSCQueue<EnodeBToMME> _to_mme{kMMELength};

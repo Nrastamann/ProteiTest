@@ -50,81 +50,85 @@ void MME::process()
   while (_is_on) {
     auto* msg = _from_mme.front();
     auto* from_hlr = _from_hlr.front();
-    std::visit(
-        utility::Visitor{
-            [](auto&) { std::unreachable(); },
-            [this](AttachRequest& msg) {
-              uint32_t tmsi = genTmsi(msg._data._msisdn);
-              _attachstate.insert(
-                  {tmsi, AttachState{._imsi = msg._data._imsi,
-                                     ._imei = msg._data._imei,
-                                     ._msisdn = msg._data._msisdn,
-                                     ._enodeb_id = msg._id._enodeb_id,
-                                     ._connection_id = msg._id._connection_id}});
-              _to_hlr.push(AuthInfoRequest{._tmsi = tmsi, ._imsi = msg._data._imsi});
-            },
-            [this](AuthResponse& msg) {
-              auto& state = _attachstate.at(msg._tmsi);
+    while (msg != nullptr) {
+      std::visit(
+          utility::Visitor{
+              [](auto&) { std::unreachable(); },
+              [this](AttachRequest& msg) {
+                uint32_t tmsi = genTmsi(msg._data._msisdn);
+                _attachstate.insert(
+                    {tmsi, AttachState{._imsi = msg._data._imsi,
+                                       ._imei = msg._data._imei,
+                                       ._msisdn = msg._data._msisdn,
+                                       ._enodeb_id = msg._id._enodeb_id,
+                                       ._connection_id = msg._id._connection_id}});
+                _to_hlr.push(AuthInfoRequest{._tmsi = tmsi, ._imsi = msg._data._imsi});
+              },
+              [this](AuthResponse& msg) {
+                auto& state = _attachstate.at(msg._tmsi);
 
-              _to_hlr.push(LocationUpdateReq{._enodeb_id = state._enodeb_id,
-                                             ._msisdn = state._msisdn,
-                                             ._imsi = state._imsi,
-                                             ._mme_id = _mme_id});
-            },
-            [this](OutOfService& msg) {
-              auto& state = _attachstate.at(msg._tmsi);
+                _to_hlr.push(LocationUpdateReq{._enodeb_id = state._enodeb_id,
+                                               ._msisdn = state._msisdn,
+                                               ._imsi = state._imsi,
+                                               ._mme_id = _mme_id});
+              },
+              [this](OutOfService& msg) {
+                auto& state = _attachstate.at(msg._tmsi);
 
-              _to_hlr.push(CancelLocationReq{._msisdn = state._msisdn});
-            },
-            [this](SendInto& msg) {
-              _smsstate[msg._msisdn].push_back({{._enodeb_s = msg._id._id._enodeb_id,
-                                                 ._connection_id = msg._id._id._enodeb_id,
-                                                 ._sms_id = msg._id._smsid},
-                                                pr_utils::Timer(kSmsttl)});
-              _to_hlr.push(RouteRequest{._msisdn_dst = msg._msisdn, ._tmsi_s = msg._tmsi_s});
-            },
-            [this](ResetSMSTTL& msg) {
-              auto it = _smsstate.find(msg._tmsi_d);
-              if (it == _smsstate.end()) {
-                return;
-              }
-              for (auto& sms : it->second) {
-                if (sms.first._sms_id == msg._sms_id) {
-                  sms.second.restart();
+                _to_hlr.push(CancelLocationReq{._msisdn = state._msisdn});
+              },
+              [this](SendInto& msg) {
+                _smsstate[msg._msisdn].push_back({{._enodeb_s = msg._id._id._enodeb_id,
+                                                   ._connection_id = msg._id._id._enodeb_id,
+                                                   ._sms_id = msg._id._smsid},
+                                                  pr_utils::Timer(kSmsttl)});
+                _to_hlr.push(RouteRequest{._msisdn_dst = msg._msisdn, ._tmsi_s = msg._tmsi_s});
+              },
+              [this](ResetSMSTTL& msg) {
+                auto it = _smsstate.find(msg._tmsi_d);
+                if (it == _smsstate.end()) {
+                  return;
                 }
-              }
-            },
-            [this](DeliveryReport& msg) {
-              auto it = _smsstate.find(msg._tmsi_d);
-              if (it == _smsstate.end()) {
-                return;
-              }
-              SMSState state{};
-              size_t i = 0;
-              for (auto& sms : it->second) {
-                if (sms.first._sms_id == msg._sms_id) {
-                  state = sms.first;
-                  break;
-                }
-                ++i;
-              }
-              _from_mme.push(
-                  StatusReport{._id = {._id = {._connection_id = state._connection_id,
-                                               ._enodeb_id = state._enodeb_s},
-                                       ._smsid = state._sms_id}});
-
-              _smsstate.erase(it->first);
-              for (auto& el : _source_sms) {
-                for (auto& j : el.second) {
-                  if (it->first == j.first && j.second > i) {
-                    j.second--;
+                for (auto& sms : it->second) {
+                  if (sms.first._sms_id == msg._sms_id) {
+                    sms.second.restart();
                   }
                 }
-              }
-            },
-        },
-        *msg);
+              },
+              [this](DeliveryReport& msg) {
+                auto it = _smsstate.find(msg._tmsi_d);
+                if (it == _smsstate.end()) {
+                  return;
+                }
+                SMSState state{};
+                size_t i = 0;
+                for (auto& sms : it->second) {
+                  if (sms.first._sms_id == msg._sms_id) {
+                    state = sms.first;
+                    break;
+                  }
+                  ++i;
+                }
+                _from_mme.push(
+                    StatusReport{._id = {._id = {._connection_id = state._connection_id,
+                                                 ._enodeb_id = state._enodeb_s},
+                                         ._smsid = state._sms_id}});
 
+                _smsstate.erase(it->first);
+                for (auto& el : _source_sms) {
+                  for (auto& j : el.second) {
+                    if (it->first == j.first && j.second > i) {
+                      j.second--;
+                    }
+                  }
+                }
+              },
+          },
+          *msg);
+
+      _from_mme.pop();
+      msg = _from_mme.front();
+    }
     auto* hlr_ans = _from_hlr.front();
     while (hlr_ans != nullptr) {
       std::visit(
@@ -183,7 +187,7 @@ void MME::process()
                                            ._sms_id = copy._sms_id,
                                            ._enodeb_s = copy._enodeb_s,
                                            ._enodeb_t = msg._enodeb_target},
-                                  pr_utils::Timer(kSmsttl));
+                                  pr_utils::Timer(_ttl));
                 _from_mme.push(
                     RouteRequestEB{._enodeb_target = msg._enodeb_target,
                                    ._id = {._smsid = copy._sms_id,
@@ -219,7 +223,7 @@ void MME::process()
 void MME::terminate()
 {
   while (_is_on) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(kSleepTimeForTerminate));
+    std::this_thread::sleep_for(std::chrono::milliseconds(_ttl));
     if (!_start_ticking && _counter == 0) {
       _start_ticking = true;
       _ttlepc.restart();

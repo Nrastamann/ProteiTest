@@ -1,6 +1,10 @@
 #include "mncs_ueconnection.hpp"
+#include <netinet/in.h>
 #include <sys/socket.h>
+#include <bit>
 #include <chrono>
+#include <iostream>
+#include <iterator>
 #include <thread>
 #include <unordered_map>
 #include <utility>
@@ -17,22 +21,24 @@ void UEConnection::sendTask()
   auto* it_begin = packets.begin();
   messages::ue::UEMessageData msg;
   while (_socket != -1) {
-    auto* it = std::prev(packets.begin());
+
+    auto* it = packets.begin();
 
     auto* message_to_send = _messages_send.front();
     auto* measurement_results = _measurementQ.front();
 
-    while (message_to_send != nullptr || measurement_results != nullptr ||
-           packets.end() != it_begin) {
-      while (measurement_results != nullptr) {
+    while ((message_to_send != nullptr || measurement_results != nullptr) &&
+           packets.end() != it) {
+      while (measurement_results != nullptr && packets.end() != it) {
         msg = {*measurement_results};
         _socket_data_processing.at(messages::ue::MessageFlag::MeasureResponse)(msg);
-        *std::next(it, 1) = messages::ue::UEMessage{
-            ._msg_type = messages::ue::MessageFlag::MeasureResponse, ._data = msg};
+        *it = messages::ue::UEMessage{._msg_type = messages::ue::MessageFlag::MeasureResponse,
+                                      ._data = msg};
+        std::advance(it, 1);
         _measurementQ.pop();
         measurement_results = _measurementQ.front();
       }
-      while (message_to_send != nullptr) {
+      while (message_to_send != nullptr && packets.end() != it) {
         messages::ue::MessageFlag flag = std::visit(
             utility::Visitor{
                 [](auto&) { return messages::ue::MessageFlag::SMSStatus; },
@@ -54,16 +60,19 @@ void UEConnection::sendTask()
                 }},
             *message_to_send);
         _socket_data_processing.at(flag)(*message_to_send);
-        *std::next(it, 1) =
-            messages::ue::UEMessage{._msg_type = flag, ._data = *message_to_send};
-
+        *it = messages::ue::UEMessage{._msg_type = flag, ._data = *message_to_send};
+        std::advance(it, 1);
         _messages_send.pop();
         message_to_send = _messages_send.front();
       }
     }
-    ssize_t status = send(_socket, packets.begin(),
-                          ((it - it_begin) + 1) * sizeof(messages::ue::UEMessage), 0);
-
+    if (it - it_begin <= 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(25));
+      continue;
+    }
+    ssize_t status =
+        send(_socket, packets.begin(), (it - it_begin) * sizeof(messages::ue::UEMessage), 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(25));
     if (status == -1) {
       terminate();
       std::cout << "SEND ERROR\n";  //temp
@@ -76,8 +85,13 @@ void UEConnection::receiveTask(
 {
   std::array<messages::ue::UEMessage, kBufferLength> packets;
   messages::ue::UEMessageData msg;
+
   while (-1 != _socket) {
-    ssize_t res = recv(_socket, packets.begin(), sizeof(packets), MSG_DONTWAIT);
+    ssize_t res = recv(_socket, packets.begin(), sizeof(packets), 0);
+    if (res == 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(25));
+      continue;
+    }
     if (res == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         std::this_thread::sleep_for(std::chrono::milliseconds(kSleepTime / 2));
@@ -87,21 +101,22 @@ void UEConnection::receiveTask(
       terminate();
       break;
     }
-
     const auto* it_end = std::next(
         packets.end(), -static_cast<int64_t>((res / sizeof(messages::ue::UEMessage))));
 
     for (auto* it = packets.begin(); it != it_end; std::advance(it, 1)) {
+      std::cout << static_cast<size_t>(it->_msg_type) << '\n';
+      std::cout << static_cast<size_t>(messages::ue::MessageFlag::AttachRequest) << '\n';
       auto cast_fn = _socket_data_processing.find(it->_msg_type);
       cast_fn != _socket_data_processing.end() ? cast_fn->second(it->_data) : terminate();
-      if (-1 != _socket) {
+      if (-1 == _socket) {
         break;
       }
 
       mncs::UEConnection* ptr = this;
       std::visit(
           utility::Visitor{
-              [](auto&) {},
+              [](auto&) { std::unreachable(); },
               [this, &enodeb_list, &ptr](messages::ue::MeasurementReport& msg) {
                 std::visit(
                     utility::Visitor{
