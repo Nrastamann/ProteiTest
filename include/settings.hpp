@@ -2,7 +2,6 @@
 #include "exchange_ue.hpp"
 #include "logger.hpp"
 #include "parsing.hpp"
-#include "resources_test.hpp"
 #include "ue_context.hpp"
 
 class AppSettings {
@@ -10,9 +9,6 @@ class AppSettings {
   explicit AppSettings(parsing::ArgHolder& arguments, ue::DeviceConfiguration& config)
       : _exchanger(config, arguments.getAddr()[0], arguments.getX())
   {
-    logging::SingleThreadPresets::createObject<resources_tests::ConnectionTest>();
-
-    _should_close = !resources_tests::ConnectionTest{{_exchanger.getAddr()}}();
   }
   [[nodiscard]] bool cgetShouldClose() const { return _should_close; }
 

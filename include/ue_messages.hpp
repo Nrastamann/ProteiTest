@@ -4,7 +4,7 @@
 #include <string>
 #include <variant>
 namespace messages::ue {
-static const size_t kMaxSMSLenTemp{480};
+static const size_t kMaxSMSLenTemp{472};
 //sms req/send to send across network
 
 struct SmsReqNet {

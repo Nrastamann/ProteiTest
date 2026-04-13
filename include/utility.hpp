@@ -65,16 +65,17 @@ class Buffer {
   }
   void removeBufferData(buffer_container::iterator it, size_t sms_id)
   {
-    for (auto* it_small = it->begin(); it_small != it->end(); std::advance(it, 1)) {
+    for (auto it_small = it->second.begin(); it_small != it->second.end();
+         std::advance(it, 1)) {
       if (it_small->_sms._smsid == sms_id) {
-        it->erase(it_small);
+        it->second.erase(it_small);
         return;
       }
     }
   }
   BufferData& findBufferData(buffer_container::iterator it, size_t sms_id)
   {
-    for (auto& el : *it) {
+    for (auto& el : it->second) {
       if (el._sms._smsid == sms_id) {
         return el;
       }

@@ -6,15 +6,19 @@
 #include <unistd.h>
 #include <array>
 #include <bit>
+#include <cassert>
 #include <cerrno>
+#include <chrono>
+#include <iostream>
 #include <iterator>
+#include <thread>
 #include <unordered_map>
 #include <variant>
 #include "ip_addr.hpp"
 #include "logger.hpp"
-#include "resources_test.hpp"
 #include "rigtorp/SPSCQueue.h"
 #include "timer.hpp"
+#include "ue_messages.hpp"
 #include "utility.hpp"
 
 namespace ue {
@@ -188,23 +192,25 @@ void Exchanger::sendTask()
       std::this_thread::sleep_for(kSleepTime);
       continue;
     }
-    auto* it = std::prev(packets.begin());
+    auto* it = packets.begin();
     if (messages::ue::AcknowledgmentRequest* data = _acknowledgementQ.front(); is_ack) {
+      messages::ue::UEMessage msg = {._data = *data};
       auto it_func = _receive_map.at(messages::ue::MessageFlag::SMSStatus);
-      *std::next(it, 1) = messages::ue::UEMessage{
-          ._msg_type = messages::ue::MessageFlag::SMSStatus, ._data = *data};
+      *it = messages::ue::UEMessage{._msg_type = messages::ue::MessageFlag::SMSStatus,
+                                    ._data = msg._data};
+      std::advance(it, 1);
       it_func(it->_data);
       _acknowledgementQ.pop();
     }
 
     if (std::string* data = _sendSmsQ.front(); is_sms && _attached) {
       auto it_func = _receive_map.at(messages::ue::MessageFlag::SMSStatus);
-      *std::next(it, 1) =
-          messages::ue::UEMessage{._msg_type = messages::ue::MessageFlag::SMSSend,
-                                  ._data = messages::ue::SmsReqNet{._tmsi = _ctxt.tmsi(),
-                                                                   ._msisdn = _ctxt.msisdn(),
-                                                                   ._smsid = 0,
-                                                                   ._sms = {*data->data()}}};
+      *it = messages::ue::UEMessage{._msg_type = messages::ue::MessageFlag::SMSSend,
+                                    ._data = messages::ue::SmsReqNet{._tmsi = _ctxt.tmsi(),
+                                                                     ._msisdn = _ctxt.msisdn(),
+                                                                     ._smsid = 0,
+                                                                     ._sms = {*data->data()}}};
+      std::advance(it, 1);
       it_func(it->_data);
       _sendSmsQ.pop();
     }
@@ -212,41 +218,58 @@ void Exchanger::sendTask()
     if (auto* data = _poolingSendQ.front(); is_pool) {
       std::visit(
           utility::Visitor{
-              [&it, this](messages::ue::MeasurementRequest req) {
-                *std::next(it, 1) = messages::ue::UEMessage{
+              [&it, this, &packets](messages::ue::MeasurementRequest req) {
+                *it = messages::ue::UEMessage{
                     ._msg_type = messages::ue::MessageFlag::MeasureRequest, ._data = req};
-                auto it_func = _receive_map.at(messages::ue::MessageFlag::MeasureRequest);
-                it_func(it->_data);
+                std::cout << static_cast<size_t>(it->_msg_type) << ' '
+                          << static_cast<size_t>(messages::ue::MessageFlag::MeasureRequest)
+                          << '\n';
+
+                _receive_map.at(messages::ue::MessageFlag::MeasureRequest)(it->_data);
               },
               [&it, this](messages::ue::MeasurementReport req) {
-                *std::next(it, 1) = messages::ue::UEMessage{
+                *it = messages::ue::UEMessage{
                     ._msg_type = messages::ue::MessageFlag::MeasurementReport, ._data = req};
                 auto it_func = _receive_map.at(messages::ue::MessageFlag::MeasurementReport);
                 it_func(it->_data);
               }},
           *data);
+      std::advance(it, 1);
       _poolingSendQ.pop();
     }
 
     if (auto* data = _attachment_send_q.front(); is_attach) {
-      std::visit(utility::Visitor{
-                     [&it, this](messages::ue::AttachRequest req) {
-                       *std::next(it, 1) = messages::ue::UEMessage{
-                           ._msg_type = messages::ue::MessageFlag::AttachRequest, ._data = req};
-                       auto it_func = _receive_map.at(messages::ue::MessageFlag::AttachRequest);
-                       it_func(it->_data);
-                     },
-                     [&it, this](messages::ue::AuthResponse req) {
-                       *std::next(it, 1) = messages::ue::UEMessage{
-                           ._msg_type = messages::ue::MessageFlag::AuthResponse, ._data = req};
-                       auto it_func = _receive_map.at(messages::ue::MessageFlag::AuthResponse);
-                       it_func(it->_data);
-                     }},
-                 *data);
+      messages::ue::UEMessage msg;
+      std::visit(
+          utility::Visitor{
+              [&it, this, &msg](messages::ue::AttachRequest req) {
+                msg._data = req;
+                *it = messages::ue::UEMessage{
+                    ._msg_type = messages::ue::MessageFlag::AttachRequest, ._data = msg._data};
+                auto it_func = _receive_map.at(messages::ue::MessageFlag::AttachRequest);
+                it_func(it->_data);
+              },
+              [&it, this, &msg](messages::ue::AuthResponse req) {
+                msg._data = req;
+                *it = messages::ue::UEMessage{
+                    ._msg_type = messages::ue::MessageFlag::AuthResponse, ._data = msg._data};
+                auto it_func = _receive_map.at(messages::ue::MessageFlag::AuthResponse);
+                it_func(it->_data);
+              }},
+          *data);
+      std::advance(it, 1);
+      std::cout << "yes\n";
       _attachment_send_q.pop();
     }
-    ssize_t status = send(_socket, packets.begin(),
-                          ((it - it_begin) + 1) * sizeof(messages::ue::UEMessage), 0);
+    for (auto& el : packets) {
+      std::cout << static_cast<size_t>(el._msg_type) << '\n';
+    }
+    if (it - it_begin <= 0) {
+      std::cout << "wait\n";
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    ssize_t status =
+        send(_socket, packets.begin(), (it - it_begin) * sizeof(messages::ue::UEMessage), 0);
 
     if (status == -1) {
       closeConnection();
@@ -260,15 +283,20 @@ void Exchanger::receiveTask()
   std::array<messages::ue::UEMessage, kSendQueueNumber> packets;
 
   while (_in_active) {
-    ssize_t received_amount = recv(_socket, packets.begin(), sizeof(packets), MSG_DONTWAIT);
+    ssize_t received_amount = recv(_socket, packets.begin(), sizeof(packets), 0);
 
     if (received_amount == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
         continue;
       }
       std::cout << "RECEIVE ERROR\n";
       closeConnection();
       break;
+    }
+    std::cout << "GDE\n";
+    for (auto& el : packets) {
+      std::cout << +static_cast<size_t>(el._msg_type) << ' ' << std::endl;
     }
     const auto* it_end =
         std::next(packets.end(),
@@ -296,8 +324,7 @@ ConnectionStatus Exchanger::createSocket()
 {
   _socket = ::socket(AF_INET, SOCK_STREAM, 0);
   if (_socket == -1) {
-    logging::SingleThreadPresets::acquiringResourceError<resources_tests::ConnectionTest>(
-        std::format("couldn't create socket to {}", _ip_addr));
+    std::format("couldn't create socket to {}", _ip_addr);
     _in_active = false;
     return ConnectionStatus::socket_creation_err;
   }
@@ -311,8 +338,7 @@ ConnectionStatus Exchanger::createSocket()
 
   if (res != 0) {
     close(_socket);
-    logging::SingleThreadPresets::acquiringResourceError<resources_tests::ConnectionTest>(
-        std::format("couldn't connect to {}", _ip_addr));
+    std::cout << std::format("couldn't connect to {}\n", _ip_addr);
     return ConnectionStatus::connection_err;
   }
   return ConnectionStatus::valid_connection;
@@ -338,17 +364,30 @@ void Exchanger::pingTask()
   uint64_t max_power{};
   pr_utils::Timer timer_ping(_ctxt.ttlUe());
   pushToSend(messages::ue::MeasurementRequest{._imei = _ctxt.imei(), ._x = this->_x});
-
+  auto* msg = _poolingBufferQ.front();
   rigtorp::SPSCQueue<size_t> indexes_to_remove{2};
+  while (msg == nullptr) {
+    msg = _poolingBufferQ.front();
+  }
+
+  auto& test = std::get<messages::ue::MeasurementResponse>(*msg);
+  enodeb_list.insert({test._info._enodeb_id, test._info._enodeb_power});
+  std::thread attach_procedure(&Exchanger::attachTask, this, std::ref(indexes_to_remove));
+  attach_procedure.detach();
+
+  while (_attachment_in_process) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+  }
+
   while (_in_active) {
     while (indexes_to_remove.size() != 0) {
       enodeb_list.erase(*indexes_to_remove.front());
       indexes_to_remove.pop();
     }
+    if (enodeb_list.size() == 0) {
+      continue;
+    }
     max_enodeb_idx = findmaxPower(enodeb_list);
-
-    std::variant<messages::ue::ConfigResponse, messages::ue::MeasurementResponse>* msg =
-        _poolingBufferQ.front();
 
     if (msg != nullptr) {
       std::visit(
@@ -395,14 +434,6 @@ void Exchanger::pingTask()
       pushToSend(messages::ue::MeasurementReport{._enodeb_idx = max_enodeb_idx});
     }
 
-    if (!_attached) {
-      if (0 != enodeb_list.size() && !_attachment_in_process) {
-        std::thread attach_procedure(&Exchanger::attachTask, this, std::ref(indexes_to_remove));
-        attach_procedure.detach();
-      }
-      continue;
-    }
-
     if (_attached && !timer_ping.checkTimer()) {
       continue;
     }
@@ -414,11 +445,6 @@ void Exchanger::pingTask()
 void Exchanger::attachTask(rigtorp::SPSCQueue<size_t>& indexes_to_remove)
 {
   _attachment_in_process = true;
-  auto status = createSocket();
-  if (status != ConnectionStatus::valid_connection) {
-    closeConnection();
-    return;
-  }
 
   while (_in_active && !_attached) {
     pushToSend(messages::ue::AttachRequest{
@@ -428,6 +454,7 @@ void Exchanger::attachTask(rigtorp::SPSCQueue<size_t>& indexes_to_remove)
     });
 
     while (_attachment_recv_q.size() == 0 && _in_active) {
+
       std::this_thread::sleep_for(kSleepTime);
     }
     if (!_in_active) {

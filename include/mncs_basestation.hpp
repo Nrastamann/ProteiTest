@@ -22,13 +22,6 @@ class BaseStation {
   static constexpr size_t kQueueLength{6};
   static constexpr size_t kHandoverDecayMS{2000};
   using connection_id = uint64_t;
-  using serviceMsg =
-      std::variant<EnodeBEnodeBRecv, EnodeBEnodeBSend, EnodeBToMME, EnodeBFromMME>;
-
-  struct ServiceMsgWrapper {
-    serviceMsg _data;
-    size_t _enodeb_id;
-  };
 
  public:
   void ebsend();
@@ -55,6 +48,19 @@ class BaseStation {
   [[nodiscard]] size_t getIdx() const { return _idx; }
   void pushToConnections(UEConnection* connection);
 
+  rigtorp::SPSCQueue<ServiceMsgWrapper>& rerouteRecv();
+  rigtorp::SPSCQueue<ServiceMsgWrapper>& rerouteSend();
+
+  rigtorp::SPSCQueue<EnodeBEnodeBRecv>& enodebRecvQ();
+  rigtorp::SPSCQueue<EnodeBEnodeBSend>& enodebSendQ();
+
+  rigtorp::SPSCQueue<EnodeBFromMME>& mmeMsgsRecv();
+  rigtorp::SPSCQueue<EnodeBToMME>& mmeMsgsSend();
+
+  rigtorp::SPSCQueue<HandoverMsg>& handoverMsgsRecv();
+  rigtorp::SPSCQueue<HandoverMsg>& handoverMsgsSend();
+  utility::Spinlock& getLockRecv();
+
  private:
   void markAsExpired(size_t connection_id);
   void pushToHandoverBuffer(size_t connection_id, size_t target_enodeb);
@@ -63,7 +69,6 @@ class BaseStation {
   void releaseBuffer(size_t connection_id);
   void cancelHandover(size_t connection_id);
   bool contains(size_t connection_id);
-
   alignas(utility::kCacheLength)::utility::Spinlock _lock_send_queues;
   alignas(utility::kCacheLength)::utility::Spinlock _lock_recv_queues;
   alignas(utility::kCacheLength)::utility::Spinlock _handover_buffer_lock;

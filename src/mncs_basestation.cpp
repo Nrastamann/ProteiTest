@@ -98,6 +98,27 @@ void BaseStation::pushDataToHandoverBuffer(size_t connection_id, serviceMsg& msg
 {
   _handover_buffer_lock.lock();
   auto* buf = _reroute_service.at(connection_id).get();
+  size_t target = buf->_target_enodeb;
+  std::visit(
+      utility::Visitor{
+          [this, target](auto& msg) { std::get<Forward>(msg)._enodeb_target = target; },
+          [this, target](EnodeBToMME& msg) {
+            std::visit(utility::Visitor{
+                           [](auto&) {},
+                           [this, target](OutOfService& msg) { msg._enodeb_id = target; },
+                           [this, target](SendInto& msg) { msg._id._id._enodeb_id = target; }},
+                       msg);
+          },
+          [this, target](EnodeBFromMME& msg) {
+            std::visit(
+                utility::Visitor{
+                    [this, target](RemoveConnection& msg) { msg._id._enodeb_id = target; },
+                    [this, target](RouteRequestEB& msg) { msg._id._id._enodeb_id = target; },
+                    [this, target](StatusReport& msg) { msg._id._id._enodeb_id = target; },
+                    [](auto&) {}},
+                msg);
+          }},
+      msg);
   isSend ? buf->_send.push(msg) : buf->_recv.push(msg);
   buf->_timer.restart();
   _handover_buffer_lock.unlock();
@@ -405,4 +426,45 @@ void BaseStation::ebsend()
     }
   }
 }
+
+rigtorp::SPSCQueue<ServiceMsgWrapper>& BaseStation::rerouteRecv()
+{
+  return _reroute_recv;
+};
+rigtorp::SPSCQueue<ServiceMsgWrapper>& BaseStation::rerouteSend()
+{
+  return _reroute_send;
+};
+
+rigtorp::SPSCQueue<EnodeBEnodeBRecv>& BaseStation::enodebRecvQ()
+{
+  return _enodeb_recv_q;
+};
+rigtorp::SPSCQueue<EnodeBEnodeBSend>& BaseStation::enodebSendQ()
+{
+  return _enodeb_send_q;
+};
+
+rigtorp::SPSCQueue<EnodeBFromMME>& BaseStation::mmeMsgsRecv()
+{
+  return _mmeMsgsRecv;
+};
+rigtorp::SPSCQueue<EnodeBToMME>& BaseStation::mmeMsgsSend()
+{
+  return _mmeMsgsSend;
+};
+
+rigtorp::SPSCQueue<HandoverMsg>& BaseStation::handoverMsgsRecv()
+{
+  return _handoverMsgsRecv;
+};
+rigtorp::SPSCQueue<HandoverMsg>& BaseStation::handoverMsgsSend()
+{
+  return _handoverMsgsSend;
+};
+utility::Spinlock& BaseStation::getLockRecv()
+{
+  return _lock_recv_queues;
+}
+
 }  // namespace mncs

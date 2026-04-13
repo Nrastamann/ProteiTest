@@ -48,8 +48,8 @@ if(TEST_COVERAGE)
 endif()
 
 set(SRCS         
-src/display.cpp      src/parsing.cpp  
-src/exchange_ue.cpp  src/menu_functions.cpp  src/settings.cpp
+src/display.cpp      src/menu_functions.cpp               src/parsing.cpp      src/settings.cpp
+src/exchange_ue.cpp    
 )
 
 target_compile_options(proteip PRIVATE
@@ -73,7 +73,8 @@ target_sources(proteip
 )
 
 target_sources(proteip.server 
-        PRIVATE src/server_impl.cpp src/mncs_listener.cpp src/mncs_basestation.cpp src/mncs_ueconnection.cpp ${SRCS}
+        PRIVATE src/server_impl.cpp  src/mncs_mme.cpp src/mncs_basestation.cpp  src/mncs_mmehelper.cpp            src/xlr.cpp
+         src/mncs_listener.cpp     src/mncs_ueconnection.cpp  ${SRCS}
        PRIVATE
                FILE_SET HEADERS
                BASE_DIRS include

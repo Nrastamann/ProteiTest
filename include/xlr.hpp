@@ -5,7 +5,12 @@
 #include <iostream>
 #include <iterator>
 #include <unordered_map>
+#include "mncs_basestation.hpp"
+#include "mncs_messages.hpp"
+#include "mncs_ueconnection.hpp"
+
 #include "nlohmann/json.hpp"
+#include "rigtorp/SPSCQueue.h"
 namespace mncs {
 struct XLRData {
   uint64_t _imei;
@@ -17,6 +22,8 @@ struct XLRData {
 constexpr std::string_view kPathToXlr{"xlr/xlr.json"};
 
 class XLR {
+  void hlr();
+
  public:
   ~XLR()
   {
@@ -95,16 +102,29 @@ class XLR {
 
     std::string str(std::istreambuf_iterator<char>{ofs}, {});
     nlohmann::json data = nlohmann::json::parse(str);
-
     for (auto& i : data.items()) {
-      std::cout << i << ' ';
+      for (auto& val : i.value()) {
+        _data.insert({val.at("MSISDN"),
+                      {._imei = val.at("IMEI"),
+                       ._msisdn = val.at("IMSI"),
+                       ._mmeid = val.at("MME_ID"),
+                       ._last_enodebid = val.at("TMSI"),
+                       ._tmsi = val.at("EnodeB-id")}});
+      }
     }
     std::cout << '\n';
     ofs.close();
+
+    std::thread thr(&XLR::hlr, this);
+    thr.detach();
   }
+  rigtorp::SPSCQueue<mncs::ToHLR>& tohlr() { return _tohlr; }
+  rigtorp::SPSCQueue<mncs::FromHLR>& fromhlr() { return _fromhlr; }
 
  private:
   std::unordered_map<uint64_t, XLRData> _data;
   bool _invalid_state{false};
+  rigtorp::SPSCQueue<mncs::ToHLR> _tohlr{6};
+  rigtorp::SPSCQueue<mncs::FromHLR> _fromhlr{6};
 };
 }  // namespace mncs

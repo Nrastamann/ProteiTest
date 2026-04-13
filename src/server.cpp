@@ -1,5 +1,7 @@
 #include "server.hpp"
 #include <sys/socket.h>
+#include <exception>
+#include <memory>
 #include "config.hpp"
 #include "logger.hpp"
 #include "mncs_basestation.hpp"
@@ -43,6 +45,7 @@ namespace server {
 inline static parsing::ArgHolder::argsMap& getArgSetterServer()
 {
   static parsing::ArgHolder::argsMap map = {
+
       {hashed::kPort,
        [](std::string& value, parsing::ArgHolder& holder) {
          return holder.pushIMEI(std::move(value));
@@ -90,18 +93,27 @@ int serverStart(int argc, char** argv)
     std::cout << kHelpText;
     return 1;
   }
-  std::unordered_map<size_t, std::unique_ptr<mncs::BaseStation>> ptrs;
+  std::unique_ptr<mncs::BaseStation> ptr = std::make_unique<mncs::BaseStation>(1, 2, 3);
+
+  std::unordered_map<size_t, std::unique_ptr<mncs::BaseStation>> ptrs{
+      //     {1, std::make_unique<mncs::BaseStation>(-10, 50, 250)},
+  };
+  ptrs.insert({1, std::make_unique<mncs::BaseStation>(1, 2, 300)});
+  ptrs.insert({2, std::make_unique<mncs::BaseStation>(2, 3, 300)});
+  ptrs.insert({3, std::make_unique<mncs::BaseStation>(3, 4, 300)});
+
   mncs::XLR xlr;
   mncs::Listener listener{port, ptrs};
-  mncs::MME mme;
-  if (!listener.getStatus()) {
+  mncs::MME mme(120000, 1);
+  if (listener.getStatus()) {
+    std::cout << ">";
     return 0;
   }
-
-  //std::thread worker1(&mncs::MME::run, &mme, std::ref(xlr));
-  // worker1.detach();
   listener.startListener();
-  return 0;
+
+  std::thread lstn(&mncs::Listener::server, &listener);
+  while (mme.getStatus()) {}
+  lstn.detach();
 }
 
 }  // namespace server
