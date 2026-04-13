@@ -73,7 +73,7 @@ struct CancelLocationReq {
   uint64_t _msisdn;
 };
 struct CancelLocationResp {
-  ID _id;
+  uint64_t _tmsi;
 };
 
 struct RemoveConnection {
@@ -116,6 +116,7 @@ struct SwitchEnodeB {
   size_t _connection_id;
   utility::default_buffer::iterator _prev_buffer;
   EnodeBID _id;
+  uint32_t _tmsi;
 };
 struct ReleaseBuffer {
   size_t _connection_id;
@@ -137,14 +138,16 @@ struct SendInto {
 struct RouteRequest {
   uint64_t _msisdn_dst;
   uint32_t _tmsi_s;
+  size_t _connection_id;
 };
-struct RouteRequestAnsNegative {
-  uint32_t _tmsi_s;
-};
+
 struct RouteRequestAns {
+  uint64_t _msisdn_dst;
+  size_t _connection_id;
   size_t _enodeb_target;
   uint32_t _tmsi_d;
   uint32_t _tmsi_s;
+  bool _state;
 };
 struct RouteRequestEB {
   SmsId _id;
@@ -156,7 +159,7 @@ struct Forward {
   size_t _enodeb_target;
 };
 struct ResetSMSTTL {
-  size_t _connection_id;
+  size_t _tmsi_d;
   size_t _sms_id;
 };
 
@@ -166,7 +169,6 @@ struct DeliveryReport {
 };
 struct StatusReport {
   SmsId _id;
-  uint32_t _tmsi_s;
 };
 
 using HandoverMsg = std::variant<HandoverStartInit, HandoverRequest, HandoverAck, Move,
@@ -190,6 +192,6 @@ using EnodeBFromMME =
 
 using ToHLR = std::variant<AuthInfoRequest, LocationUpdateReq, CancelLocationReq, RouteRequest>;
 
-using FromHLR = std::variant<AuthInfoResponse, LocationUpdateAns, CancelLocationResp,
-                             RouteRequestAns, RouteRequestAnsNegative>;
+using FromHLR =
+    std::variant<AuthInfoResponse, LocationUpdateAns, CancelLocationResp, RouteRequestAns>;
 }  // namespace mncs
