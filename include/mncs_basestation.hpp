@@ -28,8 +28,8 @@ class BaseStation {
   void handover();
   void updateTTL();
 
-  BaseStation(int64_t x, int64_t radius, uint64_t ttl_ue)
-      : _x(x), _radius(radius), _ttl_ue(ttl_ue)
+  BaseStation(size_t idx, int64_t x, int64_t radius, uint64_t ttl_ue)
+      : _idx(idx), _x(x), _radius(radius), _ttl_ue(ttl_ue)
   {
     if (radius == 0) {
       _radius = 1;

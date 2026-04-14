@@ -1,7 +1,6 @@
 #include "mncs_ueconnection.hpp"
 #include <netinet/in.h>
 #include <sys/socket.h>
-#include <bit>
 #include <chrono>
 #include <iostream>
 #include <iterator>
@@ -47,13 +46,13 @@ void UEConnection::sendTask()
                 },  //error during attach
                 [](messages::ue::SmsReqNet&) { return messages::ue::MessageFlag::SMSSend; },
                 [](messages::ue::ConfigResponse&) {
-                  return messages::ue::MessageFlag::MeasurementReport;
+                  return messages::ue::MessageFlag::ConfigurationResp;
                 },
                 [](messages::ue::AcknowledgmentResponse&) {
                   return messages::ue::MessageFlag::AttachResponse;
                 },
                 [](messages::ue::AttachResponse&) {
-                  return messages::ue::MessageFlag::AttachResponse;
+                  return messages::ue::MessageFlag::SMSStatus;
                 },
                 [](messages::ue::AuthRequest&) {
                   return messages::ue::MessageFlag::AuthRequest;
@@ -61,6 +60,7 @@ void UEConnection::sendTask()
             *message_to_send);
         _socket_data_processing.at(flag)(*message_to_send);
         *it = messages::ue::UEMessage{._msg_type = flag, ._data = *message_to_send};
+        std::cout << +static_cast<size_t>(it->_msg_type) << '\n';
         std::advance(it, 1);
         _messages_send.pop();
         message_to_send = _messages_send.front();
@@ -102,13 +102,12 @@ void UEConnection::receiveTask(
       break;
     }
     const auto* it_end = std::next(
-        packets.end(), -static_cast<int64_t>((res / sizeof(messages::ue::UEMessage))));
+        packets.begin(), static_cast<int64_t>((res / sizeof(messages::ue::UEMessage))));
 
     for (auto* it = packets.begin(); it != it_end; std::advance(it, 1)) {
-      std::cout << static_cast<size_t>(it->_msg_type) << '\n';
-      std::cout << static_cast<size_t>(messages::ue::MessageFlag::AttachRequest) << '\n';
       auto cast_fn = _socket_data_processing.find(it->_msg_type);
       cast_fn != _socket_data_processing.end() ? cast_fn->second(it->_data) : terminate();
+
       if (-1 == _socket) {
         break;
       }
@@ -121,7 +120,18 @@ void UEConnection::receiveTask(
                 std::visit(
                     utility::Visitor{
                         [&enodeb_list, msg, &ptr](bool) {
+                          if (!enodeb_list.contains(msg._enodeb_idx)) {
+                            std::cout << "No such station " << msg._enodeb_idx << '\n'
+                                      << ' ' << enodeb_list.size() << "Existing stations are:";
+                            for (auto& i : enodeb_list) {
+                              std::cout << i.first << ' ';
+                            }
+                            std::cout << std::endl;
+                            return;
+                          }
                           enodeb_list.at(msg._enodeb_idx).get()->pushToConnections(ptr);
+                          ptr->_messages_recv.push(msg);
+                          ptr->_connected_station = msg._enodeb_idx;
                         },
                         [&msg, this](size_t id) {
                           id == msg._enodeb_idx
@@ -153,6 +163,7 @@ void UEConnection::receiveTask(
               },
               [this, &enodeb_list](messages::ue::MeasurementRequest& msg) {
                 for (auto& station : enodeb_list) {
+                  this->_imei = msg._imei;
                   uint64_t power = station.second->getPower(msg._x);
                   _measurementQ.push(messages::ue::MeasurementResponse{
                       ._imei = msg._imei,

@@ -5,6 +5,7 @@
 
 #include "mncs_ueconnection.hpp"
 
+#include "ue_messages.hpp"
 #include "utility.hpp"
 
 namespace mncs {
@@ -179,7 +180,8 @@ using EnodeBRecv =
     std::variant<AttachRequest, AuthResponse, HandoverStart,
                  Ping,  //removed ConnectToEnodeB bcz it should be pushed to enodeb
                  messages::ue::SmsReqNet, messages::ue::AcknowledgmentRequest,
-                 messages::ue::AuthResponse>;  //auth response to error signaling
+                 messages::ue::AuthResponse,
+                 messages::ue::MeasurementReport>;  //auth response to error signaling
 //also pass struct which are pushed into
 //for what if scenario it better be variant
 using EnodeBEnodeBSend = std::variant<Forward>;

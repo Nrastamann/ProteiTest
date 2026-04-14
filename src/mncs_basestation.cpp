@@ -7,6 +7,7 @@
 #include <utility>
 #include <variant>
 #include "mncs_messages.hpp"
+#include "mncs_ueconnection.hpp"
 #include "timer.hpp"
 #include "ue_messages.hpp"
 #include "utility.hpp"
@@ -208,62 +209,63 @@ void BaseStation::handover()
   while (!_shut_down) {
     recv = _handoverMsgsRecv.front();
     while (recv != nullptr) {
-      std::visit(utility::Visitor{
-                     [this](HandoverStartInit& msg) {
-                       pushToHandoverBuffer(msg._connection_id, _idx);
-                       _handoverMsgsSend.push(
-                           HandoverRequest{._connection_id = msg._connection_id,
-                                           ._id = {._dst_id = msg._dst_id, ._src_id = _idx}});
-                     },
-                     [this](HandoverRequest& msg) {
-                       auto* ptr = _buffer.getBuffer();
-                       bool availability = ptr != _buffer.end();
-                       _handoverMsgsSend.push(HandoverAck{
-                           ._id = {._src_id = msg._id._dst_id, ._dst_id = msg._id._src_id},
-                           ._connection_id = msg._connection_id,
-                           ._isAvailable = availability,
-                           ._buffer_idx = static_cast<size_t>(ptr - _buffer.begin())});
-                     },
-                     [this](HandoverAck& msg) {
-                       if (!msg._isAvailable) {
-                         cancelHandover(msg._connection_id);
-                         return;
-                       }
-                       _handoverMsgsSend.push(Move{
-                           ._id = {._src_id = msg._id._dst_id, ._dst_id = msg._id._src_id},
-                           ._buffer_idx = msg._buffer_idx,
-                           ._connectionToMove = _connections.at(msg._connection_id).first});
-                     },
-                     [this](Move& msg) {
-                       auto* prev_buffer = msg._connectionToMove->getBuffer();  //get station
-                       auto* current_buffer =
-                           std::next(_buffer.begin(), static_cast<int64_t>(msg._buffer_idx));
+      std::visit(
+          utility::Visitor{
+              [this](HandoverStartInit& msg) {
+                pushToHandoverBuffer(msg._connection_id, _idx);
+                _handoverMsgsSend.push(
+                    HandoverRequest{._connection_id = msg._connection_id,
+                                    ._id = {._dst_id = msg._dst_id, ._src_id = _idx}});
+              },
+              [this](HandoverRequest& msg) {
+                auto* ptr = _buffer.getBuffer();
+                bool availability = ptr != _buffer.end();
+                _handoverMsgsSend.push(
+                    HandoverAck{._id = {._src_id = msg._id._dst_id, ._dst_id = msg._id._src_id},
+                                ._connection_id = msg._connection_id,
+                                ._isAvailable = availability,
+                                ._buffer_idx = static_cast<size_t>(ptr - _buffer.begin())});
+              },
+              [this](HandoverAck& msg) {
+                if (!msg._isAvailable) {
+                  cancelHandover(msg._connection_id);
+                  return;
+                }
+                _handoverMsgsSend.push(
+                    Move{._id = {._src_id = msg._id._dst_id, ._dst_id = msg._id._src_id},
+                         ._buffer_idx = msg._buffer_idx,
+                         ._connectionToMove = _connections.at(msg._connection_id).first});
+              },
+              [this](Move& msg) {
+                auto* prev_buffer = msg._connectionToMove->getBuffer();  //get station
+                auto* current_buffer =
+                    std::next(_buffer.begin(), static_cast<int64_t>(msg._buffer_idx));
 
-                       for (auto& msg : prev_buffer->second) {
-                         current_buffer->second.push_back(msg);
-                       }
-                       _net_connection_lock.lock();
-                       msg._connectionToMove->setBuffer(current_buffer);
-                       msg._connectionToMove->setEnodeb(_idx);
+                for (auto& msg : prev_buffer->second) {
+                  current_buffer->second.push_back(msg);
+                }
+                _net_connection_lock.lock();
+                msg._connectionToMove->setBuffer(current_buffer);
+                msg._connectionToMove->setEnodeb(_idx);
 
-                       _connections.insert({msg._connectionToMove->getIdx(),
-                                            {msg._connectionToMove, pr_utils::Timer(_ttl_ue)}});
-                       _net_connection_lock.unlock();
+                _connections.insert({msg._connectionToMove->getIdx(),
+                                     {msg._connectionToMove, pr_utils::Timer(_ttl_ue * 100)}});
+                _net_connection_lock.unlock();
 
-                       _handoverMsgsSend.push(SwitchEnodeB{
-                           ._id = {._dst_id = msg._id._src_id, ._src_id = msg._id._dst_id},
-                           ._connection_id = msg._connectionToMove->getIdx(),
-                           ._tmsi = msg._connectionToMove->getTmsi()});
-                     },
-                     [this](ReleaseBuffer& msg) {
-                       _buffer.releaseBuffer(msg._prev_buffer);
-                       _net_connection_lock.lock();
-                       _connections.erase(msg._connection_id);
-                       _net_connection_lock.unlock();
-                       markAsExpired(msg._connection_id);
-                     },
-                     [](auto&) { std::unreachable(); }},
-                 *recv);
+                _handoverMsgsSend.push(SwitchEnodeB{
+                    ._id = {._dst_id = msg._id._src_id, ._src_id = msg._id._dst_id},
+                    ._connection_id = msg._connectionToMove->getIdx(),
+                    ._tmsi = msg._connectionToMove->getTmsi()});
+              },
+              [this](ReleaseBuffer& msg) {
+                _buffer.releaseBuffer(msg._prev_buffer);
+                _net_connection_lock.lock();
+                _connections.erase(msg._connection_id);
+                _net_connection_lock.unlock();
+                markAsExpired(msg._connection_id);
+              },
+              [](auto&) { std::unreachable(); }},
+          *recv);
     }
   }
 }
@@ -279,10 +281,35 @@ void BaseStation::ebsend()
   auto* mme = _mmeMsgsRecv.front();
   EnodeBRecv* connection_msg = nullptr;
   std::vector<size_t> connections;
-  while (_shut_down) {
+  while (!_shut_down) {
     while (enodeb != nullptr) {
-      std::visit(utility::Visitor{[this](auto&) {}}, *enodeb);
-      //      _handover_buffer_lock.lock();
+      std::visit(utility::Visitor{[this](Forward& msg) {
+                   _mmeMsgsSend.push(mncs::ResetSMSTTL{._sms_id = msg._msg._smsid,
+                                                       ._tmsi_d = msg._msg._tmsi});
+                   mncs::UEConnection* connection_ptr = nullptr;
+                   for (auto* it = _buffer.begin(); it != _buffer.end(); std::advance(it, 1)) {
+                     if (it->first == msg._msg._tmsi) {
+                       for (auto connection : _connections) {  //very bad
+                         if (connection.second.first->getBuffer() == it) {
+                           connection_ptr = connection.second.first;
+                           break;
+                         }
+                       }
+                       break;
+                     }
+                   }
+                   if (connection_ptr == nullptr) {
+                     return;
+                   }
+                   if (_reroute_service.contains(connection_ptr->getIdx())) {
+                     //mncs::serviceMsg msg_wrap{EnodeBEnodeBRecv{}};
+                     // pushDataToHandoverBuffer(connection_ptr->getIdx(), msg_wrap, false);
+                     return;
+                   }
+
+                   connection_ptr->pushToUE(msg._msg);
+                 }},
+                 *enodeb);
 
       _enodeb_recv_q.pop();
       enodeb = _enodeb_recv_q.front();
@@ -347,9 +374,14 @@ void BaseStation::ebsend()
       }
       connection_msg = connection.second.first->getFromUE();
       while (connection_msg != nullptr) {
-
         std::visit(
             utility::Visitor{
+                [this, &connection](messages::ue::MeasurementReport&) {
+                  connection.second.first->pushToUE(messages::ue::ConfigResponse{
+                      ._imei = connection.second.first->getImei(),
+                      ._status = messages::ue::EnodeBStatus::CONNECT,
+                      ._ttl = _ttl_ue});
+                },
                 [this, &connection](Ping) {
                   _update_ttl.push(TTLResetUE{._connection_id = connection.first});
                 },
@@ -385,9 +417,7 @@ void BaseStation::ebsend()
                 },
                 [this, &connection](messages::ue::AuthResponse& msg) {
                   connection.second.first->pushToUE(msg);
-                }
-
-            },
+                }},
             *connection_msg);
         connection.second.first->popFromUe();
         connection_msg = connection.second.first->getFromUE();
@@ -424,7 +454,7 @@ void BaseStation::ebsend()
       _reroute_recv.pop();
       reroute = _reroute_recv.front();
     }
-  }
+  }  // namespace mncs
 }
 
 rigtorp::SPSCQueue<ServiceMsgWrapper>& BaseStation::rerouteRecv()

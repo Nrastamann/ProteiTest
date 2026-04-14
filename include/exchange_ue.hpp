@@ -35,11 +35,11 @@ class Exchanger {
 
  public:
   Exchanger(DeviceConfiguration& ctxt, network_addr::IpAddr& addr, int64_t x)
-      : _ctxt(ctxt, 0, 0), _ip_addr(addr), _x(x) {};
+      : _ctxt(ctxt, 300, 0), _ip_addr(addr), _x(x) {};
   Exchanger(ue::UeContext& ctxt, network_addr::IpAddr& addr, int64_t x)
       : _ctxt(ctxt), _ip_addr(addr), _x(x) {};
 
-  void attachTask(rigtorp::SPSCQueue<size_t>& indexes_to_remove);
+  void attachTask();
   void pingTask();
   void sendTask();
   void receiveTask();

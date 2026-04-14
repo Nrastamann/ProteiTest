@@ -95,7 +95,22 @@ const net_conversion_map& getMap()
            msg._ttl = std::byteswap(msg._ttl);
          }
        }},
-  };
+      {messages::ue::MessageFlag::AuthRequest,
+       [](messages::ue::UEMessageData& message) {
+         message = *std::bit_cast<messages::ue::AuthRequest*>(&message);
+         if constexpr (std::endian::native == std::endian::little) {
+           auto& msg = std::get<messages::ue::AuthRequest>(message);
+           msg._tmsi = std::byteswap(msg._tmsi);
+         }
+       }},
+      {messages::ue::MessageFlag::AuthResponse, [](messages::ue::UEMessageData& message) {
+         message = *std::bit_cast<messages::ue::AuthResponse*>(&message);
+         if constexpr (std::endian::native == std::endian::little) {
+           auto& msg = std::get<messages::ue::AuthResponse>(message);
+           msg._imei = std::byteswap(msg._imei);
+           msg._tmsi = std::byteswap(msg._tmsi);
+         }
+       }}};
   return receive_work;
 }
 void Exchanger::receiveSmsTask(data_storage::DataPool& data)
@@ -112,7 +127,6 @@ void Exchanger::receiveSmsTask(data_storage::DataPool& data)
 }
 void Exchanger::receiveSmsStatusTask(data_storage::DataPool& data)
 {
-
   while (_in_active) {
     if (_receivedSmsStatusQ.size() == 0) {
       std::this_thread::sleep_for(kSleepTime);
@@ -173,13 +187,13 @@ void Exchanger::pushToRecv(recv_type&& msg)
       },
       std::move(msg));
 }
+
 void Exchanger::sendTask()
 {
   //need to change logger behaviour in multithread mode, need to lock less
   //and run it separate thread
   // logging::MultithreadPresets::functionCall();
   std::array<messages::ue::UEMessage, kSendQueueNumber> packets;
-
   const auto* it_begin = packets.begin();
   while (_in_active) {
 
@@ -195,7 +209,9 @@ void Exchanger::sendTask()
     auto* it = packets.begin();
     if (messages::ue::AcknowledgmentRequest* data = _acknowledgementQ.front(); is_ack) {
       messages::ue::UEMessage msg = {._data = *data};
+
       auto it_func = _receive_map.at(messages::ue::MessageFlag::SMSStatus);
+
       *it = messages::ue::UEMessage{._msg_type = messages::ue::MessageFlag::SMSStatus,
                                     ._data = msg._data};
       std::advance(it, 1);
@@ -204,7 +220,8 @@ void Exchanger::sendTask()
     }
 
     if (std::string* data = _sendSmsQ.front(); is_sms && _attached) {
-      auto it_func = _receive_map.at(messages::ue::MessageFlag::SMSStatus);
+
+      auto it_func = _receive_map.at(messages::ue::MessageFlag::SMSSend);
       *it = messages::ue::UEMessage{._msg_type = messages::ue::MessageFlag::SMSSend,
                                     ._data = messages::ue::SmsReqNet{._tmsi = _ctxt.tmsi(),
                                                                      ._msisdn = _ctxt.msisdn(),
@@ -221,10 +238,6 @@ void Exchanger::sendTask()
               [&it, this, &packets](messages::ue::MeasurementRequest req) {
                 *it = messages::ue::UEMessage{
                     ._msg_type = messages::ue::MessageFlag::MeasureRequest, ._data = req};
-                std::cout << static_cast<size_t>(it->_msg_type) << ' '
-                          << static_cast<size_t>(messages::ue::MessageFlag::MeasureRequest)
-                          << '\n';
-
                 _receive_map.at(messages::ue::MessageFlag::MeasureRequest)(it->_data);
               },
               [&it, this](messages::ue::MeasurementReport req) {
@@ -258,16 +271,13 @@ void Exchanger::sendTask()
               }},
           *data);
       std::advance(it, 1);
-      std::cout << "yes\n";
       _attachment_send_q.pop();
     }
-    for (auto& el : packets) {
-      std::cout << static_cast<size_t>(el._msg_type) << '\n';
-    }
     if (it - it_begin <= 0) {
-      std::cout << "wait\n";
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      continue;
     }
+    std::cout << '\n';
     ssize_t status =
         send(_socket, packets.begin(), (it - it_begin) * sizeof(messages::ue::UEMessage), 0);
 
@@ -284,7 +294,9 @@ void Exchanger::receiveTask()
 
   while (_in_active) {
     ssize_t received_amount = recv(_socket, packets.begin(), sizeof(packets), 0);
-
+    if (received_amount == 0) {
+      continue;
+    }
     if (received_amount == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
         std::this_thread::sleep_for(std::chrono::milliseconds(25));
@@ -294,10 +306,7 @@ void Exchanger::receiveTask()
       closeConnection();
       break;
     }
-    std::cout << "GDE\n";
-    for (auto& el : packets) {
-      std::cout << +static_cast<size_t>(el._msg_type) << ' ' << std::endl;
-    }
+
     const auto* it_end =
         std::next(packets.end(),
                   -static_cast<int64_t>((received_amount / sizeof(messages::ue::UEMessage))));
@@ -308,6 +317,7 @@ void Exchanger::receiveTask()
       if (!_in_active) {
         break;
       }
+
       std::visit(utility::Visitor{
                      [this](auto&& msg) { pushToRecv(msg); },
                      [](messages::ue::AcknowledgmentRequest) {},
@@ -343,6 +353,7 @@ ConnectionStatus Exchanger::createSocket()
   }
   return ConnectionStatus::valid_connection;
 }
+
 static uint64_t findmaxPower(const std::unordered_map<uint64_t, uint64_t>& list)
 {
   uint64_t idx = list.begin()->first;
@@ -362,90 +373,68 @@ void Exchanger::pingTask()
   std::unordered_map<uint64_t, uint64_t> enodeb_list;
   uint64_t max_enodeb_idx{};
   uint64_t max_power{};
-  pr_utils::Timer timer_ping(_ctxt.ttlUe());
+  bool retryattach = false;
+  pr_utils::Timer timer_ping(500);
   pushToSend(messages::ue::MeasurementRequest{._imei = _ctxt.imei(), ._x = this->_x});
-  auto* msg = _poolingBufferQ.front();
-  rigtorp::SPSCQueue<size_t> indexes_to_remove{2};
-  while (msg == nullptr) {
-    msg = _poolingBufferQ.front();
-  }
-
-  auto& test = std::get<messages::ue::MeasurementResponse>(*msg);
-  enodeb_list.insert({test._info._enodeb_id, test._info._enodeb_power});
-  std::thread attach_procedure(&Exchanger::attachTask, this, std::ref(indexes_to_remove));
-  attach_procedure.detach();
-
-  while (_attachment_in_process) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-  }
-
+  static constexpr double kTtlcoef{1.25};
   while (_in_active) {
-    while (indexes_to_remove.size() != 0) {
-      enodeb_list.erase(*indexes_to_remove.front());
-      indexes_to_remove.pop();
-    }
-    if (enodeb_list.size() == 0) {
-      continue;
-    }
-    max_enodeb_idx = findmaxPower(enodeb_list);
-
-    if (msg != nullptr) {
+    auto* pooling = _poolingBufferQ.front();
+    while (pooling != nullptr) {
       std::visit(
           utility::Visitor{
-              [this, &enodeb_list, &max_power,
-               &max_enodeb_idx](messages::ue::MeasurementResponse& control) {
-                if (control._imei != _ctxt.imei()) {
-                  std::cout << "WRONG IMEI\n";
-                  this->closeConnection();
+              [this, &timer_ping](messages::ue::ConfigResponse& msg) {
+                if (msg._imei != _ctxt.imei()) {
+                  std::cout << "INCORRECT IMEI\n";
+                  closeConnection();
                   return;
                 }
-                enodeb_list[control._info._enodeb_id] = control._info._enodeb_power;
-                if (control._info._enodeb_power > max_power) {
-                  max_power = control._info._enodeb_power;
-                  max_enodeb_idx = control._info._enodeb_id;
+                std::cout << "????\n\n";
+                _ctxt.setTTLUE(msg._ttl);
+                timer_ping.setWaitTime(
+                    static_cast<uint64_t>(static_cast<double>(msg._ttl) / kTtlcoef));
+                timer_ping.restart();
+                if (!this->_attached && !this->_attachment_in_process) {
+                  std::thread attach_procedure(&Exchanger::attachTask, this);
+                  attach_procedure.detach();
                 }
               },
-              [this, &timer_ping, &enodeb_list,
-               &max_enodeb_idx](messages::ue::ConfigResponse& cfg) {
-                if (cfg._status == messages::ue::EnodeBStatus::DISCONNECT) {
-                  enodeb_list.erase(max_enodeb_idx);
-                  max_enodeb_idx = findmaxPower(enodeb_list);
-                  pushToSend(messages::ue::MeasurementReport{._enodeb_idx = max_enodeb_idx});
+
+              [this, &enodeb_list, &max_enodeb_idx](messages::ue::MeasurementResponse& msg) {
+                if (msg._imei != _ctxt.imei()) {
+                  std::cout << "INCORRECT IMEI\n";
+                  closeConnection();
                   return;
+                }
+                enodeb_list.insert({msg._info._enodeb_id, msg._info._enodeb_power});
+                if (!enodeb_list.contains(max_enodeb_idx)) {
+                  max_enodeb_idx = msg._info._enodeb_id;
                 }
 
-                if (cfg._imei != this->_ctxt.imei()) {
-                  std::cout << "WRONG IMEI\n";
-                  this->closeConnection();
-                  return;
-                }
-                this->_ctxt = ue::UeContext(this->_ctxt.tmsi(), cfg._ttl, cfg._imei,
-                                            this->_ctxt.msisdn(), this->_ctxt.imsi());
-                timer_ping.setWaitTime(cfg._ttl);
-                timer_ping.restart();
+                if (enodeb_list.contains(max_enodeb_idx) &&
+                    enodeb_list.at(max_enodeb_idx) < msg._info._enodeb_power) {
+                  max_enodeb_idx = msg._info._enodeb_id;
+                };
               }},
-          *msg);
-      continue;
+          *pooling);
       _poolingBufferQ.pop();
+      pooling = _poolingBufferQ.front();
+    }
+    if (!timer_ping.checkTimer()) {
+      timer_ping.restart();
+      pushToSend(messages::ue::MeasurementRequest{._x = _x, ._imei = _ctxt.imei()});
+      pushToSend(messages::ue::MeasurementReport{._enodeb_idx = _picked_enodeb});
     }
 
     if (_picked_enodeb != max_enodeb_idx) {
       _picked_enodeb = max_enodeb_idx;
-      pushToSend(messages::ue::MeasurementReport{._enodeb_idx = max_enodeb_idx});
     }
-
-    if (_attached && !timer_ping.checkTimer()) {
-      continue;
-    }
-    timer_ping.restart();
-    pushToSend(messages::ue::MeasurementRequest{._imei = _ctxt.imei(), ._x = this->_x});
   }
 }
 
-void Exchanger::attachTask(rigtorp::SPSCQueue<size_t>& indexes_to_remove)
+void Exchanger::attachTask()
 {
   _attachment_in_process = true;
-
+  std::cout << "start coonection\n";
   while (_in_active && !_attached) {
     pushToSend(messages::ue::AttachRequest{
         ._imei = _ctxt.imei(),
@@ -454,7 +443,6 @@ void Exchanger::attachTask(rigtorp::SPSCQueue<size_t>& indexes_to_remove)
     });
 
     while (_attachment_recv_q.size() == 0 && _in_active) {
-
       std::this_thread::sleep_for(kSleepTime);
     }
     if (!_in_active) {

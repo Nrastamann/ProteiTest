@@ -30,9 +30,15 @@ class UeContext : public DeviceConfiguration {
   }
   [[nodiscard]] uint32_t tmsi() const { return _tmsi; }
   [[nodiscard]] uint64_t ttlUe() const { return _ttl_ue; }
+  void setTTLUE(uint64_t ttl)
+  {
+    _ttl_ue = !_overwrite_def ? ttl : _ttl_ue;
+    _overwrite_def = true;
+  }
 
  private:
   uint64_t _ttl_ue;
   uint32_t _tmsi;
+  bool _overwrite_def{false};
 };
 };  // namespace ue

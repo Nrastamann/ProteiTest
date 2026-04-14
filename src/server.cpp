@@ -93,14 +93,13 @@ int serverStart(int argc, char** argv)
     std::cout << kHelpText;
     return 1;
   }
-  std::unique_ptr<mncs::BaseStation> ptr = std::make_unique<mncs::BaseStation>(1, 2, 3);
 
   std::unordered_map<size_t, std::unique_ptr<mncs::BaseStation>> ptrs{
       //     {1, std::make_unique<mncs::BaseStation>(-10, 50, 250)},
   };
-  ptrs.insert({1, std::make_unique<mncs::BaseStation>(1, 2, 300)});
-  ptrs.insert({2, std::make_unique<mncs::BaseStation>(2, 3, 300)});
-  ptrs.insert({3, std::make_unique<mncs::BaseStation>(3, 4, 300)});
+  ptrs.insert({1, std::make_unique<mncs::BaseStation>(1, 1, 2, 300)});
+  ptrs.insert({2, std::make_unique<mncs::BaseStation>(2, 2, 3, 300)});
+  ptrs.insert({3, std::make_unique<mncs::BaseStation>(3, 3, 4, 300)});
 
   mncs::XLR xlr;
   mncs::Listener listener{port, ptrs};
