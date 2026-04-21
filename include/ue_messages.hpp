@@ -37,6 +37,7 @@ struct SmsUe {
   uint64_t _msisdn;
   std::string _sms;
 };
+
 struct AcknowledgmentResponse {
   uint32_t _tmsi;
   size_t _message_id;

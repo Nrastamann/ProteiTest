@@ -121,6 +121,8 @@ void Exchanger::receiveSmsTask(data_storage::DataPool& data)
       continue;
     }
     auto* sms = _receivedSmsQ.front();
+    pushToSend(
+        messages::ue::AcknowledgmentRequest{._sms_id = sms->_smsid, ._tmsi_d = _ctxt.tmsi()});
     data.pushSms(*sms);
     _receivedSmsQ.pop();
   }
