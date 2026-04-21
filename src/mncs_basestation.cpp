@@ -282,6 +282,9 @@ void BaseStation::ebsend()
   EnodeBRecv* connection_msg = nullptr;
   std::vector<size_t> connections;
   while (!_shut_down) {
+
+    enodeb = _enodeb_recv_q.front();
+    mme = _mmeMsgsRecv.front();
     while (enodeb != nullptr) {
       std::visit(utility::Visitor{[this](Forward& msg) {
                    _mmeMsgsSend.push(mncs::ResetSMSTTL{._sms_id = msg._msg._smsid,

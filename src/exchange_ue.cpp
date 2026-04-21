@@ -279,7 +279,6 @@ void Exchanger::sendTask()
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
       continue;
     }
-    std::cout << '\n';
     ssize_t status =
         send(_socket, packets.begin(), (it - it_begin) * sizeof(messages::ue::UEMessage), 0);
 
@@ -390,7 +389,6 @@ void Exchanger::pingTask()
                   closeConnection();
                   return;
                 }
-                std::cout << "????\n\n";
                 _ctxt.setTTLUE(msg._ttl);
                 timer_ping.setWaitTime(
                     static_cast<uint64_t>(static_cast<double>(msg._ttl) / kTtlcoef));

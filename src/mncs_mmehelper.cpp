@@ -12,6 +12,7 @@ void Helper::pushToMME(std::unordered_map<size_t, std::unique_ptr<BaseStation>>&
     while (handover.front() != nullptr) {
       auto& msg = std::get<ReleaseBuffer>(*handover.front());
       ptr_to_nodes.at(msg._enodeb_id)->handoverMsgsRecv().push(msg);
+      handover.pop();
     }
     while (queue_from_mme.front() != nullptr) {
       auto* msg = queue_from_mme.front();
@@ -30,13 +31,17 @@ void Helper::pushToMME(std::unordered_map<size_t, std::unique_ptr<BaseStation>>&
     }
 
     for (auto& node : ptr_to_nodes) {
-      auto& lock = node.second->getLockRecv();
       auto& reroute = node.second->rerouteSend();
       while (reroute.front() != nullptr) {
         auto* msg = reroute.front();
+
+        auto& target_enodeb = ptr_to_nodes.at(msg->_enodeb_id);
+        auto& lock = target_enodeb->getLockRecv();
+
         lock.lock();
         ptr_to_nodes.at(msg->_enodeb_id)->rerouteRecv().push(msg->_data);
         lock.unlock();
+
         reroute.pop();
       }
 
@@ -45,8 +50,12 @@ void Helper::pushToMME(std::unordered_map<size_t, std::unique_ptr<BaseStation>>&
         auto* msg = enodeb.front();
         size_t trgt =
             std::visit(utility::Visitor{[](Forward& msg) { return msg._enodeb_target; }}, *msg);
+
+        auto& target_enodeb = ptr_to_nodes.at(trgt);
+        auto& lock = target_enodeb->getLockRecv();
+
         lock.lock();
-        ptr_to_nodes.at(trgt)->enodebRecvQ().push(*msg);
+        target_enodeb->enodebRecvQ().push(*msg);
         lock.unlock();
         reroute.pop();
       }
@@ -71,6 +80,7 @@ void Helper::pushToMME(std::unordered_map<size_t, std::unique_ptr<BaseStation>>&
     }
   }
 }
+
 void Helper::readFromMME(XLR& xlr, mncs::MME& mme)
 {
   while (!_should_close) {
@@ -91,6 +101,5 @@ void Helper::readFromMME(XLR& xlr, mncs::MME& mme)
       mme_tohlr.pop();
     }
   }
-  //unimplemented
 }
 }  // namespace mncs

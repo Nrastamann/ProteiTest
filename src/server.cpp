@@ -7,6 +7,7 @@
 #include "mncs_basestation.hpp"
 #include "mncs_listener.hpp"
 #include "mncs_mme.hpp"
+#include "mncs_mmehelper.hpp"
 #include "mncs_ueconnection.hpp"
 #include "parsing.hpp"
 #include "xlr.hpp"
@@ -109,7 +110,7 @@ int serverStart(int argc, char** argv)
     return 0;
   }
   listener.startListener();
-
+  mncs::Helper hlpr(ptrs, mme, xlr);
   std::thread lstn(&mncs::Listener::server, &listener);
   while (mme.getStatus()) {}
   lstn.detach();

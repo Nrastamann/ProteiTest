@@ -45,10 +45,11 @@ static uint64_t genTmsi(uint64_t msisdn)
 {
   return std::hash<uint32_t>{}(msisdn);
 }
+
 void MME::process()
 {
   while (_is_on) {
-    auto* msg = _from_mme.front();
+    auto* msg = _to_mme.front();
     auto* from_hlr = _from_hlr.front();
     while (msg != nullptr) {
       std::visit(
@@ -126,8 +127,8 @@ void MME::process()
           },
           *msg);
 
-      _from_mme.pop();
-      msg = _from_mme.front();
+      _to_mme.pop();
+      msg = _to_mme.front();
     }
     auto* hlr_ans = _from_hlr.front();
     while (hlr_ans != nullptr) {
