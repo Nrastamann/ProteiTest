@@ -1,0 +1,251 @@
+{
+       "version": 6,
+       "cmakeMinimumRequired": {
+              "major": 3,
+              "minor": 25,
+              "patch": 0
+       },
+       "configurePresets": [
+              {
+                     "name": "_root_config",
+                     "hidden": true,
+                     "generator": "Ninja",
+                     "binaryDir": "${sourceDir}/build/${presetName}",
+                     "cacheVariables": {
+                            "CMAKE_COLOR_DIAGNOSTICS": "ON",
+                            "CMAKE_CXX_STANDARD": "23",
+                            "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                            "BENCHMARK_ENABLE_ASSEMBLY_TESTS": "OFF",
+                            "BENCHMARK_ENABLE_GTEST_TESTS": "OFF",
+                            "BENCHMARK_ENABLE_TESTING": "OFF"
+                     }
+              },
+              {
+                     "name": "debug",
+                     "displayName": "Debug build",
+                     "hidden": true,
+                     "cacheVariables": {
+                            "TEST_COVERAGE": "ON",
+                            "CMAKE_BUILD_TYPE": "Debug",
+                            "CMAKE_COMPILE_WARNING_AS_ERROR": "ON",
+                            "CPPCHECK": "ON",
+                            "BENCHMARK": "OFF"
+                     },
+                     "inherits": [
+                            "_root_config"
+                     ]
+              },
+              {
+                     "name": "debug-san",
+                     "displayName": "Debug build with sanitizers",
+                     "hidden": true,
+                     "cacheVariables": {
+                            "SANITIZERS": "ON"
+                     },
+                     "inherits": [
+                            "debug"
+                     ]
+              },
+              {
+                     "name": "release",
+                     "displayName": "Release build",
+                     "hidden": true,
+                     "cacheVariables": {
+                            "CMAKE_BUILD_TYPE": "Release",
+                            "BENCHMARK": "ON"
+                     },
+                     "inherits": [
+                            "_root_config"
+                     ]
+              },
+              {
+                     "name": "gcc-toolset",
+                     "hidden": true,
+                     "cacheVariables": {
+                            "SILENCE_WARNING": "-Wno-maybe-uninitialized",
+                            "CMAKE_CXX_COMPILER": "g++",
+                            "CMAKE_C_COMPILER": "gcc"
+                     }
+              },
+              {
+                     "name": "clang-toolset",
+                     "hidden": true,
+                     "cacheVariables": {
+                            "CMAKE_CXX_COMPILER": "clang++",
+                            "CMAKE_C_COMPILER": "clang"
+                     }
+              },
+              {
+                     "name": "debug-san-gcc",
+                     "displayName": "DebugSan-gcc",
+                     "inherits": [
+                            "debug-san",
+                            "gcc-toolset"
+                     ]
+              },
+              {
+                     "name": "debug-san-clang",
+                     "displayName": "DebugSan-clang",
+                     "inherits": [
+                            "debug-san",
+                            "clang-toolset"
+                     ]
+              },
+              {
+                     "name": "debug-gcc",
+                     "displayName": "Debug-gcc",
+                     "inherits": [
+                            "debug",
+                            "gcc-toolset"
+                     ]
+              },
+              {
+                     "name": "debug-clang",
+                     "displayName": "Debug-clang",
+                     "inherits": [
+                            "debug",
+                            "clang-toolset"
+                     ]
+              },
+              {
+                     "name": "release-gcc",
+                     "displayName": "Release-gcc",
+                     "inherits": [
+                            "release",
+                            "gcc-toolset"
+                     ]
+              },
+              {
+                     "name": "release-clang",
+                     "displayName": "Release-clang",
+                     "inherits": [
+                            "release",
+                            "clang-toolset"
+                     ]
+              }
+       ],
+       "buildPresets": [
+              {
+                     "name": "_debug",
+                     "hidden": true,
+                     "targets": [
+                            "proteip",
+                            "proteip.server"
+                     ]
+              },
+              {
+                     "name": "_full",
+                     "hidden": true,
+                     "targets": [
+                            "proteip",
+                            "proteip.server",
+                            "proteip.benchmark"
+                     ]
+              },
+              {
+                     "name": "_source_only",
+                     "hidden": true,
+                     "targets": [
+                            "proteip",
+                            "proteip.server"
+                     ]
+              },
+              {
+                     "name": "debug-san-gcc",
+                     "displayName": "DebugSan-gcc",
+                     "configurePreset": "debug-san-gcc",
+                     "inherits": "_debug"
+              },
+              {
+                     "name": "debug-san-clang",
+                     "displayName": "DebugSan-clang",
+                     "configurePreset": "debug-san-clang",
+                     "inherits": "_debug"
+              },
+              {
+                     "name": "debug-gcc",
+                     "displayName": "Debug-gcc",
+                     "configurePreset": "debug-gcc",
+                     "inherits": "_debug"
+              },
+              {
+                     "name": "debug-clang",
+                     "displayName": "Debug-clang",
+                     "configurePreset": "debug-clang",
+                     "inherits": "_debug"
+              },
+              {
+                     "name": "release-gcc",
+                     "displayName": "Release-gcc",
+                     "configurePreset": "release-gcc",
+                     "inherits": "_source_only"
+              },
+              {
+                     "name": "release-clang",
+                     "displayName": "Release-clang",
+                     "configurePreset": "release-clang",
+                     "inherits": "_source_only"
+              },
+              {
+                     "name": "full-gcc",
+                     "displayName": "Full-project-gcc",
+                     "configurePreset": "release-gcc",
+                     "inherits": "_full"
+              },
+              {
+                     "name": "full-clang",
+                     "displayName": "Full-project-clang",
+                     "configurePreset": "release-clang",
+                     "inherits": "_full"
+              }
+       ],
+       "testPresets": [
+              {
+                     "name": "_root_test",
+                     "hidden": true,
+                     "output": {
+                            "outputOnFailure": true
+                     },
+                     "execution": {
+                            "noTestsAction": "error",
+                            "stopOnFailure": false
+                     }
+              },
+              {
+                     "name": "debug-san-gcc",
+                     "displayName": "DebugSan-gcc",
+                     "configurePreset": "debug-san-gcc",
+                     "inherits": "_root_test"
+              },
+              {
+                     "name": "debug-san-clang",
+                     "displayName": "DebugSan-clang",
+                     "configurePreset": "debug-san-clang",
+                     "inherits": "_root_test"
+              },
+              {
+                     "name": "debug-gcc",
+                     "displayName": "Debug-gcc",
+                     "configurePreset": "debug-gcc",
+                     "inherits": "_root_test"
+              },
+              {
+                     "name": "debug-clang",
+                     "displayName": "Debug-clang",
+                     "configurePreset": "debug-clang",
+                     "inherits": "_root_test"
+              },
+              {
+                     "name": "release-gcc",
+                     "displayName": "Release-gcc",
+                     "configurePreset": "release-gcc",
+                     "inherits": "_root_test"
+              },
+              {
+                     "name": "release-clang",
+                     "displayName": "Release-clang",
+                     "configurePreset": "release-clang",
+                     "inherits": "_root_test"
+              }
+       ]
+}

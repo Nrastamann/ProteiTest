@@ -1,0 +1,42 @@
+#pragma once
+#include <functional>
+#include <variant>
+#include "display.hpp"
+#include "logger.hpp"
+#include "utility.hpp"
+
+namespace menu_hooks {
+using menu_hook = std::variant<std::function<void()>>;
+inline void callHook(const menu_hook& hook)
+{
+  logging::SingleThreadPresets::functionCall();
+  std::visit(utility::Visitor{[](const std::function<void()>& fn) { fn(); }}, hook);
+}
+
+inline void defaultEmpty() {}
+
+namespace pre_hooks_protei {
+inline void defaultClear()
+{
+  logging::SingleThreadPresets::functionCall();
+  display::clearCinBuffer();
+  display::clearScreen();
+}
+}  // namespace pre_hooks_protei
+
+namespace post_hooks_protei {
+inline void defaultClear()
+{
+  logging::SingleThreadPresets::functionCall();
+  display::clearCinBuffer();
+  display::clearScreen();
+  display::displayMenu();
+}
+
+inline void clearBuffer()
+{
+  logging::SingleThreadPresets::functionCall();
+  display::clearCinBuffer();
+}
+}  // namespace post_hooks_protei
+};  // namespace menu_hooks

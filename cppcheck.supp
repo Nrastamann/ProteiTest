@@ -1,0 +1,6 @@
+missingIncludeSystem
+constParameter
+unusedFunction
+*:*gtest*
+*:test.cpp:41
+unmatchedSuppression
